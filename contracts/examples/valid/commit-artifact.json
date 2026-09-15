@@ -1,0 +1,22 @@
+{
+  "id": "artifact_commit",
+  "organization_id": "org_demo",
+  "project_id": "project_orders",
+  "kind": "COMMIT",
+  "uri": "https://git.example/team/orders/commit/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "media_type": "text/x-patch",
+  "provenance": {
+    "task_id": "task_backend",
+    "task_run_id": "run_backend_1",
+    "session_id": "session_backend",
+    "agent_id": "agent_client_a",
+    "owner_user_id": "human_a",
+    "delegated_by_user_id": "human_a",
+    "context_snapshot_id": "snapshot_backend_v1"
+  },
+  "verification_status": "VERIFIED",
+  "acceptance_status": "PENDING",
+  "version": 3,
+  "immutable_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

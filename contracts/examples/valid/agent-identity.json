@@ -1,0 +1,11 @@
+{
+  "id": "agent_client_a",
+  "organization_id": "org_demo",
+  "project_id": "project_orders",
+  "adapter_id": "adapter_mcp_bridge",
+  "adapter_version": "0.1.0",
+  "client_name": "Example Client A",
+  "client_version": "example-1",
+  "registered_by_user_id": "human_a",
+  "registered_at": "2026-09-15T04:00:00Z"
+}

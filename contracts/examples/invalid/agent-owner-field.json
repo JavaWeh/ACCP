@@ -1,0 +1,13 @@
+{
+  "title": "新增订单查询 API",
+  "objective": "提供按订单 ID 查询的接口并提交测试证据",
+  "repository_id": "repository_orders",
+  "acceptance_criteria": [
+    "API 文档经人工接受",
+    "查询与权限检查具有测试报告"
+  ],
+  "context_version_ids": [
+    "context_api_v1"
+  ],
+  "owner_agent_id": "agent_client_a"
+}

@@ -1,0 +1,6 @@
+{
+  "decision": "APPROVE",
+  "binding_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "reason": "attempt to impersonate",
+  "actor_type": "HUMAN"
+}

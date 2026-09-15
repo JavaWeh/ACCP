@@ -1,0 +1,36 @@
+{
+  "name": "accp-design-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ACCP architecture and contract verification tooling; not the platform runtime",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.3 <23",
+    "npm": ">=10 <11"
+  },
+  "scripts": {
+    "check": "npm run check:markdown && npm run check:links && npm run check:openapi && npm run check:contracts && npm run test:tooling && npm run check:private",
+    "check:markdown": "markdownlint-cli2",
+    "check:links": "node scripts/check-links.mjs",
+    "check:openapi": "redocly lint contracts/openapi.yaml",
+    "check:contracts": "node scripts/check-contracts.mjs",
+    "check:private": "node scripts/check-private.mjs",
+    "check:history": "node scripts/check-private.mjs --history",
+    "test:tooling": "node --test scripts/tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.53.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "github-slugger": "2.0.0",
+    "markdown-it": "14.3.0",
+    "markdownlint-cli2": "0.23.2",
+    "yaml": "2.9.1"
+  },
+  "overrides": {
+    "markdownlint-cli2": {
+      "smol-toml": "1.8.0"
+    }
+  }
+}

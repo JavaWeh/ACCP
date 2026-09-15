@@ -1,0 +1,5 @@
+{
+  "decision": "APPROVE",
+  "binding_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "reason": "批准指定版本的一次合并"
+}

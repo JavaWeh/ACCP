@@ -1,0 +1,8 @@
+{
+  "globs": ["README.md", "CONTRIBUTING.md", "docs/**/*.md", "contracts/**/*.md", ".github/**/*.md"],
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD060": false
+  }
+}

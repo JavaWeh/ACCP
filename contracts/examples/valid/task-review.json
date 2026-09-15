@@ -1,0 +1,9 @@
+{
+  "task_run_id": "run_backend_1",
+  "artifact_ids": [
+    "artifact_commit",
+    "artifact_tests"
+  ],
+  "decision": "ACCEPT",
+  "reason": "指定成果满足任务验收条件"
+}

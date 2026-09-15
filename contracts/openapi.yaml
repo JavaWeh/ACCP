@@ -1,0 +1,1740 @@
+openapi: 3.1.1
+info:
+  title: ACCP Collaboration API
+  version: 0.1.0
+  description: Design contract only; no running service. Human accountability, scoped Agent Sessions and
+    immutable execution context. See docs/protocol.md for server-enforced semantics.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  contact:
+    name: ACCP maintainers
+    url: https://github.com/JavaWeh/ACCP
+servers:
+  - url: https://accp.example/api/v1
+    description: Reserved example host; not a deployment
+tags:
+  - name: Tasks
+    description: Tasks domain interfaces; draft v0.1
+  - name: Identity
+    description: Identity domain interfaces; draft v0.1
+  - name: Contexts
+    description: Contexts domain interfaces; draft v0.1
+  - name: Artifacts
+    description: Artifacts domain interfaces; draft v0.1
+  - name: Governance
+    description: Governance domain interfaces; draft v0.1
+  - name: Events
+    description: Events domain interfaces; draft v0.1
+  - name: Adapters
+    description: Adapters domain interfaces; draft v0.1
+security:
+  - HumanBearer: []
+  - AgentBearer: []
+paths:
+  /projects/{id}/repositories:
+    get:
+      operationId: listRepositories
+      tags:
+        - Tasks
+      summary: List configured repositories
+      description: Read project repository configuration; first provider planned is GitHub.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/RepositoryPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /projects/{id}/tasks:
+    post:
+      operationId: createTask
+      tags:
+        - Tasks
+      summary: Create a human-owned task
+      description: Creates DRAFT. Owner must be an active human member; repository and Context versions must belong
+        to this project.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Task
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/CreateTask
+    get:
+      operationId: listTasks
+      tags:
+        - Tasks
+      summary: List project tasks
+      description: Read authorized project tasks.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/TaskPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags:
+        - Tasks
+      summary: Read task state
+      description: Authoritative state; events are notifications, not a replacement for this read.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Task
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /tasks/{id}/commands:
+    post:
+      operationId: commandTask
+      tags:
+        - Tasks
+      summary: Submit, retry or cancel a task
+      description: Task Owner or ADMIN with reason. RETRY creates a new attempt on later claim. Cancellation does
+        not imply external rollback.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Task
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/TaskCommand
+  /tasks/{id}/dependencies:
+    post:
+      operationId: createDependency
+      tags:
+        - Tasks
+      summary: Add a prerequisite
+      description: Only editable task states; same project; reject cycles and self-dependency. Check DAG within
+        project transaction lock.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/TaskDependency
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/CreateDependency
+  /tasks/{id}/assignments:
+    post:
+      operationId: assignTask
+      tags:
+        - Tasks
+      summary: Assign executor or capability queue
+      description: Human Owner authorizes execution; assignment cannot change ownership.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Assignment
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/CreateAssignment
+  /agents:
+    post:
+      operationId: registerAgent
+      tags:
+        - Identity
+      summary: Register an Agent identity
+      description: Human member registers a client and its Adapter manifest. Does not itself grant execution permissions.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/AgentIdentity
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/AgentRegistration
+  /agent-sessions:
+    post:
+      operationId: createAgentSession
+      tags:
+        - Identity
+      summary: Delegate a scoped Agent session
+      description: Human identity determines delegator; scopes cannot exceed current human permissions. Token must
+        not be logged.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/SessionGrant
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/CreateSession
+  /agent-sessions/{id}/revoke:
+    post:
+      operationId: revokeAgentSession
+      tags:
+        - Identity
+      summary: Revoke an Agent session
+      description: Delegator or ADMIN revokes pending and future controlled actions. Already-running external
+        effects require reconciliation.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/AgentSession
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/Reason
+  /adapters/handshake:
+    post:
+      operationId: handshakeAdapter
+      tags:
+        - Adapters
+      summary: Negotiate collaboration capabilities
+      description: Select a supported protocol and capability subset; reject unsupported versions. Does not grant
+        additional scopes.
+      x-accp-actors:
+        - AGENT
+      security:
+        - AgentBearer: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/adapter.schema.json#/$defs/HandshakeResponse
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/adapter.schema.json#/$defs/HandshakeRequest
+  /task-runs/claim:
+    post:
+      operationId: claimTaskRun
+      tags:
+        - Tasks
+      summary: Atomically claim eligible work
+      description: Agent session identity is inferred. Pin published, readable contexts; allocate lease and fencing
+        token. Return 409 NO_ELIGIBLE_TASK when none is available.
+      x-accp-actors:
+        - AGENT
+      security:
+        - AgentBearer: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ClaimResponse
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/ClaimRequest
+  /task-runs/{id}:
+    get:
+      operationId: getTaskRun
+      tags:
+        - Tasks
+      summary: Read execution attempt
+      description: Agent may read only its authorized run; human project access still applies.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/TaskRun
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /task-runs/{id}/heartbeat:
+    post:
+      operationId: heartbeatTaskRun
+      tags:
+        - Tasks
+      summary: Renew active execution lease
+      description: Check current session and fencing. Expired leases cannot be resurrected. Response includes
+        cancellation and Context update signals.
+      x-accp-actors:
+        - AGENT
+      security:
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/Fencing"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/HeartbeatResponse
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/HeartbeatRequest
+  /task-runs/{id}/reports:
+    post:
+      operationId: reportTaskRun
+      tags:
+        - Tasks
+      summary: Report progress or completion candidate
+      description: Agent cannot mark Task DONE. Validate artifact ownership and required evidence before completion
+        candidate enters review.
+      x-accp-actors:
+        - AGENT
+      security:
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/Fencing"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/TaskRun
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/RunReport
+  /projects/{id}/contexts:
+    post:
+      operationId: createContext
+      tags:
+        - Contexts
+      summary: Declare a Context source
+      description: Human project member declares exactly one canonical source.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Context
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/CreateContext
+    get:
+      operationId: listContexts
+      tags:
+        - Contexts
+      summary: List readable Context resources
+      description: Current resource ACLs are checked before listing metadata.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ContextPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /contexts/{id}/versions:
+    post:
+      operationId: createContextVersion
+      tags:
+        - Contexts
+      summary: Submit immutable candidate content
+      description: Verify allowed content URI and digest. New version is CANDIDATE even when submitted by an Agent.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ContextVersion
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/CreateContextVersion
+  /contexts/{id}/versions/{version}:
+    get:
+      operationId: getContextVersion
+      tags:
+        - Contexts
+      summary: Read a precise Context version
+      description: Version path is a ContextVersion ID, not latest. Current ACL applies even to historical content.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - name: version
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ContextVersion
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /contexts/{id}/versions/{version}/publish:
+    post:
+      operationId: publishContextVersion
+      tags:
+        - Contexts
+      summary: Publish reviewed Context content
+      description: Human REVIEWER or ADMIN; verify source revision and content digest before publication. If-Match
+        refers to the ContextVersion resource.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - name: version
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ContextVersion
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/PublishContext
+  /context-snapshots/{id}:
+    get:
+      operationId: getContextSnapshot
+      tags:
+        - Contexts
+      summary: Read pinned execution inputs
+      description: Re-check current permissions; pinning does not freeze authorization.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ContextSnapshot
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /task-runs/{id}/artifacts:
+    post:
+      operationId: registerArtifact
+      tags:
+        - Artifacts
+      summary: Register verifiable execution output
+      description: Server derives provenance from authenticated Run. Do not trust client claims of verification or
+        acceptance.
+      x-accp-actors:
+        - AGENT
+      security:
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/Fencing"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Artifact
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/RegisterArtifact
+  /artifacts/{id}:
+    get:
+      operationId: getArtifact
+      tags:
+        - Artifacts
+      summary: Read artifact and provenance
+      description: Verify resource scope; content access still requires object-level authorization.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Artifact
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /artifacts/{id}/reviews:
+    post:
+      operationId: reviewArtifact
+      tags:
+        - Artifacts
+      summary: Accept or reject a verified artifact
+      description: Human REVIEWER or ADMIN. Acceptance requires VERIFIED. API_READY additionally requires its API
+        ContextVersion to be published.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Artifact
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/ArtifactReview
+  /approvals:
+    get:
+      operationId: listApprovals
+      tags:
+        - Governance
+      summary: List project approvals
+      description: Current project reviewer permissions control visible details.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          description: Project must be authorized by current identity.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ApprovalPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /approvals/{id}:
+    get:
+      operationId: getApproval
+      tags:
+        - Governance
+      summary: Read approval binding
+      description: Agent can read its own request status, not other actors' approvals.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Approval
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /approvals/{id}/decisions:
+    post:
+      operationId: decideApproval
+      tags:
+        - Governance
+      summary: Approve or reject a bound operation
+      description: Authenticated human REVIEWER/ADMIN must differ from requester_user_id. Verify binding digest and
+        expiry. Worker revalidates before one execution.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Approval
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/ApprovalDecision
+  /tool-invocations/{id}:
+    get:
+      operationId: getToolInvocation
+      tags:
+        - Governance
+      summary: Read controlled operation outcome
+      description: Approval does not imply success; UNKNOWN requires external reconciliation. Agents can read only
+        their authorized invocations.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ToolInvocation
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /tasks/{id}/reviews:
+    post:
+      operationId: reviewTask
+      tags:
+        - Tasks
+      summary: Accept or return execution results
+      description: Only current human Owner. Bind Run and verified artifacts. ACCEPT transitions IN_REVIEW to DONE;
+        REJECT preserves review and reopens eligible work.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "201":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/TaskReviewRecord
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/TaskReview
+  /events:
+    get:
+      operationId: listEvents
+      tags:
+        - Events
+      summary: Read event page or SSE stream
+      description: Use Accept application/json for polling or text/event-stream for SSE. Expired cursor returns 410;
+        refetch resources then subscribe again.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          description: Project must be authorized by current identity.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: SSE resume cursor; do not combine with a query cursor.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - next_cursor
+                additionalProperties: false
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: ./schemas/event.schema.json
+                  next_cursor:
+                    type:
+                      - string
+                      - "null"
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE id is cursor, event is CloudEvents type, data is a single-line serialized envelope.
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /audit-records:
+    get:
+      operationId: listAuditRecords
+      tags:
+        - Governance
+      summary: Read responsibility and evidence trail
+      description: Humans with project audit access. Raw credentials and full sensitive Context bodies are never returned.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          description: Project must be authorized by current identity.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/AuditPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+components:
+  securitySchemes:
+    HumanBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Human access token
+      description: Validated OIDC-backed human identity for ACCP; project roles checked server-side.
+    AgentBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Scoped ACCP session token
+      description: Short-lived audience-bound token; session id alone is not a credential.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Unique per actor, route and resource; same key with different input returns 409.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted resource version returned as ETag; 412 on stale version, 428 when absent.
+      schema:
+        type: string
+        pattern: ^"[1-9][0-9]*"$
+    Fencing:
+      name: X-Run-Fencing-Token
+      in: header
+      required: true
+      description: Current server-issued run fencing token; stale or expired leases cannot write.
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    Problem:
+      description: Authentication, authorization, version or domain failure; see code and trace_id.
+      content:
+        application/problem+json:
+          schema:
+            $ref: ./schemas/domain.schema.json#/$defs/Problem

@@ -1,0 +1,7 @@
+{
+  "kind": "API_DOCUMENT",
+  "uri": "https://objects.example/artifacts/api-v2.yaml",
+  "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "media_type": "application/yaml",
+  "context_version_id": "context_api_v2"
+}

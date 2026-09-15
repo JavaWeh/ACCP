@@ -1,0 +1,5 @@
+{
+  "kind": "PROGRESS",
+  "progress_percent": 60,
+  "message": "接口已实现，正在验证权限边界"
+}

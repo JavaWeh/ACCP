@@ -1,0 +1,6 @@
+{
+  "status": "approval_required",
+  "invocation_id": "invocation_merge",
+  "approval_id": "approval_merge",
+  "message": "尚未执行，请由另一位项目审核人确认"
+}

@@ -1,0 +1,49 @@
+# Internal skills and local agent configuration must never be published.
+**/skills/
+**/SKILL.md
+.agents/
+.claude/
+.codex/
+.cursor/
+.gemini/
+**/AGENTS.md
+**/CLAUDE.md
+**/GEMINI.md
+.gitnexus/
+.accp-local/
+
+# Credentials and private runtime data
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets/
+data/
+*.db
+*.sqlite*
+
+# Dependencies, builds and verification output
+node_modules/
+vendor/
+bin/
+dist/
+build/
+coverage/
+.cache/
+.npm/
+*.test
+*.exe
+*.out
+*.log
+
+# Editors and OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

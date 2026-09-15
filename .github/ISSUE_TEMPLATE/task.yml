@@ -1,0 +1,44 @@
+name: 协作任务
+description: 创建有人类 Owner、Context 依据与验收标准的 ACCP 工作项。
+title: "[Task] "
+body:
+  - type: input
+    id: owner
+    attributes:
+      label: 人类 Owner
+      description: 填写负责交付与验收的 GitHub 用户名，Agent 不可作为 Owner。
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: 目标与范围
+      description: 描述使用者、问题和预期结果，标明设计工作或业务实现。
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context 与依赖
+      description: 需求、API、ADR 的版本或不可变链接，以及前置任务。
+    validations:
+      required: true
+  - type: input
+    id: executor
+    attributes:
+      label: 执行者 / Agent
+      description: 可选，记录客户端及版本；不会替代人类责任。
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 成果与验收
+      description: 列出预期文档、契约、代码或报告及可验证条件。
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: 风险与人工审核
+      description: 标明是否涉及权限、数据修改、部署、协议破坏性变更及审核人。
+    validations:
+      required: true

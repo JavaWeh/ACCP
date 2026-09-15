@@ -1,0 +1,23 @@
+{
+  "specversion": "1.0",
+  "id": "event_approval_requested",
+  "source": "urn:accp:control-plane",
+  "type": "io.accp.APPROVAL_REQUESTED.v1",
+  "subject": "projects/project_orders/tasks/task_backend",
+  "time": "2026-09-15T04:00:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "organization_id": "org_demo",
+    "project_id": "project_orders",
+    "aggregate_id": "task_backend",
+    "aggregate_version": 7,
+    "correlation_id": "correlation_orders",
+    "causation_id": "command_orders_7",
+    "task_id": "task_backend",
+    "task_run_id": "run_backend_1",
+    "context_snapshot_id": "snapshot_backend_v1",
+    "invocation_id": "invocation_merge",
+    "approval_id": "approval_merge",
+    "binding_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

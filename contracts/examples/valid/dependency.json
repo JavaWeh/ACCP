@@ -1,0 +1,7 @@
+{
+  "predecessor_task_id": "task_backend",
+  "condition": {
+    "kind": "ARTIFACT_ACCEPTED",
+    "artifact_kind": "API_DOCUMENT"
+  }
+}

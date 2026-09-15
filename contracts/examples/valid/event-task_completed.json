@@ -1,0 +1,25 @@
+{
+  "specversion": "1.0",
+  "id": "event_task_completed",
+  "source": "urn:accp:control-plane",
+  "type": "io.accp.TASK_COMPLETED.v1",
+  "subject": "projects/project_orders/tasks/task_backend",
+  "time": "2026-09-15T04:00:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "organization_id": "org_demo",
+    "project_id": "project_orders",
+    "aggregate_id": "task_backend",
+    "aggregate_version": 9,
+    "correlation_id": "correlation_orders",
+    "causation_id": "command_orders_9",
+    "task_id": "task_backend",
+    "task_run_id": "run_backend_1",
+    "context_snapshot_id": "snapshot_backend_v1",
+    "artifact_ids": [
+      "artifact_commit",
+      "artifact_tests"
+    ],
+    "reviewed_by_user_id": "human_a"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "context_api_v2",
+  "organization_id": "org_demo",
+  "project_id": "project_orders",
+  "context_id": "context_api",
+  "source_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "content_uri": "https://objects.example/artifacts/api-v2.yaml",
+  "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "media_type": "application/yaml",
+  "change_summary": "新增订单查询响应结构",
+  "status": "PUBLISHED",
+  "created_by": {
+    "kind": "AGENT",
+    "session_id": "session_backend",
+    "agent_id": "agent_client_a"
+  },
+  "published_by_user_id": "human_c",
+  "published_at": "2026-09-15T04:00:00Z",
+  "version": 2
+}

@@ -1,0 +1,11 @@
+{
+  "project_id": "project_orders",
+  "agent_id": "agent_client_a",
+  "scopes": [
+    "tasks:execute",
+    "contexts:read",
+    "artifacts:write",
+    "tools:invoke"
+  ],
+  "expires_at": "2026-09-15T04:30:00Z"
+}

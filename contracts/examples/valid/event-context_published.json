@@ -1,0 +1,20 @@
+{
+  "specversion": "1.0",
+  "id": "event_context_published",
+  "source": "urn:accp:control-plane",
+  "type": "io.accp.CONTEXT_PUBLISHED.v1",
+  "subject": "projects/project_orders/contexts/context_api",
+  "time": "2026-09-15T04:00:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "organization_id": "org_demo",
+    "project_id": "project_orders",
+    "aggregate_id": "context_api",
+    "aggregate_version": 3,
+    "correlation_id": "correlation_orders",
+    "causation_id": "command_orders_3",
+    "context_id": "context_api",
+    "context_version_id": "context_api_v2",
+    "published_by_user_id": "human_c"
+  }
+}

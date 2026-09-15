@@ -1,0 +1,20 @@
+{
+  "id": "task_backend",
+  "organization_id": "org_demo",
+  "project_id": "project_orders",
+  "title": "新增订单查询 API",
+  "objective": "提供按订单 ID 查询的接口并提交测试证据",
+  "owner_user_id": "human_a",
+  "repository_id": "repository_orders",
+  "acceptance_criteria": [
+    "API 文档经人工接受",
+    "查询与权限检查具有测试报告"
+  ],
+  "context_version_ids": [
+    "context_api_v1"
+  ],
+  "status": "RUNNING",
+  "version": 3,
+  "created_at": "2026-09-15T04:00:00Z",
+  "updated_at": "2026-09-15T04:00:00Z"
+}

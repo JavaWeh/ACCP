@@ -1,0 +1,8 @@
+{
+  "type": "https://accp.example/problems/version-conflict",
+  "title": "资源版本已变化",
+  "status": 412,
+  "code": "VERSION_CONFLICT",
+  "detail": "读取当前版本后重新确认操作",
+  "trace_id": "trace_orders"
+}

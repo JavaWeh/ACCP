@@ -1,0 +1,14 @@
+{
+  "id": "snapshot_backend_v1",
+  "organization_id": "org_demo",
+  "project_id": "project_orders",
+  "entries": [
+    {
+      "context_id": "context_api",
+      "context_version_id": "context_api_v1",
+      "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "created_at": "2026-09-15T04:00:00Z"
+}

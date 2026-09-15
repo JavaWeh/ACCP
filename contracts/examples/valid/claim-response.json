@@ -1,0 +1,36 @@
+{
+  "run": {
+    "id": "run_backend_1",
+    "organization_id": "org_demo",
+    "project_id": "project_orders",
+    "task_id": "task_backend",
+    "session_id": "session_backend",
+    "agent_id": "agent_client_a",
+    "owner_user_id": "human_a",
+    "delegated_by_user_id": "human_a",
+    "attempt": 1,
+    "context_snapshot_id": "snapshot_backend_v1",
+    "base_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "status": "RUNNING",
+    "fencing_token": 1,
+    "lease_expires_at": "2026-09-15T04:01:30Z",
+    "version": 1,
+    "started_at": "2026-09-15T04:00:00Z"
+  },
+  "snapshot": {
+    "id": "snapshot_backend_v1",
+    "organization_id": "org_demo",
+    "project_id": "project_orders",
+    "entries": [
+      {
+        "context_id": "context_api",
+        "context_version_id": "context_api_v1",
+        "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "created_at": "2026-09-15T04:00:00Z"
+  },
+  "heartbeat_interval_seconds": 30,
+  "lease_duration_seconds": 90
+}

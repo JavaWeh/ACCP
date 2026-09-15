@@ -1,0 +1,8 @@
+{
+  "type": "API",
+  "name": "订单 API",
+  "source": {
+    "kind": "GIT",
+    "canonical_uri": "https://git.example/team/orders/blob/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/api.yaml"
+  }
+}

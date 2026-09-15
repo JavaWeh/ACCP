@@ -1,0 +1,38 @@
+name: Validate documentation and contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up documentation tooling
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+      - name: Check private paths before dependency installation
+        run: node scripts/check-private.mjs --history
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Validate docs, contracts and tooling
+        run: npm run check
+      - name: Check whitespace
+        run: git show --format= --check HEAD

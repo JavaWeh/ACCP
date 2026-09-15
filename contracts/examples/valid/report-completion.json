@@ -1,0 +1,8 @@
+{
+  "kind": "COMPLETION_CANDIDATE",
+  "artifact_ids": [
+    "artifact_commit",
+    "artifact_tests"
+  ],
+  "acceptance_report": "已提交代码和测试报告，等待人类验收"
+}

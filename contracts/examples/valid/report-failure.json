@@ -1,0 +1,5 @@
+{
+  "kind": "FAILURE",
+  "error_code": "TEST_FAILED",
+  "message": "边界测试失败，保留报告供复查"
+}

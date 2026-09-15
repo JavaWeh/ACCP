@@ -1,0 +1,21 @@
+{
+  "id": "artifact_api_v2",
+  "organization_id": "org_demo",
+  "project_id": "project_orders",
+  "kind": "API_DOCUMENT",
+  "uri": "https://objects.example/artifacts/api-v2.yaml",
+  "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "media_type": "application/yaml",
+  "context_version_id": "context_api_v2",
+  "provenance": {
+    "task_id": "task_backend",
+    "task_run_id": "run_backend_1",
+    "session_id": "session_backend",
+    "agent_id": "agent_client_a",
+    "owner_user_id": "human_a",
+    "delegated_by_user_id": "human_a"
+  },
+  "verification_status": "VERIFIED",
+  "acceptance_status": "ACCEPTED",
+  "version": 3
+}

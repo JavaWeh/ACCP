@@ -1,0 +1,2357 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://accp.example/schemas/v0.1/domain.schema.json",
+  "title": "ACCP domain and command contracts v0.1",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "Problem": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 400,
+          "maximum": 599
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trace_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        }
+      },
+      "required": [
+        "type",
+        "title",
+        "status",
+        "code",
+        "detail",
+        "trace_id"
+      ],
+      "additionalProperties": false
+    },
+    "Actor": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "HUMAN"
+            },
+            "user_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            }
+          },
+          "required": [
+            "kind",
+            "user_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "AGENT"
+            },
+            "session_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            },
+            "agent_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            }
+          },
+          "required": [
+            "kind",
+            "session_id",
+            "agent_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "SERVICE"
+            },
+            "service_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            }
+          },
+          "required": [
+            "kind",
+            "service_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "HumanUser": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "issuer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "active": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "issuer",
+        "subject",
+        "display_name",
+        "active"
+      ],
+      "additionalProperties": false
+    },
+    "Membership": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER",
+              "REVIEWER",
+              "VIEWER"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "user_id",
+        "roles",
+        "active",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "Project": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "name",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "Repository": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "provider_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "default_branch": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "provider_id",
+        "url",
+        "default_branch"
+      ],
+      "additionalProperties": false
+    },
+    "AgentRegistration": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "manifest": {
+          "$ref": "adapter.schema.json#/$defs/Manifest"
+        }
+      },
+      "required": [
+        "project_id",
+        "manifest"
+      ],
+      "additionalProperties": false
+    },
+    "AgentIdentity": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "adapter_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "adapter_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "client_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "client_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "registered_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "registered_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "adapter_id",
+        "adapter_version",
+        "client_name",
+        "client_version",
+        "registered_by_user_id",
+        "registered_at"
+      ],
+      "additionalProperties": false
+    },
+    "CreateSession": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "project_id",
+        "agent_id",
+        "scopes",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "AgentSession": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "delegated_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "REVOKED",
+            "EXPIRED"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "agent_id",
+        "delegated_by_user_id",
+        "scopes",
+        "expires_at",
+        "status",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "SessionGrant": {
+      "type": "object",
+      "properties": {
+        "session": {
+          "$ref": "#/$defs/AgentSession"
+        },
+        "access_token": {
+          "type": "string",
+          "minLength": 1,
+          "writeOnly": true
+        },
+        "token_type": {
+          "const": "Bearer"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "session",
+        "access_token",
+        "token_type",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "Reason": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "CreateTask": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "repository_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "context_version_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "extensions": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9.-]+/[a-zA-Z0-9_.-]+$"
+          },
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "title",
+        "objective",
+        "owner_user_id",
+        "repository_id",
+        "acceptance_criteria",
+        "context_version_ids"
+      ],
+      "additionalProperties": false
+    },
+    "Task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "repository_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "context_version_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "DRAFT",
+            "READY",
+            "BLOCKED",
+            "RUNNING",
+            "IN_REVIEW",
+            "DONE",
+            "CANCELED"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "title",
+        "objective",
+        "owner_user_id",
+        "repository_id",
+        "acceptance_criteria",
+        "context_version_ids",
+        "status",
+        "version",
+        "created_at",
+        "updated_at"
+      ],
+      "additionalProperties": false
+    },
+    "TaskCommand": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "enum": [
+            "SUBMIT",
+            "RETRY",
+            "CANCEL"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "command",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "DependencyCondition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "TASK_DONE"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "ARTIFACT_ACCEPTED"
+            },
+            "artifact_kind": {
+              "type": "string",
+              "enum": [
+                "API_DOCUMENT",
+                "COMMIT",
+                "PULL_REQUEST",
+                "CODE_DIFF",
+                "SQL",
+                "TEST_REPORT",
+                "DOCUMENT"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "artifact_kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CreateDependency": {
+      "type": "object",
+      "properties": {
+        "predecessor_task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "condition": {
+          "$ref": "#/$defs/DependencyCondition"
+        }
+      },
+      "required": [
+        "predecessor_task_id",
+        "condition"
+      ],
+      "additionalProperties": false
+    },
+    "TaskDependency": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "predecessor_task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "successor_task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "condition": {
+          "$ref": "#/$defs/DependencyCondition"
+        },
+        "resolved_artifact_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "predecessor_task_id",
+        "successor_task_id",
+        "condition",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "AssignmentTarget": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "agent_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            }
+          },
+          "required": [
+            "agent_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "capability_queue": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            }
+          },
+          "required": [
+            "capability_queue"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CreateAssignment": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/AssignmentTarget"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "Assignment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "target": {
+          "$ref": "#/$defs/AssignmentTarget"
+        },
+        "assigned_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "task_id",
+        "target",
+        "assigned_by_user_id",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "SnapshotEntry": {
+      "type": "object",
+      "properties": {
+        "context_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "context_version_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "context_id",
+        "context_version_id",
+        "content_digest"
+      ],
+      "additionalProperties": false
+    },
+    "ContextSnapshot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SnapshotEntry"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "entries",
+        "content_digest",
+        "created_at"
+      ],
+      "additionalProperties": false
+    },
+    "ClaimRequest": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        }
+      },
+      "required": [
+        "project_id"
+      ],
+      "additionalProperties": false
+    },
+    "TaskRun": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "session_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "owner_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "delegated_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "context_snapshot_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "base_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "RUNNING",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCELED",
+            "LOST"
+          ]
+        },
+        "fencing_token": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lease_expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "task_id",
+        "session_id",
+        "agent_id",
+        "owner_user_id",
+        "delegated_by_user_id",
+        "attempt",
+        "context_snapshot_id",
+        "base_revision",
+        "status",
+        "fencing_token",
+        "lease_expires_at",
+        "version",
+        "started_at"
+      ],
+      "additionalProperties": false
+    },
+    "ClaimResponse": {
+      "type": "object",
+      "properties": {
+        "run": {
+          "$ref": "#/$defs/TaskRun"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/ContextSnapshot"
+        },
+        "heartbeat_interval_seconds": {
+          "type": "integer",
+          "const": 30
+        },
+        "lease_duration_seconds": {
+          "type": "integer",
+          "const": 90
+        }
+      },
+      "required": [
+        "run",
+        "snapshot",
+        "heartbeat_interval_seconds",
+        "lease_duration_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "HeartbeatRequest": {
+      "type": "object",
+      "properties": {
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "observed_at"
+      ],
+      "additionalProperties": false
+    },
+    "HeartbeatResponse": {
+      "type": "object",
+      "properties": {
+        "run": {
+          "$ref": "#/$defs/TaskRun"
+        },
+        "cancel_requested": {
+          "type": "boolean"
+        },
+        "context_update_available": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "run",
+        "cancel_requested",
+        "context_update_available"
+      ],
+      "additionalProperties": false
+    },
+    "RunReport": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "PROGRESS"
+            },
+            "progress_percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "progress_percent",
+            "message"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "FAILURE"
+            },
+            "error_code": {
+              "type": "string",
+              "minLength": 1
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "error_code",
+            "message"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "COMPLETION_CANDIDATE"
+            },
+            "artifact_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "acceptance_report": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "artifact_ids",
+            "acceptance_report"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ContextSource": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ACCP",
+            "GIT",
+            "DOCUMENT_SYSTEM"
+          ]
+        },
+        "canonical_uri": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "kind",
+        "canonical_uri"
+      ],
+      "additionalProperties": false
+    },
+    "CreateContext": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "REQUIREMENT",
+            "API",
+            "DB_SCHEMA",
+            "ADR",
+            "PROJECT_STANDARD"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "$ref": "#/$defs/ContextSource"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "Context": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "REQUIREMENT",
+            "API",
+            "DB_SCHEMA",
+            "ADR",
+            "PROJECT_STANDARD"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "$ref": "#/$defs/ContextSource"
+        },
+        "current_published_version_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "type",
+        "name",
+        "source",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "CreateContextVersion": {
+      "type": "object",
+      "properties": {
+        "source_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "change_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "source_revision",
+        "content_uri",
+        "content_digest",
+        "media_type",
+        "change_summary"
+      ],
+      "additionalProperties": false
+    },
+    "ContextVersion": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "context_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "source_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "change_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "CANDIDATE",
+            "PUBLISHED"
+          ]
+        },
+        "created_by": {
+          "$ref": "#/$defs/Actor"
+        },
+        "published_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "context_id",
+        "source_revision",
+        "content_uri",
+        "content_digest",
+        "media_type",
+        "change_summary",
+        "status",
+        "created_by",
+        "version"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "PUBLISHED"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "published_by_user_id",
+              "published_at"
+            ],
+            "properties": {
+              "published_by_user_id": {},
+              "published_at": {}
+            }
+          }
+        }
+      ]
+    },
+    "PublishContext": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "ArtifactKind": {
+      "type": "string",
+      "enum": [
+        "COMMIT",
+        "PULL_REQUEST",
+        "CODE_DIFF",
+        "API_DOCUMENT",
+        "SQL",
+        "TEST_REPORT",
+        "DOCUMENT"
+      ]
+    },
+    "Provenance": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_run_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "session_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "owner_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "delegated_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "context_snapshot_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        }
+      },
+      "required": [
+        "task_id",
+        "task_run_id",
+        "session_id",
+        "agent_id",
+        "owner_user_id",
+        "delegated_by_user_id",
+        "context_snapshot_id"
+      ],
+      "additionalProperties": false
+    },
+    "RegisterArtifact": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ArtifactKind"
+        },
+        "uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "immutable_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent_artifact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "context_version_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        }
+      },
+      "required": [
+        "kind",
+        "uri",
+        "content_digest",
+        "media_type"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "COMMIT",
+                  "PULL_REQUEST",
+                  "CODE_DIFF"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "immutable_revision"
+            ],
+            "properties": {
+              "immutable_revision": {}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "API_DOCUMENT"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "context_version_id"
+            ],
+            "properties": {
+              "context_version_id": {}
+            }
+          }
+        }
+      ]
+    },
+    "Artifact": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "kind": {
+          "$ref": "#/$defs/ArtifactKind"
+        },
+        "uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "immutable_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent_artifact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "context_version_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNVERIFIED",
+            "VERIFIED",
+            "FAILED"
+          ]
+        },
+        "acceptance_status": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "ACCEPTED",
+            "REJECTED"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "kind",
+        "uri",
+        "content_digest",
+        "media_type",
+        "provenance",
+        "verification_status",
+        "acceptance_status",
+        "version"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "COMMIT",
+                  "PULL_REQUEST",
+                  "CODE_DIFF"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "immutable_revision"
+            ],
+            "properties": {
+              "immutable_revision": {}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "API_DOCUMENT"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "context_version_id"
+            ],
+            "properties": {
+              "context_version_id": {}
+            }
+          }
+        }
+      ]
+    },
+    "ArtifactRelation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "source_artifact_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "target_artifact_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "relation": {
+          "type": "string",
+          "enum": [
+            "DERIVED_FROM",
+            "IMPLEMENTS",
+            "TESTS",
+            "SUPERSEDES"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "source_artifact_id",
+        "target_artifact_id",
+        "relation"
+      ],
+      "additionalProperties": false
+    },
+    "ArtifactReview": {
+      "type": "object",
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "ACCEPT",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "decision",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "TaskReview": {
+      "type": "object",
+      "properties": {
+        "task_run_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "artifact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "ACCEPT",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "task_run_id",
+        "artifact_ids",
+        "decision",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "TaskReviewRecord": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_run_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "artifact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "ACCEPT",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewed_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "reviewed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "task_id",
+        "task_run_id",
+        "artifact_ids",
+        "decision",
+        "reason",
+        "reviewed_by_user_id",
+        "reviewed_at"
+      ],
+      "additionalProperties": false
+    },
+    "OperationBinding": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_run_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "tool_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "tool_schema_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resource_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "resource_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameters_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "artifact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "policy_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "session_id",
+        "task_run_id",
+        "tool_id",
+        "tool_schema_version",
+        "resource_id",
+        "resource_version",
+        "parameters_digest",
+        "artifact_ids",
+        "policy_version",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "Approval": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "invocation_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "requester_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "binding": {
+          "$ref": "#/$defs/OperationBinding"
+        },
+        "binding_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "APPROVED",
+            "REJECTED",
+            "EXPIRED"
+          ]
+        },
+        "decided_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "invocation_id",
+        "requester_user_id",
+        "binding",
+        "binding_digest",
+        "status",
+        "version"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "APPROVED",
+                  "REJECTED"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "decided_by_user_id",
+              "decided_at",
+              "reason"
+            ],
+            "properties": {
+              "decided_by_user_id": {},
+              "decided_at": {},
+              "reason": {}
+            }
+          }
+        }
+      ]
+    },
+    "ApprovalDecision": {
+      "type": "object",
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "binding_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "decision",
+        "binding_digest",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "ToolInvocation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "binding": {
+          "$ref": "#/$defs/OperationBinding"
+        },
+        "binding_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "REQUESTED",
+            "AWAITING_APPROVAL",
+            "READY",
+            "RUNNING",
+            "SUCCEEDED",
+            "FAILED",
+            "UNKNOWN",
+            "CANCELED"
+          ]
+        },
+        "approval_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "external_operation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "result_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "provenance",
+        "binding",
+        "binding_digest",
+        "status",
+        "version",
+        "created_at"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "AWAITING_APPROVAL"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "approval_id"
+            ],
+            "properties": {
+              "approval_id": {}
+            }
+          }
+        }
+      ]
+    },
+    "GatewayApprovalRequired": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "approval_required"
+        },
+        "invocation_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "approval_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "status",
+        "invocation_id",
+        "approval_id",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "AuditRecord": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "actor": {
+          "$ref": "#/$defs/Actor"
+        },
+        "accountable_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "owner_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resource_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_run_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "context_snapshot_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "artifact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "approval_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "result": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trace_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "actor",
+        "accountable_user_id",
+        "action",
+        "resource_id",
+        "result",
+        "trace_id",
+        "occurred_at"
+      ],
+      "additionalProperties": false
+    },
+    "TaskPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Task"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "ContextPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Context"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "ApprovalPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Approval"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "AuditPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AuditRecord"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "RepositoryPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Repository"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

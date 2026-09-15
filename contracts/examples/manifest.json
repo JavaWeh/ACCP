@@ -1,0 +1,348 @@
+{
+  "description": "Standalone structural examples, not one sequential event log. IDs and hosts are fictitious.",
+  "cases": [
+    {
+      "file": "valid/create-task.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/CreateTask",
+      "valid": true
+    },
+    {
+      "file": "valid/task.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Task",
+      "valid": true
+    },
+    {
+      "file": "valid/task-run.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/TaskRun",
+      "valid": true
+    },
+    {
+      "file": "valid/context-snapshot.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/ContextSnapshot",
+      "valid": true
+    },
+    {
+      "file": "valid/agent-identity.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/AgentIdentity",
+      "valid": true
+    },
+    {
+      "file": "valid/agent-session.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/AgentSession",
+      "valid": true
+    },
+    {
+      "file": "valid/create-session.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/CreateSession",
+      "valid": true
+    },
+    {
+      "file": "valid/claim.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/ClaimRequest",
+      "valid": true
+    },
+    {
+      "file": "valid/claim-response.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/ClaimResponse",
+      "valid": true
+    },
+    {
+      "file": "valid/task-command.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/TaskCommand",
+      "valid": true
+    },
+    {
+      "file": "valid/dependency.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/CreateDependency",
+      "valid": true
+    },
+    {
+      "file": "valid/assignment.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Assignment",
+      "valid": true
+    },
+    {
+      "file": "valid/create-context.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/CreateContext",
+      "valid": true
+    },
+    {
+      "file": "valid/context-version.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/ContextVersion",
+      "valid": true
+    },
+    {
+      "file": "valid/register-artifact.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/RegisterArtifact",
+      "valid": true
+    },
+    {
+      "file": "valid/artifact.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Artifact",
+      "valid": true
+    },
+    {
+      "file": "valid/commit-artifact.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Artifact",
+      "valid": true
+    },
+    {
+      "file": "valid/report-progress.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/RunReport",
+      "valid": true
+    },
+    {
+      "file": "valid/report-failure.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/RunReport",
+      "valid": true
+    },
+    {
+      "file": "valid/report-completion.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/RunReport",
+      "valid": true
+    },
+    {
+      "file": "valid/heartbeat.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/HeartbeatRequest",
+      "valid": true
+    },
+    {
+      "file": "valid/approval.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Approval",
+      "valid": true
+    },
+    {
+      "file": "valid/operation-binding.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/OperationBinding",
+      "valid": true
+    },
+    {
+      "file": "valid/approval-decision.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/ApprovalDecision",
+      "valid": true
+    },
+    {
+      "file": "valid/invocation.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/ToolInvocation",
+      "valid": true
+    },
+    {
+      "file": "valid/gateway-approval.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/GatewayApprovalRequired",
+      "valid": true
+    },
+    {
+      "file": "valid/task-review.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/TaskReview",
+      "valid": true
+    },
+    {
+      "file": "valid/audit.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/AuditRecord",
+      "valid": true
+    },
+    {
+      "file": "valid/problem.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Problem",
+      "valid": true
+    },
+    {
+      "file": "valid/adapter-1.json",
+      "schema": "https://accp.example/schemas/v0.1/adapter.schema.json#/$defs/Manifest",
+      "valid": true
+    },
+    {
+      "file": "valid/adapter-2.json",
+      "schema": "https://accp.example/schemas/v0.1/adapter.schema.json#/$defs/Manifest",
+      "valid": true
+    },
+    {
+      "file": "valid/handshake-request.json",
+      "schema": "https://accp.example/schemas/v0.1/adapter.schema.json#/$defs/HandshakeRequest",
+      "valid": true
+    },
+    {
+      "file": "valid/handshake-response.json",
+      "schema": "https://accp.example/schemas/v0.1/adapter.schema.json#/$defs/HandshakeResponse",
+      "valid": true
+    },
+    {
+      "file": "valid/event-task_assigned.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "valid/event-task_started.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "valid/event-context_published.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "valid/event-api_ready.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "valid/event-code_ready.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "valid/event-review_required.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "valid/event-approval_requested.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "valid/event-approval_decided.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "valid/event-task_completed.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "valid/event-task_failed.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
+    },
+    {
+      "file": "invalid/missing-owner.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/CreateTask",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "owner_user_id"
+      }
+    },
+    {
+      "file": "invalid/agent-owner-field.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/CreateTask",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "owner_user_id"
+      }
+    },
+    {
+      "file": "invalid/adapter-version.json",
+      "schema": "https://accp.example/schemas/v0.1/adapter.schema.json#/$defs/Manifest",
+      "valid": false,
+      "expected_error": {
+        "keyword": "enum"
+      }
+    },
+    {
+      "file": "invalid/adapter-no-poll.json",
+      "schema": "https://accp.example/schemas/v0.1/adapter.schema.json#/$defs/Manifest",
+      "valid": false,
+      "expected_error": {
+        "keyword": "contains"
+      }
+    },
+    {
+      "file": "invalid/event-payload-mismatch.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": false,
+      "expected_error": {
+        "keyword": "oneOf"
+      }
+    },
+    {
+      "file": "invalid/event-version.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": false,
+      "expected_error": {
+        "keyword": "const"
+      }
+    },
+    {
+      "file": "invalid/event-sensitive-body.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": false,
+      "expected_error": {
+        "keyword": "additionalProperties",
+        "additionalProperty": "prompt"
+      }
+    },
+    {
+      "file": "invalid/artifact-missing-source.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Artifact",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "context_snapshot_id"
+      }
+    },
+    {
+      "file": "invalid/commit-missing-revision.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Artifact",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "immutable_revision"
+      }
+    },
+    {
+      "file": "invalid/artifact-digest.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Artifact",
+      "valid": false,
+      "expected_error": {
+        "keyword": "pattern"
+      }
+    },
+    {
+      "file": "invalid/task-run-state-confusion.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Task",
+      "valid": false,
+      "expected_error": {
+        "keyword": "enum"
+      }
+    },
+    {
+      "file": "invalid/missing-fencing.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/TaskRun",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "fencing_token"
+      }
+    },
+    {
+      "file": "invalid/agent-direct-done.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/RunReport",
+      "valid": false,
+      "expected_error": {
+        "keyword": "oneOf"
+      }
+    },
+    {
+      "file": "invalid/approval-actor-injection.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/ApprovalDecision",
+      "valid": false,
+      "expected_error": {
+        "keyword": "additionalProperties",
+        "additionalProperty": "actor_type"
+      }
+    },
+    {
+      "file": "invalid/approved-without-reviewer.json",
+      "schema": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Approval",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "decided_by_user_id"
+      }
+    }
+  ]
+}

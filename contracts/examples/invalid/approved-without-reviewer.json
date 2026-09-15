@@ -1,0 +1,26 @@
+{
+  "id": "approval_merge",
+  "organization_id": "org_demo",
+  "project_id": "project_orders",
+  "invocation_id": "invocation_merge",
+  "requester_user_id": "human_a",
+  "binding": {
+    "session_id": "session_backend",
+    "task_run_id": "run_backend_1",
+    "tool_id": "git.merge",
+    "tool_schema_version": "1",
+    "resource_id": "repository_orders:main",
+    "resource_version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "parameters_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "artifact_ids": [
+      "artifact_commit"
+    ],
+    "policy_version": "policy_1",
+    "expires_at": "2026-09-15T04:30:00Z"
+  },
+  "binding_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "status": "APPROVED",
+  "decided_at": "2026-09-15T04:00:00Z",
+  "reason": "已核验指定提交与测试报告",
+  "version": 2
+}

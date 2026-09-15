@@ -1,0 +1,22 @@
+{
+  "specversion": "1.0",
+  "id": "event_task_failed",
+  "source": "urn:accp:control-plane",
+  "type": "io.accp.TASK_FAILED.v1",
+  "subject": "projects/project_orders/tasks/task_backend",
+  "time": "2026-09-15T04:00:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "organization_id": "org_demo",
+    "project_id": "project_orders",
+    "aggregate_id": "task_backend",
+    "aggregate_version": 10,
+    "correlation_id": "correlation_orders",
+    "causation_id": "command_orders_10",
+    "task_id": "task_backend",
+    "task_run_id": "run_backend_1",
+    "context_snapshot_id": "snapshot_backend_v1",
+    "error_code": "LEASE_EXPIRED",
+    "run_status": "LOST"
+  }
+}

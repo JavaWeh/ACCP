@@ -1,0 +1,14 @@
+{
+  "session_id": "session_backend",
+  "task_run_id": "run_backend_1",
+  "tool_id": "git.merge",
+  "tool_schema_version": "1",
+  "resource_id": "repository_orders:main",
+  "resource_version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "parameters_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "artifact_ids": [
+    "artifact_commit"
+  ],
+  "policy_version": "policy_1",
+  "expires_at": "2026-09-15T04:30:00Z"
+}
