@@ -34,9 +34,8 @@ test("human console creates and publishes context, creates a task, and reads aud
   await page.getByRole("button", { name: "新建上下文", exact: false }).click();
   const contextName = `浏览器验收 API ${Date.now()}`;
   await page.getByLabel("名称", { exact: true }).fill(contextName);
-  await page
-    .getByRole("combobox", { name: "类型", exact: true })
-    .selectOption("API");
+  await page.getByRole("button", { name: /类型/ }).click();
+  await page.getByRole("option", { name: "API 契约", exact: true }).click();
   await page.getByLabel("来源版本", { exact: true }).fill("1.0");
   await page.getByLabel("变更说明").fill("浏览器端验收");
   await page.getByLabel("正文（Markdown）").fill("# Orders API\nGET /orders");
@@ -61,11 +60,9 @@ test("human console creates and publishes context, creates a task, and reads aud
   await page
     .getByLabel("验收条件", { exact: false })
     .fill("验证人类责任主体与不可变输入");
-  const versionID = await page
-    .locator('select[name="contexts"] option')
-    .filter({ hasText: contextName })
-    .getAttribute("value");
-  await page.locator('select[name="contexts"]').selectOption(versionID!);
+  await page.getByRole("button", { name: /执行依据/ }).click();
+  await page.getByRole("option", { name: new RegExp(contextName) }).click();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "创建草稿", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: new RegExp(taskName) }).click();
@@ -155,9 +152,13 @@ test("Owner reviews actual protocol evidence and completes the task from Web", a
   const visibleTaskID =
     report.task_id.slice(0, 8) + "…" + report.task_id.slice(-6);
   await page.getByRole("button", { name: new RegExp(visibleTaskID) }).click();
-  await page.getByRole("button", { name: "成果与验收", exact: true }).click();
+  await page.getByRole("tab", { name: "成果与验收", exact: true }).click();
   await page.getByRole("heading", { name: "Owner 最终验收" }).waitFor();
-  await page.locator('input[name="criterion_0"]').check();
+  await page
+    .getByRole("group", { name: "逐项检查验收条件" })
+    .getByRole("checkbox")
+    .first()
+    .press("Space");
   await page
     .getByLabel("审核意见")
     .fill(
@@ -167,7 +168,7 @@ test("Owner reviews actual protocol evidence and completes the task from Web", a
   await expect(
     page.getByRole("dialog").getByText("已完成", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "报告与记录", exact: true }).click();
+  await page.getByRole("tab", { name: "报告与记录", exact: true }).click();
   await expect(
     page.getByRole("dialog").getByText(/接受 · user_bob/),
   ).toBeVisible();

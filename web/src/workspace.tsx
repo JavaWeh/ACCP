@@ -1,8 +1,15 @@
+import { Icon } from "./icons";
+import { Card, Table, ToggleButton, ToggleButtonGroup } from "@heroui/react";
 import { useEffect, useState } from "react";
 import type { Workspace } from "./main";
 import type { Doc, Membership } from "./api";
 import { label, short, stamp } from "./api";
 import {
+  Button,
+  Input,
+  Select,
+  TextArea,
+  Checkbox,
   Action,
   Badge,
   Empty,
@@ -63,13 +70,13 @@ export function Contexts({ w }: { w: Workspace }) {
   const fields = (
     <>
       <Field label="来源版本">
-        <input name="revision" required placeholder="例如：1.0" />
+        <Input name="revision" required placeholder="例如：1.0" />
       </Field>
       <Field label="变更说明">
-        <input name="summary" required placeholder="说明本次版本的变化" />
+        <Input name="summary" required placeholder="说明本次版本的变化" />
       </Field>
       <Field label="正文（Markdown）">
-        <textarea
+        <TextArea
           name="content"
           required
           rows={9}
@@ -80,11 +87,13 @@ export function Contexts({ w }: { w: Workspace }) {
   );
   return (
     <>
-      <div className="toolbar">
-        <p className="muted">发布明确版本，作为任务执行的共同依据。</p>
-        <button className="primary" onClick={() => setCreating(true)}>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
+        <p className="text-sm leading-6 text-slate-600">
+          发布明确版本，作为任务执行的共同依据。
+        </p>
+        <Button variant="primary" onClick={() => setCreating(true)}>
           ＋ 新建上下文
-        </button>
+        </Button>
       </div>
       {error !== undefined && <Message error={error} />}{" "}
       {!w.contexts.length ? (
@@ -92,11 +101,20 @@ export function Contexts({ w }: { w: Workspace }) {
           从需求、API、数据库结构或项目规范开始。
         </Empty>
       ) : (
-        <div className="context-grid">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
           {w.contexts.map((c) => (
-            <button className="context-card" key={c.id} onClick={() => open(c)}>
-              <div className="context-icon">▧</div>
-              <span className="eyebrow">{label(c.type)}</span>
+            <Button
+              variant="secondary"
+              className="context-card"
+              key={c.id}
+              onClick={() => open(c)}
+            >
+              <div className="context-icon">
+                <Icon name="contexts" />
+              </div>
+              <span className="text-xs font-medium tracking-wide text-slate-600">
+                {label(c.type)}
+              </span>
               <h3>{c.name}</h3>
               <p>
                 {c.current_published_version_id
@@ -107,7 +125,7 @@ export function Contexts({ w }: { w: Workspace }) {
                 <span>来源：{c.source.kind}</span>
                 <span>v{c.version} ↗</span>
               </footer>
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -119,10 +137,10 @@ export function Contexts({ w }: { w: Workspace }) {
             action={(data) => save(data)}
           >
             <Field label="名称">
-              <input name="name" required placeholder="例如：订单查询 API" />
+              <Input name="name" required placeholder="例如：订单查询 API" />
             </Field>
             <Field label="类型">
-              <select name="type">
+              <Select name="type">
                 {[
                   "REQUIREMENT",
                   "API",
@@ -134,7 +152,7 @@ export function Contexts({ w }: { w: Workspace }) {
                     {t === "PROJECT_STANDARD" ? "项目规范" : label(t)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             {fields}
           </Form>
@@ -142,7 +160,7 @@ export function Contexts({ w }: { w: Workspace }) {
       )}
       {selected && (
         <Modal title={selected.name} close={() => setSelected(undefined)}>
-          <p className="muted">
+          <p className="text-sm leading-6 text-slate-600">
             权威来源：{selected.source.kind} · 历史正文与版本保持不变。
           </p>
           {versions.map((v) => (
@@ -179,7 +197,11 @@ export function Contexts({ w }: { w: Workspace }) {
               )}
             </div>
           ))}
-          {body && <pre className="content-preview">{body}</pre>}
+          {body && (
+            <pre className="my-4 max-h-96 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-7 whitespace-pre-wrap break-words">
+              {body}
+            </pre>
+          )}
           <details>
             <summary>新增候选版本</summary>
             <Form submit="保存新版本" action={(data) => save(data, selected)}>
@@ -219,71 +241,83 @@ export function Artifacts({ w }: { w: Workspace }) {
   return (
     <>
       {error !== undefined && <Message error={error} />}
-      <div className="toolbar">
-        <p className="muted">核验内容与来源，再由人类接受成果。</p>
-        <span className="count-label">{w.artifacts.length} 份成果</span>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
+        <p className="text-sm leading-6 text-slate-600">
+          核验内容与来源，再由人类接受成果。
+        </p>
+        <span className="text-sm text-slate-600">
+          {w.artifacts.length} 份成果
+        </span>
       </div>
       {!w.artifacts.length ? (
         <Empty title="尚无交付成果">
           Agent 执行任务后，成果会连同来源与核验状态显示在这里。
         </Empty>
       ) : (
-        <section className="panel table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>成果</th>
-                <th>所属任务</th>
-                <th>核验</th>
-                <th>人工接受</th>
-                <th>负责人</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {w.artifacts.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    <strong>{label(a.kind)}</strong>
-                    <small>{short(a.id)}</small>
-                  </td>
-                  <td>
-                    {w.tasks.find((t) => t.id === a.provenance.task_id)
-                      ?.title || short(a.provenance.task_id)}
-                  </td>
-                  <td>
-                    <Badge value={a.verification_status} />
-                  </td>
-                  <td>
-                    <Badge value={a.acceptance_status} />
-                  </td>
-                  <td>{a.provenance.owner_user_id}</td>
-                  <td>
-                    <button className="text-button" onClick={() => open(a)}>
-                      查看 →
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <Card className="panel table-wrap">
+          <Table>
+            <Table.ScrollContainer>
+              <Table.Content aria-label="交付成果">
+                <Table.Header>
+                  <Table.Column isRowHeader>成果</Table.Column>
+                  <Table.Column>所属任务</Table.Column>
+                  <Table.Column>核验</Table.Column>
+                  <Table.Column>人工接受</Table.Column>
+                  <Table.Column>负责人</Table.Column>
+                  <Table.Column>操作</Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {w.artifacts.map((a) => (
+                    <Table.Row key={a.id} id={a.id}>
+                      <Table.Cell>
+                        <strong>{label(a.kind)}</strong>
+                        <small>{short(a.id)}</small>
+                      </Table.Cell>
+                      <Table.Cell>
+                        {w.tasks.find((t) => t.id === a.provenance.task_id)
+                          ?.title || short(a.provenance.task_id)}
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Badge value={a.verification_status} />
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Badge value={a.acceptance_status} />
+                      </Table.Cell>
+                      <Table.Cell>{a.provenance.owner_user_id}</Table.Cell>
+                      <Table.Cell>
+                        <Button
+                          variant="ghost"
+                          className="shrink-0 text-sm"
+                          onClick={() => open(a)}
+                        >
+                          查看 →
+                        </Button>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
+        </Card>
       )}
       {selected && (
         <Modal
           title={`${label(selected.kind)} · 成果详情`}
           close={() => setSelected(undefined)}
         >
-          <div className="detail-meta">
+          <div className="mb-5 flex flex-wrap items-center gap-3 text-sm text-slate-600">
             <Badge value={selected.verification_status} />
             <Badge value={selected.acceptance_status} />
             <span>版本 {selected.version}</span>
           </div>
           <dl className="facts">
             <dt>内容摘要</dt>
-            <dd className="mono">{selected.content_digest}</dd>
+            <dd className="font-mono text-xs break-all">
+              {selected.content_digest}
+            </dd>
             <dt>不可变版本</dt>
-            <dd className="mono">
+            <dd className="font-mono text-xs break-all">
               {selected.immutable_revision || "已存储的正文摘要"}
             </dd>
             <dt>成果引用</dt>
@@ -297,9 +331,13 @@ export function Artifacts({ w }: { w: Workspace }) {
               )}
             </dd>
           </dl>
-          {content && <pre className="content-preview">{content}</pre>}
+          {content && (
+            <pre className="my-4 max-h-96 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-7 whitespace-pre-wrap break-words">
+              {content}
+            </pre>
+          )}
           {reviewer(w) && selected.acceptance_status === "PENDING" && (
-            <div className="review-box">
+            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
               {["COMMIT", "PULL_REQUEST", "CODE_DIFF"].includes(
                 selected.kind,
               ) && (
@@ -334,13 +372,13 @@ export function Artifacts({ w }: { w: Workspace }) {
                 }}
               >
                 <Field label="决定">
-                  <select name="decision">
+                  <Select name="decision">
                     <option value="ACCEPT">接受成果</option>
                     <option value="REJECT">拒绝成果</option>
-                  </select>
+                  </Select>
                 </Field>
                 <Field label="审核依据">
-                  <textarea
+                  <TextArea
                     name="reason"
                     required
                     placeholder="说明已核对的内容与证据"
@@ -364,7 +402,9 @@ export function Artifacts({ w }: { w: Workspace }) {
               </div>
             ))
           ) : (
-            <p className="muted">暂无外部核验或人工审核记录。</p>
+            <p className="text-sm leading-6 text-slate-600">
+              暂无外部核验或人工审核记录。
+            </p>
           )}
         </Modal>
       )}
@@ -396,22 +436,20 @@ export function Approvals({ w }: { w: Workspace }) {
   return (
     <>
       {error !== undefined && <Message error={error} />}
-      <div className="toolbar">
-        <div className="segmented">
-          <button
-            className={filter === "PENDING" ? "selected" : ""}
-            onClick={() => setFilter("PENDING")}
-          >
-            待我审核
-          </button>
-          <button
-            className={filter === "all" ? "selected" : ""}
-            onClick={() => setFilter("all")}
-          >
-            全部记录
-          </button>
-        </div>
-        <p className="muted">审批只授权当前参数、资源和版本。</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
+        <ToggleButtonGroup
+          aria-label="筛选审批"
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={[filter]}
+          onSelectionChange={(keys) => setFilter(String([...keys][0]))}
+        >
+          <ToggleButton id="PENDING">待我审核</ToggleButton>
+          <ToggleButton id="all">全部记录</ToggleButton>
+        </ToggleButtonGroup>
+        <p className="text-sm leading-6 text-slate-600">
+          审批只授权当前参数、资源和版本。
+        </p>
       </div>
       {!rows.length ? (
         <Empty title="当前没有待处理的审批">
@@ -419,8 +457,10 @@ export function Approvals({ w }: { w: Workspace }) {
         </Empty>
       ) : (
         rows.map((a) => (
-          <section className="approval-card" key={a.id}>
-            <div className="approval-icon">✓</div>
+          <Card className="approval-card" key={a.id}>
+            <div className="approval-icon">
+              <Icon name="approvals" />
+            </div>
             <div>
               <h3>
                 {w.tools.find((t) => t.id === a.binding.tool_id)?.name ||
@@ -432,10 +472,10 @@ export function Approvals({ w }: { w: Workspace }) {
               <small>有效期至 {stamp(a.binding.expires_at)}</small>
             </div>
             <Badge value={a.status} />
-            <button className="secondary" onClick={() => open(a)}>
+            <Button variant="secondary" onClick={() => open(a)}>
               检查操作 →
-            </button>
-          </section>
+            </Button>
+          </Card>
         ))
       )}
       {selected && (
@@ -458,7 +498,7 @@ export function Approvals({ w }: { w: Workspace }) {
               {selected.binding.resource_version}
             </dd>
             <dt>代码版本</dt>
-            <dd className="mono">
+            <dd className="font-mono text-xs break-all">
               {selected.binding.commit_sha || "本操作未绑定 Git Commit"}
             </dd>
             <dt>策略 / 工具版本</dt>
@@ -469,7 +509,9 @@ export function Approvals({ w }: { w: Workspace }) {
             <dt>审批有效期</dt>
             <dd>{stamp(selected.binding.expires_at)}</dd>
             <dt>绑定摘要</dt>
-            <dd className="mono">{selected.binding_digest}</dd>
+            <dd className="font-mono text-xs break-all">
+              {selected.binding_digest}
+            </dd>
           </dl>
           <h3>本次操作参数</h3>
           {invocation ? (
@@ -494,7 +536,9 @@ export function Approvals({ w }: { w: Workspace }) {
               );
             })
           ) : (
-            <p className="muted">本次请求没有关联成果。</p>
+            <p className="text-sm leading-6 text-slate-600">
+              本次请求没有关联成果。
+            </p>
           )}
           {selected.status === "PENDING" &&
           selected.requester_user_id !== w.me.id ? (
@@ -515,13 +559,13 @@ export function Approvals({ w }: { w: Workspace }) {
               }}
             >
               <Field label="审批决定">
-                <select name="decision">
+                <Select name="decision">
                   <option value="APPROVE">批准这一次操作</option>
                   <option value="REJECT">拒绝执行</option>
-                </select>
+                </Select>
               </Field>
               <Field label="审核意见">
-                <textarea name="reason" required />
+                <TextArea name="reason" required />
               </Field>
             </Form>
           ) : (
@@ -565,21 +609,25 @@ export function Agents({ w }: { w: Workspace }) {
   return (
     <>
       {error !== undefined && <Message error={error} />}
-      <div className="toolbar">
-        <p className="muted">注册客户端，为执行代理委托有限的权限。</p>
-        <button className="primary" onClick={() => setCreating(true)}>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
+        <p className="text-sm leading-6 text-slate-600">
+          注册客户端，为执行代理委托有限的权限。
+        </p>
+        <Button variant="primary" onClick={() => setCreating(true)}>
           ＋ 注册执行代理
-        </button>
+        </Button>
       </div>
       {!agents.length ? (
         <Empty title="连接你的执行客户端">
           注册客户端信息，再创建短期 Session 授权。
         </Empty>
       ) : (
-        <div className="context-grid">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
           {agents.map((a) => (
-            <section className="context-card" key={a.id}>
-              <div className="context-icon">⌘</div>
+            <Card className="context-card" key={a.id}>
+              <div className="context-icon">
+                <Icon name="agents" />
+              </div>
               <h3>{a.client_name}</h3>
               <p>
                 {a.client_version} · {a.adapter_id}
@@ -587,26 +635,31 @@ export function Agents({ w }: { w: Workspace }) {
               <small>{a.registered_by_user_id}</small>
               <footer>
                 <span>{short(a.id)}</span>
-                <button className="text-button" onClick={() => setGranting(a)}>
+                <Button
+                  variant="ghost"
+                  className="shrink-0 text-sm"
+                  onClick={() => setGranting(a)}
+                >
                   授权执行 →
-                </button>
+                </Button>
               </footer>
-            </section>
+            </Card>
           ))}
         </div>
       )}
-      <section className="panel section-space">
+      <Card className="panel mt-6">
         <div className="section-title">
           <h2>执行授权 Session</h2>
-          <button
-            className="text-button"
+          <Button
+            variant="ghost"
+            className="shrink-0 text-sm"
             onClick={() => load().catch(setError)}
           >
             刷新
-          </button>
+          </Button>
         </div>
         {!sessions.length ? (
-          <p className="muted">尚未创建执行授权。</p>
+          <p className="text-sm leading-6 text-slate-600">尚未创建执行授权。</p>
         ) : (
           sessions.map((s) => (
             <div className="record-row" key={s.id}>
@@ -641,7 +694,7 @@ export function Agents({ w }: { w: Workspace }) {
             </div>
           ))
         )}
-      </section>
+      </Card>
       {creating && (
         <Modal title="注册执行代理" close={() => setCreating(false)}>
           <Form
@@ -673,14 +726,14 @@ export function Agents({ w }: { w: Workspace }) {
             }}
           >
             <Field label="客户端名称">
-              <input
+              <Input
                 name="client"
                 required
                 placeholder="使用的 AI 客户端名称"
               />
             </Field>
             <Field label="客户端版本">
-              <input name="version" required placeholder="填写实际安装版本" />
+              <Input name="version" required placeholder="填写实际安装版本" />
             </Field>
             <p className="notice">
               通过 ACCP Local Bridge
@@ -711,11 +764,11 @@ export function Agents({ w }: { w: Workspace }) {
             }}
           >
             <Field label="授权时长">
-              <select name="hours">
+              <Select name="hours">
                 <option value="1">1 小时</option>
                 <option value="4">4 小时</option>
                 <option value="8">8 小时</option>
-              </select>
+              </Select>
             </Field>
             <fieldset>
               <legend>权限范围</legend>
@@ -728,18 +781,17 @@ export function Agents({ w }: { w: Workspace }) {
                 { value: "events:read", name: "订阅项目事件" },
                 { value: "tools:invoke", name: "通过网关请求工具操作" },
               ].map((s) => (
-                <label className="checkbox" key={s.value}>
-                  <input
-                    type="checkbox"
-                    name="scopes"
-                    value={s.value}
-                    defaultChecked={s.value !== "tools:invoke"}
-                  />
+                <Checkbox
+                  key={s.value}
+                  name="scopes"
+                  value={s.value}
+                  defaultSelected={s.value !== "tools:invoke"}
+                >
                   {s.name}
-                </label>
+                </Checkbox>
               ))}
             </fieldset>
-            <p className="muted">
+            <p className="text-sm leading-6 text-slate-600">
               委托人：{w.me.display_name || w.me.id}
               。高风险操作仍需独立人类审批。
             </p>
@@ -753,10 +805,10 @@ export function Agents({ w }: { w: Workspace }) {
             Bridge；关闭后可撤销并重新授权。
           </div>
           <Field label="Session ID">
-            <input readOnly value={grant.session.id} />
+            <Input readOnly value={grant.session.id} />
           </Field>
           <Field label="访问凭证">
-            <input type="password" readOnly value={grant.access_token} />
+            <Input type="password" readOnly value={grant.access_token} />
           </Field>
           <Action run={() => navigator.clipboard.writeText(grant.access_token)}>
             复制凭证
@@ -778,45 +830,50 @@ export function Members({ w }: { w: Workspace }) {
   const [selected, setSelected] = useState<Membership>();
   return (
     <>
-      <div className="toolbar">
-        <p className="muted">企业身份与项目角色共同决定访问权限。</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
+        <p className="text-sm leading-6 text-slate-600">
+          企业身份与项目角色共同决定访问权限。
+        </p>
       </div>
-      <section className="panel table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>成员</th>
-              <th>项目角色</th>
-              <th>状态</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {w.members.map((m) => (
-              <tr key={m.id}>
-                <td>
-                  <strong>{m.display_name || m.id}</strong>
-                  <small>{m.id}</small>
-                </td>
-                <td>{m.roles.map(label).join(" / ")}</td>
-                <td>
-                  <Badge value={m.active ? "ACTIVE" : "REVOKED"} />
-                </td>
-                <td>
-                  {w.roles.includes("ADMIN") && (
-                    <button
-                      className="text-button"
-                      onClick={() => setSelected(m)}
-                    >
-                      管理角色
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <Card className="panel table-wrap">
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content aria-label="项目成员">
+              <Table.Header>
+                <Table.Column isRowHeader>成员</Table.Column>
+                <Table.Column>项目角色</Table.Column>
+                <Table.Column>状态</Table.Column>
+                <Table.Column>操作</Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {w.members.map((m) => (
+                  <Table.Row key={m.id} id={m.id}>
+                    <Table.Cell>
+                      <strong>{m.display_name || m.id}</strong>
+                      <small>{m.id}</small>
+                    </Table.Cell>
+                    <Table.Cell>{m.roles.map(label).join(" / ")}</Table.Cell>
+                    <Table.Cell>
+                      <Badge value={m.active ? "ACTIVE" : "REVOKED"} />
+                    </Table.Cell>
+                    <Table.Cell>
+                      {w.roles.includes("ADMIN") && (
+                        <Button
+                          variant="ghost"
+                          className="shrink-0 text-sm"
+                          onClick={() => setSelected(m)}
+                        >
+                          管理角色
+                        </Button>
+                      )}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
+      </Card>
       {selected && (
         <Modal
           title={`管理 ${selected.display_name || selected.id}`}
@@ -841,27 +898,21 @@ export function Members({ w }: { w: Workspace }) {
             <fieldset>
               <legend>角色</legend>
               {["ADMIN", "MEMBER", "REVIEWER", "VIEWER"].map((role) => (
-                <label className="checkbox" key={role}>
-                  <input
-                    type="checkbox"
-                    name="roles"
-                    value={role}
-                    defaultChecked={selected.roles.includes(role)}
-                  />
+                <Checkbox
+                  key={role}
+                  name="roles"
+                  value={role}
+                  defaultSelected={selected.roles.includes(role)}
+                >
                   {label(role)}
-                </label>
+                </Checkbox>
               ))}
             </fieldset>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                name="active"
-                defaultChecked={selected.active}
-              />
+            <Checkbox name="active" defaultSelected={selected.active}>
               启用成员访问
-            </label>
+            </Checkbox>
             <Field label="变更原因">
-              <textarea name="reason" required />
+              <TextArea name="reason" required />
             </Field>
           </Form>
         </Modal>
@@ -894,59 +945,68 @@ export function Audit({ w }: { w: Workspace }) {
   return (
     <>
       {error !== undefined && <Message error={error} />}
-      <div className="toolbar">
-        <p className="muted">查看操作者、责任人、执行依据和审核结果。</p>
-        <input
-          className="search"
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
+        <p className="text-sm leading-6 text-slate-600">
+          查看操作者、责任人、执行依据和审核结果。
+        </p>
+        <Input
+          className="w-full sm:ml-auto sm:max-w-72"
           aria-label="搜索审计记录"
           placeholder="搜索操作者、任务或操作…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
-      <section className="panel table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>时间</th>
-              <th>操作</th>
-              <th>人类责任主体</th>
-              <th>结果</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows
-              .filter((r) =>
-                JSON.stringify(r).toLowerCase().includes(search.toLowerCase()),
-              )
-              .map((r) => (
-                <tr key={r.id}>
-                  <td className="nowrap">{stamp(r.occurred_at)}</td>
-                  <td>
-                    <strong>{r.action}</strong>
-                    <small>{short(r.resource_id)}</small>
-                  </td>
-                  <td>
-                    {r.accountable_user_id}
-                    <small>{r.actor.kind}</small>
-                  </td>
-                  <td>
-                    <Badge value={r.result} />
-                  </td>
-                  <td>
-                    <button
-                      className="text-button"
-                      onClick={() => setSelected(r)}
-                    >
-                      追踪 →
-                    </button>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </section>
+      <Card className="panel table-wrap">
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content aria-label="审计记录">
+              <Table.Header>
+                <Table.Column isRowHeader>时间</Table.Column>
+                <Table.Column>操作</Table.Column>
+                <Table.Column>人类责任主体</Table.Column>
+                <Table.Column>结果</Table.Column>
+                <Table.Column>操作</Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {rows
+                  .filter((r) =>
+                    JSON.stringify(r)
+                      .toLowerCase()
+                      .includes(search.toLowerCase()),
+                  )
+                  .map((r) => (
+                    <Table.Row key={r.id} id={r.id}>
+                      <Table.Cell className="whitespace-nowrap">
+                        {stamp(r.occurred_at)}
+                      </Table.Cell>
+                      <Table.Cell>
+                        <strong>{r.action}</strong>
+                        <small>{short(r.resource_id)}</small>
+                      </Table.Cell>
+                      <Table.Cell>
+                        {r.accountable_user_id}
+                        <small>{r.actor.kind}</small>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Badge value={r.result} />
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Button
+                          variant="ghost"
+                          className="shrink-0 text-sm"
+                          onClick={() => setSelected(r)}
+                        >
+                          追踪 →
+                        </Button>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
+      </Card>
       {selected && (
         <Modal title="审计责任链" close={() => setSelected(undefined)}>
           <dl className="facts">
@@ -995,7 +1055,7 @@ export function Tools({ w }: { w: Workspace }) {
   const fields = (
     <>
       <Field label="已配置工具">
-        <select
+        <Select
           name="backend"
           defaultValue={selected?.backend_id}
           required
@@ -1006,48 +1066,46 @@ export function Tools({ w }: { w: Workspace }) {
               {b.id} · {label(b.risk)}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       <Field label="工具名称">
-        <input name="name" required defaultValue={selected?.name} />
+        <Input name="name" required defaultValue={selected?.name} />
       </Field>
       <Field label="资源版本" hint="版本变化后，旧审批不能用于执行。">
-        <input
+        <Input
           name="revision"
           required
           defaultValue={selected?.resource_version || "1"}
         />
       </Field>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          name="enabled"
-          defaultChecked={selected ? selected.enabled : true}
-        />
+      <Checkbox
+        name="enabled"
+        defaultSelected={selected ? selected.enabled : true}
+      >
         允许请求此工具
-      </label>
+      </Checkbox>
       <Field label="配置原因">
-        <textarea name="reason" required />
+        <TextArea name="reason" required />
       </Field>
     </>
   );
   return (
     <>
       {error !== undefined && <Message error={error} />}
-      <div className="toolbar">
-        <p className="muted">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
+        <p className="text-sm leading-6 text-slate-600">
           工具风险由受信配置决定，调用经过权限检查与审批。
         </p>
         {w.roles.includes("ADMIN") && (
-          <button
-            className="primary"
+          <Button
+            variant="primary"
             onClick={() => {
               setSelected(undefined);
               setCreating(true);
             }}
           >
             ＋ 注册工具策略
-          </button>
+          </Button>
         )}
       </div>
       {!w.tools.length ? (
@@ -1055,10 +1113,12 @@ export function Tools({ w }: { w: Workspace }) {
           管理员先配置下游工具端点与凭证，再为项目注册策略。
         </Empty>
       ) : (
-        <div className="context-grid">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
           {w.tools.map((t) => (
-            <section className="context-card" key={t.id}>
-              <div className="context-icon">⚙</div>
+            <Card className="context-card" key={t.id}>
+              <div className="context-icon">
+                <Icon name="tools" />
+              </div>
               <h3>{t.name}</h3>
               <Badge value={t.risk} />
               <p>
@@ -1067,30 +1127,32 @@ export function Tools({ w }: { w: Workspace }) {
               <footer>
                 <span>{t.enabled ? "已开放" : "已停用"}</span>
                 {w.roles.includes("ADMIN") && (
-                  <button
-                    className="text-button"
+                  <Button
+                    variant="ghost"
+                    className="shrink-0 text-sm"
                     onClick={() => {
                       setSelected(t);
                       setCreating(true);
                     }}
                   >
                     管理策略
-                  </button>
+                  </Button>
                 )}
               </footer>
-            </section>
+            </Card>
           ))}
         </div>
       )}
-      <section className="panel section-space">
+      <Card className="panel mt-6">
         <div className="section-title">
           <h2>工具操作记录</h2>
-          <button
-            className="text-button"
+          <Button
+            variant="ghost"
+            className="shrink-0 text-sm"
             onClick={() => load().catch(setError)}
           >
             刷新
-          </button>
+          </Button>
         </div>
         {invocations.length ? (
           invocations.map((i) => (
@@ -1123,9 +1185,11 @@ export function Tools({ w }: { w: Workspace }) {
             </div>
           ))
         ) : (
-          <p className="muted">暂无可查看的操作记录。</p>
+          <p className="text-sm leading-6 text-slate-600">
+            暂无可查看的操作记录。
+          </p>
         )}
-      </section>
+      </Card>
       {creating && (
         <Modal
           title={selected ? "更新工具策略" : "注册工具策略"}

@@ -1,0 +1,38 @@
+<svg width="1400" height="420" viewBox="0 0 1400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="leg" x1="84" y1="340" x2="286" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6C63FF"/>
+      <stop offset="1" stop-color="#445BFF"/>
+    </linearGradient>
+    <linearGradient id="plane" x1="108" y1="242" x2="280" y2="242" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#19C2FF"/>
+      <stop offset="1" stop-color="#35E0B8"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(34 22)">
+    <circle cx="194" cy="38" r="18" fill="#0E1733"/>
+    <circle cx="194" cy="38" r="10" fill="#FFFFFF"/>
+    <path d="M194 56V72" stroke="#445BFF" stroke-width="11" stroke-linecap="round"/>
+
+    <path d="M80 338L172 104C181 82 207 82 216 104L308 338"
+          stroke="url(#leg)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="112" y="222" width="164" height="54" rx="27" fill="url(#plane)"/>
+    <rect x="170" y="230" width="48" height="38" rx="12" fill="#0E1733"/>
+    <circle cx="186" cy="249" r="4" fill="#FFFFFF"/>
+    <circle cx="202" cy="249" r="4" fill="#FFFFFF"/>
+
+    <circle cx="80" cy="338" r="15" fill="#0E1733"/>
+    <circle cx="80" cy="338" r="7" fill="#FFFFFF"/>
+    <circle cx="308" cy="338" r="15" fill="#0E1733"/>
+    <circle cx="308" cy="338" r="7" fill="#FFFFFF"/>
+  </g>
+
+  <text x="430" y="205" fill="#0E1733"
+        font-family="Inter, Arial, sans-serif" font-size="150" font-weight="800"
+        letter-spacing="-6">ACCP</text>
+  <text x="438" y="274" fill="#5B6785"
+        font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600"
+        letter-spacing="2">AGENT COLLABORATION CONTROL PLANE</text>
+</svg>

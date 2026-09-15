@@ -1,8 +1,26 @@
 :root {
-  --canvas: #f6f8f5;
-  --ink: #293c37;
-  --muted: #87998e;
-  --line: #e4eae3;
-  --accent: #24796a;
-  --nav: #142630;
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-foreground: #0f172a;
+  --overlay: #ffffff;
+  --overlay-foreground: #0f172a;
+  --muted: #526175;
+  --border: #e2e8f0;
+  --accent: #445bff;
+  --accent-hover: #3547db;
+  --accent-foreground: #ffffff;
+  --accent-soft: #eef2ff;
+  --accent-soft-foreground: #3730a3;
+  --success-soft-foreground: #23603e;
+  --warning-soft-foreground: #785618;
+  --focus: #445bff;
+  --radius: 0.5rem;
+  --field-radius: 0.625rem;
+  --field-border-width: 1px;
+  --field-border: #cbd5e1;
+  --field-background: #ffffff;
+  --field-foreground: #0f172a;
+  --field-placeholder: #64748b;
 }
