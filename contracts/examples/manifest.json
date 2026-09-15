@@ -343,6 +343,53 @@
         "keyword": "required",
         "missingProperty": "decided_by_user_id"
       }
+    },
+    {
+      "file": "valid/m1-upload-content.json",
+      "schema": "https://accp.example/schemas/v0.1/m1.schema.json#/$defs/UploadContent",
+      "valid": true
+    },
+    {
+      "file": "valid/m1-human.json",
+      "schema": "https://accp.example/schemas/v0.1/m1.schema.json#/$defs/Human",
+      "valid": true
+    },
+    {
+      "file": "valid/m1-project-page.json",
+      "schema": "https://accp.example/schemas/v0.1/m1.schema.json#/$defs/ProjectPage",
+      "valid": true
+    },
+    {
+      "file": "valid/m1-membership.json",
+      "schema": "https://accp.example/schemas/v0.1/m1.schema.json#/$defs/Membership",
+      "valid": true
+    },
+    {
+      "file": "valid/m1-content.json",
+      "schema": "https://accp.example/schemas/v0.1/m1.schema.json#/$defs/Content",
+      "valid": true
+    },
+    {
+      "file": "valid/m1-member-change.json",
+      "schema": "https://accp.example/schemas/v0.1/m1.schema.json#/$defs/MembershipChange",
+      "valid": true
+    },
+    {
+      "file": "invalid/m1-agent-role.json",
+      "schema": "https://accp.example/schemas/v0.1/m1.schema.json#/$defs/MembershipChange",
+      "valid": false,
+      "expected_error": {
+        "keyword": "enum"
+      }
+    },
+    {
+      "file": "invalid/m1-forged-content-owner.json",
+      "schema": "https://accp.example/schemas/v0.1/m1.schema.json#/$defs/UploadContent",
+      "valid": false,
+      "expected_error": {
+        "keyword": "additionalProperties",
+        "additionalProperty": "owner_user_id"
+      }
     }
   ]
 }

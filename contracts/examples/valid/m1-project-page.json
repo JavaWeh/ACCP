@@ -1,0 +1,13 @@
+{
+  "items": [
+    {
+      "id": "project_demo",
+      "organization_id": "org_demo",
+      "name": "Demo",
+      "roles": [
+        "ADMIN"
+      ]
+    }
+  ],
+  "next_cursor": null
+}

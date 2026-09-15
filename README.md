@@ -2,7 +2,7 @@
 
 面向企业研发团队的多人、多 AI Coding Agent 协作控制平台。以人为责任主体，以 Agent 为执行代理，通过统一任务、上下文、事件与成果协议连接不同 AI 客户端。
 
-> **当前阶段：架构设计与协议契约基线。** 本仓库提供设计文档、机器可读契约、示例和校验工具；尚无可运行的控制面、前端或客户端 Adapter。下文平台能力均为目标设计。
+> **当前阶段：M1 人类控制面基础。** 已实现 Go API、PostgreSQL 迁移、人类身份/角色、Task 创建与提交/取消、Context 版本与人工发布。前端、Agent 执行、事件投递、成果验收和 MCP Gateway 待后续实现；下方架构展示完整目标。
 
 ## 核心原则
 
@@ -44,6 +44,7 @@ flowchart LR
 
 | 主题 | 入口 |
 | --- | --- |
+| M1 启动、身份配置、API 操作与验收 | [M1 控制面](docs/m1-control-plane.md) |
 | 总体架构、核心模块、Source of Truth | [架构设计](docs/architecture.md) |
 | 核心数据模型与状态机 | [数据模型](docs/data-model.md) |
 | API、事件、Adapter、幂等与兼容性 | [协作协议](docs/protocol.md) |
@@ -54,6 +55,18 @@ flowchart LR
 | 研发流程、提交与审查 | [开发工作流](docs/development-workflow.md) |
 | 架构决策及代价 | [ADR 索引](docs/adr/README.md) |
 | OpenAPI、Schema 和正反例 | [协议契约](contracts/README.md) |
+
+## 启动 M1
+
+需要 Docker、Docker Compose v2、Node.js 22：
+
+```sh
+node scripts/dev-env.mjs
+docker compose --env-file .accp-local/compose.env up --build -d
+docker compose --env-file .accp-local/compose.env --profile tools run --rm bootstrap
+```
+
+访问 `http://127.0.0.1:8080/readyz` 检查就绪状态。两个人类开发账号的随机凭证仅写入 `.accp-local/dev-users.json`。这些命令用于首次初始化；数据保存在命名卷中。生产 OIDC、二次启动及完整 API 操作见 [M1 使用说明](docs/m1-control-plane.md)。
 
 ## 校验文档与契约
 
@@ -69,12 +82,12 @@ npm run check:history
 
 ## MVP 路线
 
-1. 项目身份、任务、人类 Owner、Context 版本与快照。
-2. 通用 Adapter、执行租约、事件编排与两种真实客户端验证。
+1. **M1 已实现**：人类身份、项目角色、Task 提交/取消、Context 版本与发布。
+2. **M2 待实现**：通用 Adapter、TaskRun 与执行快照、依赖、租约、事件编排。
 3. 成果来源、Git 核验、MCP 受控操作、人工审批与验收。
 4. Web 操作界面、责任链查询、故障恢复及端到端验收。
 
-所有阶段目前均待实现；见 [MVP 验收矩阵](docs/mvp.md)。首个 Git 集成计划使用 GitHub，核心模型仍保持厂商无关。
+详细状态见 [MVP 验收矩阵](docs/mvp.md)。首个 Git 成果核验集成计划使用 GitHub，核心模型仍保持厂商无关；真实客户端兼容性将在后续联合验收。
 
 ## 贡献与许可证
 

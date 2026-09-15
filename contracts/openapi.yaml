@@ -2,8 +2,9 @@ openapi: 3.1.1
 info:
   title: ACCP Collaboration API
   version: 0.1.0
-  description: Design contract only; no running service. Human accountability, scoped Agent Sessions and
-    immutable execution context. See docs/protocol.md for server-enforced semantics.
+  description: "ACCP Collaboration Protocol v0.1. M1 implements the human control-plane subset marked
+    x-accp-milestone: M1. Other operations remain target contracts and return 404 in M1. See
+    docs/m1-control-plane.md for runtime restrictions."
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -41,10 +42,8 @@ paths:
       description: Read project repository configuration; first provider planned is GitHub.
       x-accp-actors:
         - HUMAN
-        - AGENT
       security:
         - HumanBearer: []
-        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -92,6 +91,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: M1
   /projects/{id}/tasks:
     post:
       operationId: createTask
@@ -143,6 +143,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/CreateTask
+      x-accp-milestone: M1
     get:
       operationId: listTasks
       tags:
@@ -151,10 +152,8 @@ paths:
       description: Read authorized project tasks.
       x-accp-actors:
         - HUMAN
-        - AGENT
       security:
         - HumanBearer: []
-        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -202,6 +201,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: M1
   /tasks/{id}:
     get:
       operationId: getTask
@@ -211,10 +211,8 @@ paths:
       description: Authoritative state; events are notifications, not a replacement for this read.
       x-accp-actors:
         - HUMAN
-        - AGENT
       security:
         - HumanBearer: []
-        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -247,6 +245,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: M1
   /tasks/{id}/commands:
     post:
       operationId: commandTask
@@ -254,7 +253,8 @@ paths:
         - Tasks
       summary: Submit, retry or cancel a task
       description: Task Owner or ADMIN with reason. RETRY creates a new attempt on later claim. Cancellation does
-        not imply external rollback.
+        not imply external rollback. M1 supports SUBMIT from DRAFT/BLOCKED and CANCEL; RETRY returns 501.
+        Execution and final acceptance are deferred.
       x-accp-actors:
         - HUMAN
       security:
@@ -303,6 +303,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/TaskCommand
+      x-accp-milestone: M1
   /tasks/{id}/dependencies:
     post:
       operationId: createDependency
@@ -359,6 +360,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/CreateDependency
+      x-accp-milestone: future
   /tasks/{id}/assignments:
     post:
       operationId: assignTask
@@ -414,6 +416,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/CreateAssignment
+      x-accp-milestone: future
   /agents:
     post:
       operationId: registerAgent
@@ -457,6 +460,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/AgentRegistration
+      x-accp-milestone: future
   /agent-sessions:
     post:
       operationId: createAgentSession
@@ -501,6 +505,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/CreateSession
+      x-accp-milestone: future
   /agent-sessions/{id}/revoke:
     post:
       operationId: revokeAgentSession
@@ -557,6 +562,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/Reason
+      x-accp-milestone: future
   /adapters/handshake:
     post:
       operationId: handshakeAdapter
@@ -601,6 +607,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/adapter.schema.json#/$defs/HandshakeRequest
+      x-accp-milestone: future
   /task-runs/claim:
     post:
       operationId: claimTaskRun
@@ -645,6 +652,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/ClaimRequest
+      x-accp-milestone: future
   /task-runs/{id}:
     get:
       operationId: getTaskRun
@@ -690,6 +698,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: future
   /task-runs/{id}/heartbeat:
     post:
       operationId: heartbeatTaskRun
@@ -747,6 +756,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/HeartbeatRequest
+      x-accp-milestone: future
   /task-runs/{id}/reports:
     post:
       operationId: reportTaskRun
@@ -804,13 +814,15 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/RunReport
+      x-accp-milestone: future
   /projects/{id}/contexts:
     post:
       operationId: createContext
       tags:
         - Contexts
       summary: Declare a Context source
-      description: Human project member declares exactly one canonical source.
+      description: Human project member declares exactly one canonical source. M1 accepts only ACCP sources (422
+        otherwise); canonical_uri is a label, never fetched.
       x-accp-actors:
         - HUMAN
       security:
@@ -854,6 +866,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/CreateContext
+      x-accp-milestone: M1
     get:
       operationId: listContexts
       tags:
@@ -862,10 +875,8 @@ paths:
       description: Current resource ACLs are checked before listing metadata.
       x-accp-actors:
         - HUMAN
-        - AGENT
       security:
         - HumanBearer: []
-        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -913,19 +924,20 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: M1
   /contexts/{id}/versions:
     post:
       operationId: createContextVersion
       tags:
         - Contexts
       summary: Submit immutable candidate content
-      description: Verify allowed content URI and digest. New version is CANDIDATE even when submitted by an Agent.
+      description: "Verify allowed content URI and digest. New version is CANDIDATE even when submitted by an Agent.
+        M1 requires a same-project urn:accp:content: URI from uploadContextContent; digest and media type must
+        match stored bytes. Creation increments the parent Context version."
       x-accp-actors:
         - HUMAN
-        - AGENT
       security:
         - HumanBearer: []
-        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -970,6 +982,63 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/CreateContextVersion
+      x-accp-milestone: M1
+    get:
+      operationId: listContextVersions
+      tags:
+        - Contexts
+      summary: List immutable Context versions
+      description: List immutable Context versions
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource ID; scope is verified by the server.
+          schema:
+            type: string
+            minLength: 1
+        - &a1
+          name: cursor
+          in: query
+          description: Opaque continuation bound to this collection.
+          schema:
+            type: string
+        - &a2
+          name: limit
+          in: query
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m1.schema.json#/$defs/ContextVersionPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
   /contexts/{id}/versions/{version}:
     get:
       operationId: getContextVersion
@@ -979,10 +1048,8 @@ paths:
       description: Version path is a ContextVersion ID, not latest. Current ACL applies even to historical content.
       x-accp-actors:
         - HUMAN
-        - AGENT
       security:
         - HumanBearer: []
-        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -1022,6 +1089,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: M1
   /contexts/{id}/versions/{version}/publish:
     post:
       operationId: publishContextVersion
@@ -1085,6 +1153,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/PublishContext
+      x-accp-milestone: M1
   /context-snapshots/{id}:
     get:
       operationId: getContextSnapshot
@@ -1130,6 +1199,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: future
   /task-runs/{id}/artifacts:
     post:
       operationId: registerArtifact
@@ -1187,6 +1257,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/RegisterArtifact
+      x-accp-milestone: future
   /artifacts/{id}:
     get:
       operationId: getArtifact
@@ -1232,6 +1303,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: future
   /artifacts/{id}/reviews:
     post:
       operationId: reviewArtifact
@@ -1288,6 +1360,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/ArtifactReview
+      x-accp-milestone: future
   /approvals:
     get:
       operationId: listApprovals
@@ -1346,6 +1419,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: future
   /approvals/{id}:
     get:
       operationId: getApproval
@@ -1391,6 +1465,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: future
   /approvals/{id}/decisions:
     post:
       operationId: decideApproval
@@ -1447,6 +1522,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/ApprovalDecision
+      x-accp-milestone: future
   /tool-invocations/{id}:
     get:
       operationId: getToolInvocation
@@ -1493,6 +1569,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: future
   /tasks/{id}/reviews:
     post:
       operationId: reviewTask
@@ -1549,6 +1626,7 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/TaskReview
+      x-accp-milestone: future
   /events:
     get:
       operationId: listEvents
@@ -1635,6 +1713,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: future
   /audit-records:
     get:
       operationId: listAuditRecords
@@ -1690,6 +1769,360 @@ paths:
         "404":
           $ref: "#/components/responses/Problem"
         "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-milestone: future
+  /me:
+    get:
+      operationId: getCurrentHuman
+      tags:
+        - Identity
+      summary: Read the provisioned human identity
+      description: Read the provisioned human identity
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters: []
+      responses:
+        "200":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m1.schema.json#/$defs/Human
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /projects:
+    get:
+      operationId: listProjects
+      tags:
+        - Identity
+      summary: List projects with active membership
+      description: List projects with active membership
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - *a1
+        - *a2
+      responses:
+        "200":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m1.schema.json#/$defs/ProjectPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /projects/{id}/members:
+    get:
+      operationId: listProjectMembers
+      tags:
+        - Identity
+      summary: List provisioned project members
+      description: List provisioned project members
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource ID; scope is verified by the server.
+          schema:
+            type: string
+            minLength: 1
+        - *a1
+        - *a2
+      responses:
+        "200":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m1.schema.json#/$defs/MembershipPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /projects/{id}/members/{user}/changes:
+    post:
+      operationId: changeProjectMember
+      tags:
+        - Identity
+      summary: Administrator changes member roles or active status
+      description: Requires ADMIN; cannot remove the last active human administrator. The member version is checked,
+        and permission revocation applies to subsequent requests including idempotent replays.
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource ID; scope is verified by the server.
+          schema:
+            type: string
+            minLength: 1
+        - name: user
+          in: path
+          required: true
+          description: Opaque resource ID; scope is verified by the server.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m1.schema.json#/$defs/Membership
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/m1.schema.json#/$defs/MembershipChange
+  /projects/{id}/contents:
+    post:
+      operationId: uploadContextContent
+      tags:
+        - Contexts
+      summary: Upload immutable text content
+      description: MEMBER or ADMIN uploads UTF-8 text (at most 256 KiB, no NUL). Server computes SHA-256; bytes live
+        in PostgreSQL in M1. Does not publish a Context version.
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource ID; scope is verified by the server.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m1.schema.json#/$defs/ContentMetadata
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/m1.schema.json#/$defs/UploadContent
+  /contents/{id}:
+    get:
+      operationId: getContextContent
+      tags:
+        - Contexts
+      summary: Read immutable text with current project authorization
+      description: Read immutable text with current project authorization
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource ID; scope is verified by the server.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m1.schema.json#/$defs/Content
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /projects/{id}/audit-records:
+    get:
+      operationId: listProjectAuditRecords
+      tags:
+        - Governance
+      summary: Read successful M1 mutation audit records
+      description: REVIEWER or ADMIN. Only successful human mutations are persisted in M1; no Agent, TaskRun or
+        approval evidence exists yet.
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource ID; scope is verified by the server.
+          schema:
+            type: string
+            minLength: 1
+        - *a1
+        - *a2
+      responses:
+        "200":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/AuditPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /contexts/{id}:
+    get:
+      operationId: getContext
+      tags:
+        - Contexts
+      summary: Read Context metadata and its current version
+      description: Read Context metadata and its current version
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource ID; scope is verified by the server.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Context
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"

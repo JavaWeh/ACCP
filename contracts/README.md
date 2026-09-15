@@ -1,11 +1,12 @@
 # 协议契约
 
-本目录是 ACCP v0.1 设计草案，可用于后续实现、代码生成与契约测试；当前没有对应运行服务。
+本目录是 ACCP v0.1 预发布契约，包含已实现的 M1 子集和后续目标。OpenAPI 的 `x-accp-milestone: M1` 表示当前运行支持，`future` 表示后续能力；M1 仅接受人类身份。运行限制与示例操作见 [M1 控制面](../docs/m1-control-plane.md)。
 
 ## 入口
 
 - [OpenAPI](openapi.yaml)：REST 请求、响应、鉴权、版本与错误。
 - [Domain Schema](schemas/domain.schema.json)：领域模型和命令输入输出。
+- [M1 Schema](schemas/m1.schema.json)：人类/项目查询、角色变更与不可变内容上传。
 - [Event Schema](schemas/event.schema.json)：CloudEvents 信封与十类领域事件。
 - [Adapter Schema](schemas/adapter.schema.json)：manifest 与协议能力协商。
 - [示例清单](examples/manifest.json)：每个正例与预期失败反例的 Schema 引用。

@@ -1,0 +1,62 @@
+name: accp-m1
+
+services:
+  postgres:
+    image: postgres:17@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
+    environment:
+      POSTGRES_DB: accp
+      POSTGRES_USER: accp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/dev-env.mjs first}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U accp -d accp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  migrate:
+    image: accp-m1:local
+    build: .
+    command: [migrate]
+    environment: &database
+      DATABASE_URL: postgres://accp:${POSTGRES_PASSWORD:?Missing database password}@postgres:5432/accp?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+  api:
+    image: accp-m1:local
+    build: .
+    command: [serve]
+    environment:
+      <<: *database
+      ACCP_LISTEN_ADDR: 0.0.0.0:8080
+      ACCP_ENV: ${ACCP_ENV:-production}
+      ACCP_AUTH_MODE: ${ACCP_AUTH_MODE:-oidc}
+      ACCP_OIDC_ISSUER: ${ACCP_OIDC_ISSUER:-}
+      ACCP_OIDC_AUDIENCE: ${ACCP_OIDC_AUDIENCE:-}
+    ports:
+      - 127.0.0.1:${ACCP_HTTP_PORT:-8080}:8080
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  bootstrap:
+    image: accp-m1:local
+    command: [bootstrap, -development, -output, /local/dev-users.json]
+    profiles: [tools]
+    # Only the explicit operator command receives the ignored credential directory.
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    environment:
+      <<: *database
+      ACCP_ENV: ${ACCP_ENV:-production}
+      ACCP_AUTH_MODE: ${ACCP_AUTH_MODE:-oidc}
+    volumes:
+      - ./.accp-local:/local
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
