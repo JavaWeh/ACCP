@@ -152,10 +152,9 @@ test("Owner reviews actual protocol evidence and completes the task from Web", a
     .getByRole("button", { name: "任务协作", exact: false })
     .click();
   await page.getByLabel("搜索任务").fill("M2 protocol acceptance");
-  await page
-    .getByRole("button", { name: /M2 protocol acceptance/ })
-    .last()
-    .click();
+  const visibleTaskID =
+    report.task_id.slice(0, 8) + "…" + report.task_id.slice(-6);
+  await page.getByRole("button", { name: new RegExp(visibleTaskID) }).click();
   await page.getByRole("button", { name: "成果与验收", exact: true }).click();
   await page.getByRole("heading", { name: "Owner 最终验收" }).waitFor();
   await page.locator('input[name="criterion_0"]').check();
