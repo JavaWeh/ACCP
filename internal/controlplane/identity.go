@@ -2,7 +2,6 @@ package controlplane
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -89,27 +88,7 @@ func changeMember(q *request) (reply, error) {
 	_, err = q.tx.Exec(q.http.Context(), `UPDATE memberships SET roles=$1,active=$2,version=version+1 WHERE project_id=$3 AND user_id=$4`, roles, q.body["active"], q.project, target)
 	return entity(200, Object{"id": target, "organization_id": q.org, "project_id": q.project, "display_name": name, "roles": roles, "active": q.body["active"], "version": version + 1}), err
 }
-func listAudit(q *request) (reply, error) {
-	limit, cursor, err := pageParams(q.http)
-	if err != nil {
-		return reply{}, err
-	}
-	rows, err := q.tx.Query(q.http.Context(), `SELECT id,actor_user_id,action,resource_id,trace_id,recorded_at FROM audit_records WHERE project_id=$1 AND organization_id=$2 AND id>$3 ORDER BY id LIMIT $4`, q.project, q.org, cursor, limit+1)
-	if err != nil {
-		return reply{}, err
-	}
-	defer rows.Close()
-	items := []Object{}
-	for rows.Next() {
-		var id, user, action, resource, trace string
-		var stamp time.Time
-		if err = rows.Scan(&id, &user, &action, &resource, &trace, &stamp); err != nil {
-			return reply{}, err
-		}
-		items = append(items, Object{"id": id, "organization_id": q.org, "project_id": q.project, "actor": Object{"kind": "HUMAN", "user_id": user}, "accountable_user_id": user, "action": action, "resource_id": resource, "result": "SUCCEEDED", "trace_id": trace, "occurred_at": stamp.UTC().Format(time.RFC3339Nano)})
-	}
-	return page(q.http, items, limit), rows.Err()
-}
+func listAudit(q *request) (reply, error) { return executionAudit(q) }
 func publishedEvent(q *request, version, parent Object) error {
 	id := newID("event")
 	event := Object{"specversion": "1.0", "id": id, "source": "urn:accp:control-plane", "type": "io.accp.CONTEXT_PUBLISHED.v1", "subject": "contexts/" + textValue(parent, "id"), "time": now(), "datacontenttype": "application/json", "data": Object{

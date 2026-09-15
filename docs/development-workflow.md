@@ -4,7 +4,7 @@
 
 1. 人类创建 Issue，填写 Owner、目标、范围、Context 版本、依赖和验收条件。
 2. 有架构取舍时先补 ADR；有公共接口变化时同步 OpenAPI、Schema 与正反例。
-3. 在 `javaweh/<topic>` 分支工作，记录 Agent 只是执行工具，不能代替责任人。
+3. 在 `dev/<topic>`（或任务明确指定的分支） 分支工作，记录 Agent 只是执行工具，不能代替责任人。
 4. 提交成果和验证证据，创建 PR；人类审核行为、权限、兼容性与范围。
 5. 检查通过且人类接受后合并，记录任务和成果关系。
 
@@ -21,12 +21,14 @@ contracts/schemas/           领域、事件与 Adapter Schema
 contracts/examples/          正例与预期拒绝的反例
 scripts/                     文档/契约/私有文件校验工具及测试
 cmd/accp/                    Go 服务与操作者命令入口
-internal/                    M1 身份、配置、迁移、Task/Context 实现
+internal/                    身份、Task/Context、执行、Bridge 和事件 Worker
+pkg/client/                  厂商无关 Go 协作 SDK
+cmd/accp-bridge/              MCP stdio / CLI Bridge
 compose.yaml                 本地开发环境
 .github/                     Issue、PR 模板与 CI
 ```
 
-Node 工具链用于验证和本地配置生成；Go 模块在 M1 引入。React 应用及执行模块通过后续 MVP 任务引入。M1 运行与集成测试见 [控制面使用说明](m1-control-plane.md)。
+Node 工具链用于验证和本地配置生成；Go 模块在 M1 引入。M2 执行模块已实现；React 应用按原路线留在 M4。基础身份见 [M1 控制面](m1-control-plane.md)，执行、升级与验收见 [M2 异构执行](m2-execution.md)。
 
 ## 本地验证
 

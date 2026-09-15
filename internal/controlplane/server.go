@@ -1,4 +1,4 @@
-// Package controlplane implements the M1 HTTP application and its transaction boundary.
+// Package controlplane implements the HTTP application and its transaction boundary.
 package controlplane
 
 import (
@@ -29,6 +29,12 @@ type Server struct {
 	auth    auth.Authenticator
 	schemas Validator
 	mux     *http.ServeMux
+	signer  *auth.SessionSigner
+	options Options
+}
+type Options struct {
+	SessionKey []byte
+	PublicURL  string
 }
 type request struct {
 	tx                        pgx.Tx
@@ -36,6 +42,8 @@ type request struct {
 	user, org, project, trace string
 	roles                     []string
 	body                      Object
+	server                    *Server
+	session                   *sessionPrincipal
 }
 type reply struct {
 	status   int
@@ -56,14 +64,27 @@ type operation struct {
 	table, schema, role string
 	conditional         bool
 	run                 func(*request) (reply, error)
+	scope               string
+	agentOnly           bool
+	bodyProject         bool
+	queryProject        bool
+	fenced              bool
+	grant               bool
 }
 
-func New(pool *pgxpool.Pool, authenticator auth.Authenticator) (*Server, error) {
+func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Options) (*Server, error) {
 	schemas, err := NewValidator()
 	if err != nil {
 		return nil, err
 	}
 	s := &Server{pool: pool, auth: authenticator, schemas: schemas, mux: http.NewServeMux()}
+	if len(options) > 0 {
+		s.options = options[0]
+		s.signer, err = auth.NewSessionSigner(s.options.SessionKey)
+		if err != nil {
+			return nil, err
+		}
+	}
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, reply{status: 200, body: Object{"status": "ok"}})
 	})
@@ -97,11 +118,12 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator) (*Server, error) 
 		"GET /api/v1/contents/{id}":                             {table: "context_contents", run: getContent},
 		"GET /api/v1/projects/{id}/audit-records":               {table: "projects", role: "REVIEWER", run: listAudit},
 	}
+	s.extendRoutes(routes)
 	for pattern, op := range routes {
 		s.mux.HandleFunc(pattern, s.handle(op))
 	}
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		writeProblem(w, newID("trace"), fail(404, "NOT_FOUND", "This route is not implemented in M1."))
+		writeProblem(w, newID("trace"), fail(404, "NOT_FOUND", "This route is not implemented."))
 	})
 	return s, nil
 }
@@ -114,6 +136,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handle(op operation) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/events" && strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
+			s.streamEvents(w, r, op)
+			return
+		}
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
 		r = r.WithContext(ctx)
@@ -134,28 +160,34 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 	if len(fields) != 2 || !strings.EqualFold(fields[0], "Bearer") || len(fields[1]) > 16384 {
 		return empty, fail(401, "UNAUTHENTICATED", "A valid bearer token is required.")
 	}
-	identity, err := s.auth.Authenticate(r.Context(), fields[1])
-	if err != nil {
-		return empty, fail(401, "UNAUTHENTICATED", "The bearer token is invalid or expired.")
-	}
 	tx, err := s.pool.Begin(r.Context())
 	if err != nil {
 		return empty, err
 	}
 	defer tx.Rollback(r.Context())
-	q := &request{tx: tx, http: r, trace: trace}
-	err = tx.QueryRow(r.Context(), `SELECT id,organization_id FROM human_users WHERE issuer=$1 AND subject=$2 AND active FOR SHARE`, identity.Issuer, identity.Subject).Scan(&q.user, &q.org)
-	if err == pgx.ErrNoRows {
-		return empty, fail(403, "HUMAN_IDENTITY_REQUIRED", "The authenticated subject is not an active provisioned human.")
-	}
-	if err != nil {
+	q := &request{tx: tx, http: r, trace: trace, server: s}
+	if err = s.authenticate(q, fields[1], op); err != nil {
 		return empty, err
 	}
 	write := r.Method == http.MethodPost
-	if op.table != "" {
-		if op.table == "projects" {
+	if write {
+		q.body, err = decode(w, r, op.schema != "")
+		if err != nil {
+			return empty, err
+		}
+		if op.schema != "" && s.schemas[op.schema].Validate(q.body) != nil {
+			return empty, fail(400, "INVALID_BODY", "The request does not match the published JSON Schema.")
+		}
+	}
+	if op.table != "" || op.bodyProject || op.queryProject || q.session != nil {
+		switch {
+		case op.bodyProject:
+			q.project = textValue(q.body, "project_id")
+		case op.queryProject:
+			q.project = r.URL.Query().Get("project_id")
+		case op.table == "projects":
 			q.project = r.PathValue("id")
-		} else {
+		case op.table != "":
 			err = tx.QueryRow(r.Context(), `SELECT project_id FROM `+op.table+` WHERE id=$1 AND organization_id=$2`, r.PathValue("id"), q.org).Scan(&q.project)
 			if err == pgx.ErrNoRows {
 				return empty, fail(404, "NOT_FOUND", "Resource not found.")
@@ -186,6 +218,9 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 		if op.role != "" && !hasRole(q.roles, op.role) {
 			return empty, fail(403, "FORBIDDEN", "Your current project role does not permit this operation.")
 		}
+		if err = s.authorizeSession(q, op); err != nil {
+			return empty, err
+		}
 	}
 	var key, digest, route string
 	if write {
@@ -196,32 +231,34 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 		if op.conditional && r.Header.Get("If-Match") == "" {
 			return empty, fail(428, "PRECONDITION_REQUIRED", "A quoted resource version is required in If-Match.")
 		}
-		body, err := decode(w, r, op.schema != "")
-		if err != nil {
-			return empty, err
+		if op.fenced && r.Header.Get("X-Run-Fencing-Token") == "" {
+			return empty, fail(428, "FENCING_TOKEN_REQUIRED", "A current Run fencing token is required.")
 		}
-		q.body = body
-		if op.schema != "" {
-			if err = s.schemas[op.schema].Validate(body); err != nil {
-				return empty, fail(400, "INVALID_BODY", "The request does not match the published JSON Schema.")
-			}
-		}
-		canonical, err := json.Marshal(body)
+		canonical, err := json.Marshal(q.body)
 		if err != nil {
 			return empty, err
 		}
 		route = r.Method + " " + r.URL.Path
-		digest = auth.Digest(route + "\n" + r.Header.Get("If-Match") + "\n" + string(canonical))
+		hashInput := route + "\n" + r.Header.Get("If-Match") + "\n" + string(canonical)
+		if op.fenced {
+			hashInput = route + "\n" + r.Header.Get("If-Match") + "\n" + r.Header.Get("X-Run-Fencing-Token") + "\n" + string(canonical)
+		}
+		digest = auth.Digest(hashInput)
 		var stored string
-		var bytes []byte
+		var data []byte
 		var cached reply
-		err = tx.QueryRow(r.Context(), `SELECT request_digest,status,body,etag FROM idempotency_records WHERE project_id=$1 AND user_id=$2 AND route=$3 AND key=$4 AND expires_at>now()`, q.project, q.user, route, key).Scan(&stored, &cached.status, &bytes, &cached.etag)
+		err = tx.QueryRow(r.Context(), `SELECT request_digest,status,body,etag FROM idempotency_records WHERE project_id=$1 AND actor_key=$2 AND route=$3 AND key=$4 AND expires_at>now()`, q.project, q.actorKey(), route, key).Scan(&stored, &cached.status, &data, &cached.etag)
 		if err == nil {
 			if stored != digest {
 				return empty, fail(409, "IDEMPOTENCY_CONFLICT", "This key already identifies a different request.")
 			}
-			cached.body = json.RawMessage(bytes)
-			return cached, nil
+			if err = json.Unmarshal(data, &cached.body); err != nil {
+				return empty, err
+			}
+			if err = s.authorizeReplay(q, op, cached); err != nil {
+				return empty, err
+			}
+			return s.hydrateGrant(q, op, cached)
 		}
 		if err != pgx.ErrNoRows {
 			return empty, err
@@ -232,17 +269,21 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 		return empty, err
 	}
 	if write {
-		if _, err = tx.Exec(r.Context(), `INSERT INTO audit_records(id,organization_id,project_id,actor_user_id,action,resource_id,resource_version,trace_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, newID("audit"), q.org, q.project, q.user, r.Pattern, result.resource, result.version, trace); err != nil {
+		if err = recordAudit(q, r.Pattern, result.resource, result.version); err != nil {
 			return empty, err
 		}
 		data, err := json.Marshal(result.body)
 		if err != nil {
 			return empty, err
 		}
-		_, err = tx.Exec(r.Context(), `INSERT INTO idempotency_records(project_id,organization_id,user_id,route,key,request_digest,status,body,etag) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(project_id,user_id,route,key) DO UPDATE SET request_digest=EXCLUDED.request_digest,status=EXCLUDED.status,body=EXCLUDED.body,etag=EXCLUDED.etag,expires_at=now()+interval '24 hours'`, q.project, q.org, q.user, route, key, digest, result.status, data, result.etag)
+		_, err = tx.Exec(r.Context(), `INSERT INTO idempotency_records(project_id,organization_id,user_id,actor_key,route,key,request_digest,status,body,etag) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(project_id,actor_key,route,key) DO UPDATE SET request_digest=EXCLUDED.request_digest,status=EXCLUDED.status,body=EXCLUDED.body,etag=EXCLUDED.etag,expires_at=now()+interval '24 hours'`, q.project, q.org, q.user, q.actorKey(), route, key, digest, result.status, data, result.etag)
 		if err != nil {
 			return empty, err
 		}
+	}
+	result, err = s.hydrateGrant(q, op, result)
+	if err != nil {
+		return empty, err
 	}
 	if err = tx.Commit(r.Context()); err != nil {
 		return empty, err

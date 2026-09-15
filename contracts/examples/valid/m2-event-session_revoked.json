@@ -1,0 +1,19 @@
+{
+  "specversion": "1.0",
+  "id": "event_demo",
+  "source": "urn:accp:control-plane",
+  "type": "io.accp.SESSION_REVOKED.v1",
+  "subject": "task_demo",
+  "time": "2026-09-15T00:00:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "organization_id": "org_demo",
+    "project_id": "project_demo",
+    "aggregate_id": "task_demo",
+    "aggregate_version": 1,
+    "correlation_id": "trace_demo",
+    "causation_id": "trace_demo",
+    "session_id": "session_demo",
+    "revoked_by_user_id": "user_owner"
+  }
+}

@@ -122,49 +122,7 @@ func createTask(q *request) (reply, error) {
 	}
 	return entity(201, doc), nil
 }
-func commandTask(q *request) (reply, error) {
-	doc, err := readDocument(q, "tasks", q.http.PathValue("id"))
-	if err != nil {
-		return reply{}, err
-	}
-	if doc["owner_user_id"] != q.user && !hasRole(q.roles, "ADMIN") {
-		return reply{}, fail(403, "OWNER_REQUIRED", "Only the human Owner or project administrator may issue Task commands.")
-	}
-	if err = match(q, number(doc, "version")); err != nil {
-		return reply{}, err
-	}
-	state := textValue(doc, "status")
-	switch q.body["command"] {
-	case "SUBMIT":
-		if state != "DRAFT" && state != "BLOCKED" {
-			return reply{}, fail(409, "INVALID_TRANSITION", "Only DRAFT or BLOCKED tasks can be submitted in M1.")
-		}
-		var ready bool
-		err = q.tx.QueryRow(q.http.Context(), `SELECT NOT EXISTS(SELECT 1 FROM task_contexts tc JOIN context_versions v ON v.id=tc.version_id WHERE tc.task_id=$1 AND v.status<>'PUBLISHED') AND EXISTS(SELECT 1 FROM memberships m JOIN human_users u ON u.id=m.user_id WHERE m.project_id=$2 AND m.user_id=$3 AND m.active AND u.active)`, doc["id"], q.project, doc["owner_user_id"]).Scan(&ready)
-		if err != nil {
-			return reply{}, err
-		}
-		doc["status"] = "BLOCKED"
-		if ready {
-			doc["status"] = "READY"
-		}
-	case "CANCEL":
-		if state == "CANCELED" {
-			return reply{}, fail(409, "INVALID_TRANSITION", "Task is already canceled.")
-		}
-		doc["status"] = "CANCELED"
-	default:
-		return reply{}, fail(501, "NOT_IMPLEMENTED", "TaskRun execution and RETRY are scheduled for M2.")
-	}
-	doc["version"] = number(doc, "version") + 1
-	doc["updated_at"] = now()
-	data, err := json.Marshal(doc)
-	if err != nil {
-		return reply{}, err
-	}
-	_, err = q.tx.Exec(q.http.Context(), `UPDATE tasks SET document=$1,status=$2,version=$3 WHERE id=$4 AND project_id=$5`, data, doc["status"], doc["version"], doc["id"], q.project)
-	return entity(200, doc), err
-}
+func commandTask(q *request) (reply, error) { return commandExecution(q) }
 func createContext(q *request) (reply, error) {
 	source := q.body["source"].(map[string]any)
 	if source["kind"] != "ACCP" {

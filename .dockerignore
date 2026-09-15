@@ -6,6 +6,8 @@
 !cmd/**
 !internal/
 !internal/**
+!pkg/
+!pkg/**
 !contracts/
 !contracts/embed.go
 !contracts/schemas/

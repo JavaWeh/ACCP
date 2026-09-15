@@ -1,5 +1,7 @@
 # M1：人类控制面基础
 
+> 本文记录 M1 基础行为；当前仓库为 M2。升级、额外环境变量、Worker 和当前启动流程见 [M2 异构执行](m2-execution.md)。
+
 ## 交付边界
 
 M1 提供可运行的 Go HTTP API、PostgreSQL 迁移、OIDC 验证、预置人类身份、项目角色、Task 草稿与提交/取消、Context 内容及候选版本/人工发布、成功写入审计和发布 Outbox。

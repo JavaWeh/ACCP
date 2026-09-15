@@ -1,5 +1,7 @@
 # ACCP Collaboration Protocol v0.1
 
+> M2 执行协议与运行边界见 [M2 异构执行](m2-execution.md) 和 [ADR 0005](adr/0005-m2-execution.md)。下文保留完整平台目标；Gateway、最终验收和 Web 界面尚在后续阶段。
+
 ## 状态与传输
 
 M1 运行支持以 [控制面实现说明](m1-control-plane.md) 和 OpenAPI 的 `x-accp-milestone` 为准。下面保留完整目标协议；Agent、SSE、MCP、TaskRun 和快照尚未实现。
