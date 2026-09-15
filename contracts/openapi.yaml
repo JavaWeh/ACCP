@@ -1,10 +1,10 @@
 openapi: 3.1.1
 info:
   title: ACCP Collaboration API
-  version: 0.2.0
-  description: ACCP Collaboration Protocol v0.2. M1 and M2 operations are implemented. Operations marked future
-    are target contracts and return 404. M2 adds delegated Agent execution and events; final acceptance, Git
-    provider verification and MCP Gateway remain M3. See docs/m2-execution.md.
+  version: 0.4.0
+  description: ACCP M1–M4 runtime API. Human ownership, delegated execution, verified artifacts, independent
+    approvals, MCP Gateway and React console. The existing 0.2 Adapter handshake remains compatible. Real
+    AI-client joint acceptance is deferred by the project owner; see docs/m3-m4-platform.md.
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -1316,13 +1316,13 @@ paths:
           schema:
             type: string
             minLength: 1
-        - &a2
+        - &a4
           name: cursor
           in: query
           description: Opaque continuation bound to this collection.
           schema:
             type: string
-        - &a3
+        - &a5
           name: limit
           in: query
           description: Maximum page size.
@@ -1594,6 +1594,70 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/RegisterArtifact
+    get:
+      operationId: m3ListRunartifacts
+      tags:
+        - Artifacts
+      summary: List Run artifacts
+      description: List Run artifacts. Authorization, project boundary, idempotency and resource versions are
+        checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: &a2
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema: &a3
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  next_cursor:
+                    type:
+                      - string
+                      - "null"
+                required:
+                  - items
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
   /artifacts/{id}:
     get:
       operationId: getArtifact
@@ -1647,12 +1711,13 @@ paths:
       x-accp-required-scope: tasks:read
   /artifacts/{id}/reviews:
     post:
-      operationId: reviewArtifact
+      operationId: m3Reviewartifactevidence
       tags:
         - Artifacts
-      summary: Accept or reject a verified artifact
-      description: Human REVIEWER or ADMIN. Acceptance requires VERIFIED. API_READY additionally requires its API
-        ContextVersion to be published.
+      summary: Review artifact evidence
+      description: Review artifact evidence. Authorization, project boundary, idempotency and resource versions are
+        checked by the server.
+      x-accp-milestone: M3
       x-accp-actors:
         - HUMAN
       security:
@@ -1661,47 +1726,108 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
+          description: Opaque authorized resource ID.
+          schema: *a2
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for this logical write; reuse on uncertain retries.
           schema:
             type: string
-            minLength: 1
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/IfMatch"
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current resource version.
+          schema:
+            type: string
+            pattern: ^"[1-9][0-9]*"$
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Operation succeeded.
           content:
             application/json:
               schema:
                 $ref: ./schemas/domain.schema.json#/$defs/Artifact
         "400":
-          $ref: "#/components/responses/Problem"
-        "401":
-          $ref: "#/components/responses/Problem"
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "403":
-          $ref: "#/components/responses/Problem"
-        "404":
-          $ref: "#/components/responses/Problem"
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "409":
-          $ref: "#/components/responses/Problem"
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "412":
-          $ref: "#/components/responses/Problem"
-        "428":
-          $ref: "#/components/responses/Problem"
-        default:
-          $ref: "#/components/responses/Problem"
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: ./schemas/domain.schema.json#/$defs/ArtifactReview
-      x-accp-milestone: future
+              $ref: ./schemas/m3.schema.json#/$defs/ArtifactReview
+    get:
+      operationId: m3Listartifactreviews
+      tags:
+        - Artifacts
+      summary: List artifact reviews
+      description: List artifact reviews. Authorization, project boundary, idempotency and resource versions are
+        checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema: *a3
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
   /approvals:
     get:
       operationId: listApprovals
@@ -1763,58 +1889,63 @@ paths:
       x-accp-milestone: future
   /approvals/{id}:
     get:
-      operationId: getApproval
+      operationId: m3Readapprovalbinding
       tags:
         - Governance
       summary: Read approval binding
-      description: Agent can read its own request status, not other actors' approvals.
+      description: Read approval binding. Authorization, project boundary, idempotency and resource versions are
+        checked by the server.
+      x-accp-milestone: M3
       x-accp-actors:
         - HUMAN
-        - AGENT
       security:
         - HumanBearer: []
-        - AgentBearer: []
       parameters:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
-          schema:
-            type: string
-            minLength: 1
+          description: Opaque authorized resource ID.
+          schema: *a2
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Operation succeeded.
           content:
             application/json:
               schema:
-                $ref: ./schemas/domain.schema.json#/$defs/Approval
+                $ref: ./schemas/m3.schema.json#/$defs/Approval
         "400":
-          $ref: "#/components/responses/Problem"
-        "401":
-          $ref: "#/components/responses/Problem"
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "403":
-          $ref: "#/components/responses/Problem"
-        "404":
-          $ref: "#/components/responses/Problem"
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "409":
-          $ref: "#/components/responses/Problem"
-        default:
-          $ref: "#/components/responses/Problem"
-      x-accp-milestone: future
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
   /approvals/{id}/decisions:
     post:
-      operationId: decideApproval
+      operationId: m3Decideexactoperationapproval
       tags:
         - Governance
-      summary: Approve or reject a bound operation
-      description: Authenticated human REVIEWER/ADMIN must differ from requester_user_id. Verify binding digest and
-        expiry. Worker revalidates before one execution.
+      summary: Decide exact operation approval
+      description: Decide exact operation approval. Authorization, project boundary, idempotency and resource
+        versions are checked by the server.
+      x-accp-milestone: M3
       x-accp-actors:
         - HUMAN
       security:
@@ -1823,55 +1954,69 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
+          description: Opaque authorized resource ID.
+          schema: *a2
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for this logical write; reuse on uncertain retries.
           schema:
             type: string
-            minLength: 1
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/IfMatch"
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current resource version.
+          schema:
+            type: string
+            pattern: ^"[1-9][0-9]*"$
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Operation succeeded.
           content:
             application/json:
               schema:
-                $ref: ./schemas/domain.schema.json#/$defs/Approval
+                $ref: ./schemas/m3.schema.json#/$defs/Approval
         "400":
-          $ref: "#/components/responses/Problem"
-        "401":
-          $ref: "#/components/responses/Problem"
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "403":
-          $ref: "#/components/responses/Problem"
-        "404":
-          $ref: "#/components/responses/Problem"
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "409":
-          $ref: "#/components/responses/Problem"
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "412":
-          $ref: "#/components/responses/Problem"
-        "428":
-          $ref: "#/components/responses/Problem"
-        default:
-          $ref: "#/components/responses/Problem"
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: ./schemas/domain.schema.json#/$defs/ApprovalDecision
-      x-accp-milestone: future
+              $ref: ./schemas/m3.schema.json#/$defs/ApprovalDecision
   /tool-invocations/{id}:
     get:
-      operationId: getToolInvocation
+      operationId: m3Readtooloperationresult
       tags:
         - Governance
-      summary: Read controlled operation outcome
-      description: Approval does not imply success; UNKNOWN requires external reconciliation. Agents can read only
-        their authorized invocations.
+      summary: Read tool operation result
+      description: Read tool operation result. Authorization, project boundary, idempotency and resource versions
+        are checked by the server.
+      x-accp-milestone: M3
       x-accp-actors:
         - HUMAN
         - AGENT
@@ -1882,43 +2027,48 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
-          schema:
-            type: string
-            minLength: 1
+          description: Opaque authorized resource ID.
+          schema: *a2
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Operation succeeded.
           content:
             application/json:
               schema:
-                $ref: ./schemas/domain.schema.json#/$defs/ToolInvocation
+                $ref: ./schemas/m3.schema.json#/$defs/Invocation
         "400":
-          $ref: "#/components/responses/Problem"
-        "401":
-          $ref: "#/components/responses/Problem"
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "403":
-          $ref: "#/components/responses/Problem"
-        "404":
-          $ref: "#/components/responses/Problem"
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "409":
-          $ref: "#/components/responses/Problem"
-        default:
-          $ref: "#/components/responses/Problem"
-      x-accp-milestone: future
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
   /tasks/{id}/reviews:
     post:
-      operationId: reviewTask
+      operationId: m3Owneracceptsorreturnstask
       tags:
         - Tasks
-      summary: Accept or return execution results
-      description: Only current human Owner. Bind Run and verified artifacts. ACCEPT transitions IN_REVIEW to DONE;
-        REJECT preserves review and reopens eligible work.
+      summary: Owner accepts or returns task
+      description: Owner accepts or returns task. Authorization, project boundary, idempotency and resource versions
+        are checked by the server.
+      x-accp-milestone: M3
       x-accp-actors:
         - HUMAN
       security:
@@ -1927,47 +2077,108 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
+          description: Opaque authorized resource ID.
+          schema: *a2
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for this logical write; reuse on uncertain retries.
           schema:
             type: string
-            minLength: 1
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/IfMatch"
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current resource version.
+          schema:
+            type: string
+            pattern: ^"[1-9][0-9]*"$
       responses:
-        "201":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+        "200":
+          description: Operation succeeded.
           content:
             application/json:
               schema:
-                $ref: ./schemas/domain.schema.json#/$defs/TaskReviewRecord
+                $ref: ./schemas/domain.schema.json#/$defs/Task
         "400":
-          $ref: "#/components/responses/Problem"
-        "401":
-          $ref: "#/components/responses/Problem"
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "403":
-          $ref: "#/components/responses/Problem"
-        "404":
-          $ref: "#/components/responses/Problem"
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "409":
-          $ref: "#/components/responses/Problem"
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
         "412":
-          $ref: "#/components/responses/Problem"
-        "428":
-          $ref: "#/components/responses/Problem"
-        default:
-          $ref: "#/components/responses/Problem"
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: ./schemas/domain.schema.json#/$defs/TaskReview
-      x-accp-milestone: future
+              $ref: ./schemas/m3.schema.json#/$defs/TaskReview
+    get:
+      operationId: m3Listimmutabletaskreviews
+      tags:
+        - Tasks
+      summary: List immutable task reviews
+      description: List immutable task reviews. Authorization, project boundary, idempotency and resource versions
+        are checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema: *a3
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
   /events:
     get:
       operationId: listEvents
@@ -2148,8 +2359,8 @@ paths:
       security:
         - HumanBearer: []
       parameters:
-        - *a2
-        - *a3
+        - *a4
+        - *a5
       responses:
         "200":
           description: Successful M1 operation.
@@ -2192,8 +2403,8 @@ paths:
           schema:
             type: string
             minLength: 1
-        - *a2
-        - *a3
+        - *a4
+        - *a5
       responses:
         "200":
           description: Successful M1 operation.
@@ -2391,8 +2602,8 @@ paths:
           schema:
             type: string
             minLength: 1
-        - *a2
-        - *a3
+        - *a4
+        - *a5
       responses:
         "200":
           description: Successful M1 operation.
@@ -2889,6 +3100,820 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/Reason
+  /projects/{id}/artifacts:
+    get:
+      operationId: m3Listprojectartifacts
+      tags:
+        - Artifacts
+      summary: List project artifacts
+      description: List project artifacts. Authorization, project boundary, idempotency and resource versions are
+        checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema: *a3
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+  /artifacts/{id}/verifications:
+    post:
+      operationId: m3VerifyimmutableGitevidence
+      tags:
+        - Artifacts
+      summary: Verify immutable Git evidence
+      description: Verify immutable Git evidence. Authorization, project boundary, idempotency and resource versions
+        are checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for this logical write; reuse on uncertain retries.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current resource version.
+          schema:
+            type: string
+            pattern: ^"[1-9][0-9]*"$
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Artifact
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/m3.schema.json#/$defs/Reason
+    get:
+      operationId: m3Listartifactverifications
+      tags:
+        - Artifacts
+      summary: List artifact verifications
+      description: List artifact verifications. Authorization, project boundary, idempotency and resource versions
+        are checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema: *a3
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+  /projects/{id}/tool-backends:
+    get:
+      operationId: m3Listoperatorconfiguredbackends
+      tags:
+        - Governance
+      summary: List operator configured backends
+      description: List operator configured backends. Authorization, project boundary, idempotency and resource
+        versions are checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema: *a3
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+  /projects/{id}/tools:
+    get:
+      operationId: m3Listprojecttools
+      tags:
+        - Governance
+      summary: List project tools
+      description: List project tools. Authorization, project boundary, idempotency and resource versions are
+        checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m3.schema.json#/$defs/PolicyPage
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+    post:
+      operationId: m3Registerprojecttoolpolicy
+      tags:
+        - Governance
+      summary: Register project tool policy
+      description: Register project tool policy. Authorization, project boundary, idempotency and resource versions
+        are checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for this logical write; reuse on uncertain retries.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      responses:
+        "201":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m3.schema.json#/$defs/Policy
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/m3.schema.json#/$defs/PolicyRequest
+  /tools/{id}/changes:
+    post:
+      operationId: m3Changetoolpolicy
+      tags:
+        - Governance
+      summary: Change tool policy
+      description: Change tool policy. Authorization, project boundary, idempotency and resource versions are
+        checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for this logical write; reuse on uncertain retries.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current resource version.
+          schema:
+            type: string
+            pattern: ^"[1-9][0-9]*"$
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m3.schema.json#/$defs/Policy
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/m3.schema.json#/$defs/PolicyRequest
+  /task-runs/{id}/tool-invocations:
+    post:
+      operationId: m3Requestgovernedtooloperation
+      tags:
+        - Governance
+      summary: Request governed tool operation
+      description: Persist an immutable operation. HIGH-risk operations wait for an independent human approval;
+        Worker revalidates the live Session, Run, resource and policy immediately before execution. UNKNOWN
+        results are never retried automatically.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - AGENT
+      security:
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for this logical write; reuse on uncertain retries.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current resource version.
+          schema:
+            type: string
+            pattern: ^"[1-9][0-9]*"$
+        - name: X-Run-Fencing-Token
+          in: header
+          required: true
+          description: Current Run fencing token.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "201":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m3.schema.json#/$defs/Invocation
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/m3.schema.json#/$defs/InvocationRequest
+  /projects/{id}/tool-invocations:
+    get:
+      operationId: m3Listprojecttooloperations
+      tags:
+        - Governance
+      summary: List project tool operations
+      description: List project tool operations. Authorization, project boundary, idempotency and resource versions
+        are checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m3.schema.json#/$defs/InvocationPage
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+  /tool-invocations/{id}/reconcile:
+    post:
+      operationId: m3Reconcileunknownexternaloutcome
+      tags:
+        - Governance
+      summary: Reconcile unknown external outcome
+      description: Reconcile unknown external outcome. Authorization, project boundary, idempotency and resource
+        versions are checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for this logical write; reuse on uncertain retries.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current resource version.
+          schema:
+            type: string
+            pattern: ^"[1-9][0-9]*"$
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m3.schema.json#/$defs/Invocation
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/m3.schema.json#/$defs/Reason
+  /projects/{id}/approvals:
+    get:
+      operationId: m3Listprojectapprovals
+      tags:
+        - Governance
+      summary: List project approvals
+      description: List project approvals. Authorization, project boundary, idempotency and resource versions are
+        checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m3.schema.json#/$defs/ApprovalPage
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+  /agent-sessions/{id}/gateway-token:
+    get:
+      operationId: m3ReadresourcescopedGatewaycredential
+      tags:
+        - Identity
+      summary: Read resource scoped Gateway credential
+      description: Only the current delegator or same Session with tools:invoke may obtain this credential. The
+        token audience is the configured /mcp resource. It is never a downstream credential or persisted
+        response.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m3.schema.json#/$defs/GatewayGrant
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+  /projects/{id}/agent-sessions:
+    get:
+      operationId: m3ListprojectAgentSessions
+      tags:
+        - Identity
+      summary: List project Agent Sessions
+      description: List project Agent Sessions. Authorization, project boundary, idempotency and resource versions
+        are checked by the server.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema: *a3
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+  /auth/config:
+    get:
+      operationId: m3ReadpublicConsoleauthenticationconfiguration
+      tags:
+        - Identity
+      summary: Read public Console authentication configuration
+      description: Read public Console authentication configuration. Authorization, project boundary, idempotency
+        and resource versions are checked by the server.
+      x-accp-milestone: M4
+      x-accp-actors:
+        - HUMAN
+      security: []
+      parameters: []
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mode:
+                    type: string
+                  issuer:
+                    type: string
+                  client_id:
+                    type: string
+                  public_url:
+                    type: string
+                required:
+                  - mode
+                  - issuer
+                  - client_id
+                  - public_url
+                additionalProperties: false
+        "400":
+          description: Invalid request or state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "409":
+          description: State, approval binding or idempotency conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "412":
+          description: Resource version or evidence changed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
 components:
   securitySchemes:
     HumanBearer:

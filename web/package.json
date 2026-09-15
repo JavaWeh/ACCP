@@ -1,0 +1,27 @@
+{
+  "name": "accp-console",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "test": "playwright test",
+    "format": "prettier --write src tests *.ts *.json index.html",
+    "check:format": "prettier --check src tests *.ts *.json index.html"
+  },
+  "dependencies": {
+    "oidc-client-ts": "3.5.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.1.1",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vite": "8.3.0"
+  }
+}

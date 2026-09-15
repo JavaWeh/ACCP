@@ -36,6 +36,10 @@ services:
       ACCP_OIDC_AUDIENCE: ${ACCP_OIDC_AUDIENCE:-}
       ACCP_SESSION_KEY: ${ACCP_SESSION_KEY:?Generate or upgrade local configuration}
       ACCP_PUBLIC_URL: ${ACCP_PUBLIC_URL:?Set the externally reachable API origin}
+      ACCP_TOOLS_FILE: /etc/accp/tools.json
+      ACCP_GITHUB_TOKEN: ${ACCP_GITHUB_TOKEN:-}
+    volumes:
+      - ${ACCP_TOOLS_CONFIG:-./configs/tools.json}:/etc/accp/tools.json:ro
     ports:
       - 127.0.0.1:${ACCP_HTTP_PORT:-8080}:8080
     depends_on:
@@ -86,6 +90,10 @@ services:
       ACCP_PUBLIC_URL: ${ACCP_PUBLIC_URL:?Set the externally reachable API origin}
       ACCP_NATS_URL: nats://nats:4222
       ACCP_NATS_TOKEN: ${ACCP_NATS_TOKEN:?Generate or upgrade local configuration}
+      ACCP_TOOLS_FILE: /etc/accp/tools.json
+      ACCP_GITHUB_TOKEN: ${ACCP_GITHUB_TOKEN:-}
+    volumes:
+      - ${ACCP_TOOLS_CONFIG:-./configs/tools.json}:/etc/accp/tools.json:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

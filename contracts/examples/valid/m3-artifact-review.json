@@ -1,0 +1,5 @@
+{
+  "decision": "ACCEPT",
+  "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "reason": "Published API content matches the verified evidence."
+}

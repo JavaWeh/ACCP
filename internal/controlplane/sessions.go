@@ -33,6 +33,9 @@ func (p *sessionPrincipal) document() Object {
 	return Object{"id": p.ID, "project_id": p.Project, "organization_id": p.Org, "agent_id": p.Agent, "delegated_by_user_id": p.Human, "scopes": p.Scopes, "expires_at": p.Expires.UTC().Format(time.RFC3339Nano), "status": status, "version": p.Version}
 }
 func (s *Server) authenticate(q *request, token string, op operation) error {
+	if strings.HasPrefix(token, "accp_g_") {
+		return fail(401, "WRONG_TOKEN_AUDIENCE", "Gateway credentials are valid only at /mcp.")
+	}
 	if strings.HasPrefix(token, "accp_s_") {
 		if s.signer == nil {
 			return fail(401, "INVALID_SESSION", "Session authentication is unavailable.")
@@ -189,7 +192,7 @@ func createSession(q *request) (reply, error) {
 	scopes := []string{}
 	for _, raw := range q.body["scopes"].([]any) {
 		scope := raw.(string)
-		if !slices.Contains([]string{"tasks:read", "runs:claim", "runs:write", "context:read", "artifacts:write", "events:read"}, scope) {
+		if !slices.Contains([]string{"tasks:read", "runs:claim", "runs:write", "context:read", "artifacts:write", "events:read", "tools:invoke"}, scope) {
 			return reply{}, fail(422, "INVALID_SCOPE", "Unknown execution scope.")
 		}
 		scopes = append(scopes, scope)

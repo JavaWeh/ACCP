@@ -1,12 +1,12 @@
 # 总体架构
 
-> M2 执行协议与运行边界见 [M2 异构执行](m2-execution.md) 和 [ADR 0005](adr/0005-m2-execution.md)。下文保留完整平台目标；Gateway、最终验收和 Web 界面尚在后续阶段。
+> 当前实现包含 M1–M3 控制面与 M4 Web 功能。运行、升级与验收见 [M3/M4 平台](m3-m4-platform.md)；边界与代价见 [ADR 0006](adr/0006-controlled-delivery-console.md)。真实客户端联合验收暂缓。
 
 ## 定位与边界
 
 ACCP 是企业研发协作控制面：保存责任、任务、共享上下文、成果与授权事实，连接人类成员和不同 AI Coding Client。它不承接模型推理服务，也不将聊天历史作为编排数据库。
 
-当前已交付 [M1 人类控制面](m1-control-plane.md)：Go 后端与 PostgreSQL。TypeScript/React 前端、Worker、Gateway 和异构执行仍为目标设计；优先单企业私有部署、多项目协作，所有资源保留企业隔离标识。M1 的正文暂存、锁粒度与实现边界见 [ADR 0004](adr/0004-m1-foundation.md)。
+当前已交付 Go 后端、PostgreSQL、JetStream Worker、MCP Gateway、通用 Bridge 和 TypeScript/React 控制台；优先单企业私有部署、多项目协作，所有资源保留企业隔离标识。正文暂存和项目锁设计延续 [ADR 0004](adr/0004-m1-foundation.md)，受控执行边界见 [ADR 0006](adr/0006-controlled-delivery-console.md)。
 
 ## 架构图
 
@@ -67,7 +67,7 @@ Go 模块通过明确的领域服务接口交互，Adapter 和 Git Provider 在�
 - 企业人类身份通过 OIDC 接入；Adapter 使用 ACCP 签发的短期 Session 授权，不能共享人类登录令牌。
 - OpenTelemetry 关联 HTTP、事件消费与工具调用。生产密钥由企业 Secret Manager 注入，不写入协议示例。
 
-MVP 目标部署为 Linux 上的容器服务；开发者客户端可运行于 Windows、macOS 或 Linux。后续业务实现提供 Compose 启动方案；本次不提供空壳服务、Compose 文件或 Kubernetes 清单。
+MVP 目标部署为 Linux 上的容器服务；开发者客户端可运行于 Windows、macOS 或 Linux。仓库提供 Compose 启动与升级方案，API 同源提供 Web 静态资源；Kubernetes 不在当前范围。
 
 ## Source of Truth
 

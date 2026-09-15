@@ -1,5 +1,7 @@
 # Human-Agent Governance
 
+当前运行实现见 [M3/M4 平台](m3-m4-platform.md)。成果验收、独立操作审批与 Gateway 已实现；本地独立凭证绕行仍不属于强制治理范围。
+
 ## 人类责任与身份
 
 Task Owner 对任务交付负责；delegated_by_user_id 表示把权限委托给 Agent 的人；AgentIdentity 表示执行客户端；AgentSession 表示一次有期限的授权关系。实际请求主体、Owner、委托人和审核人分别保存，不能把它们合并为一个 user_id。

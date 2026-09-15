@@ -475,6 +475,72 @@
       "file": "valid/m2-run-report-page.json",
       "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/RunReportPage",
       "valid": true
+    },
+    {
+      "file": "valid/m3-task-review.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/TaskReview",
+      "valid": true
+    },
+    {
+      "file": "valid/m3-artifact-review.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/ArtifactReview",
+      "valid": true
+    },
+    {
+      "file": "valid/m3-tool-policy.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/PolicyRequest",
+      "valid": true
+    },
+    {
+      "file": "valid/m3-tool-request.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/InvocationRequest",
+      "valid": true
+    },
+    {
+      "file": "valid/m3-approval-decision.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/ApprovalDecision",
+      "valid": true
+    },
+    {
+      "file": "valid/m3-gateway-grant.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/GatewayGrant",
+      "valid": true
+    },
+    {
+      "file": "invalid/m3-forged-reviewer.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/TaskReview",
+      "valid": false,
+      "expected_error": {
+        "keyword": "additionalProperties",
+        "additionalProperty": "reviewed_by_user_id"
+      }
+    },
+    {
+      "file": "invalid/m3-stale-evidence-version.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/TaskReview",
+      "valid": false,
+      "expected_error": {
+        "keyword": "minimum",
+        "limit": 1
+      }
+    },
+    {
+      "file": "invalid/m3-no-evidence.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/TaskReview",
+      "valid": false,
+      "expected_error": {
+        "keyword": "minItems",
+        "limit": 1
+      }
+    },
+    {
+      "file": "invalid/m3-self-classified-risk.json",
+      "schema": "https://accp.example/schemas/v0.3/m3.schema.json#/$defs/InvocationRequest",
+      "valid": false,
+      "expected_error": {
+        "keyword": "additionalProperties",
+        "additionalProperty": "risk"
+      }
     }
   ]
 }

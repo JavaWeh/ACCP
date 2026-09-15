@@ -3,9 +3,9 @@ package controlplane
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
-	"github.com/JavaWeh/ACCP/internal/auth"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -42,13 +42,16 @@ func saveTask(q *request, doc Object) error {
 	return err
 }
 func taskReady(q *request, doc Object) (bool, error) {
+	if err := resolveDependencyEvidence(q, textValue(doc, "id")); err != nil {
+		return false, err
+	}
 	var ready bool
 	err := q.tx.QueryRow(q.http.Context(), `SELECT
  NOT EXISTS(SELECT 1 FROM task_contexts tc JOIN context_versions v ON v.id=tc.version_id WHERE tc.task_id=$1 AND v.status<>'PUBLISHED')
  AND EXISTS(SELECT 1 FROM memberships m JOIN human_users u ON u.id=m.user_id WHERE m.project_id=$2 AND m.user_id=$3 AND m.active AND u.active)
  AND NOT EXISTS(SELECT 1 FROM task_dependencies d JOIN tasks p ON p.id=d.predecessor_task_id WHERE d.successor_task_id=$1 AND
    CASE WHEN d.condition->>'kind'='TASK_DONE' THEN p.status<>'DONE' ELSE NOT EXISTS(
-    SELECT 1 FROM artifacts a JOIN task_runs r ON r.id=a.run_id WHERE r.task_id=p.id AND a.verification_status='VERIFIED' AND a.acceptance_status='ACCEPTED' AND a.document->>'kind'=d.condition->>'artifact_kind') END)`, doc["id"], q.project, doc["owner_user_id"]).Scan(&ready)
+    SELECT 1 FROM artifacts a JOIN task_runs r ON r.id=a.run_id WHERE a.id=d.resolved_artifact_id AND r.task_id=p.id AND a.verification_status='VERIFIED' AND a.acceptance_status='ACCEPTED' AND a.document->>'kind'=d.condition->>'artifact_kind') END)`, doc["id"], q.project, doc["owner_user_id"]).Scan(&ready)
 	return ready, err
 }
 func assignTask(q *request) (reply, error) {
@@ -163,6 +166,13 @@ func commandExecution(q *request) (reply, error) {
 		if (q.body["command"] == "SUBMIT" && attempts > 0) || (q.body["command"] == "RETRY" && attempts == 0) {
 			return reply{}, fail(409, "INVALID_TRANSITION", "Use RETRY only after an ended Run; otherwise use SUBMIT.")
 		}
+		var unsettled bool
+		if err = q.tx.QueryRow(q.http.Context(), `SELECT EXISTS(SELECT 1 FROM tool_invocations i JOIN task_runs r ON r.id=i.run_id WHERE r.task_id=$1 AND i.status IN ('AWAITING_APPROVAL','READY','RUNNING','UNKNOWN'))`, doc["id"]).Scan(&unsettled); err != nil {
+			return reply{}, err
+		}
+		if unsettled {
+			return reply{}, fail(409, "UNRESOLVED_TOOL_OPERATION", "Resolve previous tool operations before retrying this task.")
+		}
 		ready, e := taskReady(q, doc)
 		if e != nil {
 			return reply{}, e
@@ -271,8 +281,15 @@ func freezeSnapshot(q *request, task string) (Object, error) {
 	if len(entries) == 0 {
 		return nil, fail(409, "CONTEXT_REQUIRED", "Execution requires a published Context version.")
 	}
-	canonical, _ := json.Marshal(entries)
-	doc := Object{"id": newID("snapshot"), "project_id": q.project, "organization_id": q.org, "entries": entries, "content_digest": auth.Digest(string(canonical)), "created_at": now()}
+	entries, refs, err := dependencySnapshot(q, task, entries)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(entries, func(i, j int) bool { return textValue(entries[i], "context_id") < textValue(entries[j], "context_id") })
+	doc := Object{"id": newID("snapshot"), "project_id": q.project, "organization_id": q.org, "entries": entries, "content_digest": snapshotDigest(entries, refs), "created_at": now()}
+	if len(refs) > 0 {
+		doc["artifact_refs"] = refs
+	}
 	data, _ := json.Marshal(doc)
 	_, err = q.tx.Exec(q.http.Context(), `INSERT INTO context_snapshots(id,project_id,organization_id,document) VALUES($1,$2,$3,$4)`, doc["id"], q.project, q.org, data)
 	if err != nil {

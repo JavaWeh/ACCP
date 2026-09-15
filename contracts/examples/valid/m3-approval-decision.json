@@ -1,0 +1,5 @@
+{
+  "decision": "APPROVE",
+  "binding_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "reason": "Independent reviewer checked the exact commit."
+}

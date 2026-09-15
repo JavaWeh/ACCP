@@ -1,0 +1,11 @@
+{
+  "tool_id": "tool_merge",
+  "resource_version": "commit_a1",
+  "arguments": {
+    "pull_request": 7,
+    "commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "artifact_ids": [
+    "artifact_pull"
+  ]
+}

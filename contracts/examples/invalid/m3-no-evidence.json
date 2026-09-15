@@ -1,0 +1,9 @@
+{
+  "decision": "ACCEPT",
+  "task_run_id": "run_orders",
+  "artifacts": [],
+  "acceptance_checks": [
+    true
+  ],
+  "reason": "Owner checked the published acceptance criteria."
+}

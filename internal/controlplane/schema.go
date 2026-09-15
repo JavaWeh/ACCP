@@ -64,5 +64,12 @@ func NewValidator() (Validator, error) {
 			result["M2"+name] = s
 		}
 	}
+	for _, name := range []string{"Reason", "ArtifactReview", "TaskReview", "PolicyRequest", "InvocationRequest", "ApprovalDecision", "Invocation", "Approval", "Artifact", "GatewayGrant", "Policy", "PolicyPage", "InvocationPage", "ApprovalPage"} {
+		s, err := compiler.Compile("https://accp.example/schemas/v0.3/m3.schema.json#/$defs/" + name)
+		if err != nil {
+			return nil, err
+		}
+		result["M3"+name] = s
+	}
 	return result, nil
 }
