@@ -15,7 +15,7 @@ services:
       timeout: 3s
       retries: 30
   migrate:
-    image: accp-m1:local
+    image: accp:local
     build: .
     command: [migrate]
     environment: &database
@@ -24,7 +24,7 @@ services:
       postgres:
         condition: service_healthy
   api:
-    image: accp-m1:local
+    image: accp:local
     build: .
     command: [serve]
     environment:
@@ -34,6 +34,8 @@ services:
       ACCP_AUTH_MODE: ${ACCP_AUTH_MODE:-oidc}
       ACCP_OIDC_ISSUER: ${ACCP_OIDC_ISSUER:-}
       ACCP_OIDC_AUDIENCE: ${ACCP_OIDC_AUDIENCE:-}
+      ACCP_SESSION_KEY: ${ACCP_SESSION_KEY:?Generate or upgrade local configuration}
+      ACCP_PUBLIC_URL: ${ACCP_PUBLIC_URL:?Set the externally reachable API origin}
     ports:
       - 127.0.0.1:${ACCP_HTTP_PORT:-8080}:8080
     depends_on:
@@ -43,7 +45,7 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
   bootstrap:
-    image: accp-m1:local
+    image: accp:local
     command: [bootstrap, -development, -output, /local/dev-users.json]
     profiles: [tools]
     # Only the explicit operator command receives the ignored credential directory.
@@ -57,6 +59,43 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+  nats:
+    image: nats:2.11.9-alpine@sha256:777787bbb4c7c4083ec2213b0b8b14151617610a3e0d85776bd995cd46599c73
+    command: [-c, /etc/nats/accp.conf]
+    environment:
+      ACCP_NATS_TOKEN: ${ACCP_NATS_TOKEN:?Generate or upgrade local configuration}
+    volumes:
+      - ./configs/nats.conf:/etc/nats/accp.conf:ro
+      - nats-data:/data
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8222/healthz]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  worker:
+    image: accp:local
+    build: .
+    command: [worker]
+    environment:
+      <<: *database
+      ACCP_ENV: ${ACCP_ENV:-production}
+      ACCP_SESSION_KEY: ${ACCP_SESSION_KEY:?Generate or upgrade local configuration}
+      ACCP_PUBLIC_URL: ${ACCP_PUBLIC_URL:?Set the externally reachable API origin}
+      ACCP_NATS_URL: nats://nats:4222
+      ACCP_NATS_TOKEN: ${ACCP_NATS_TOKEN:?Generate or upgrade local configuration}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
 
 volumes:
   postgres-data:
+  nats-data:

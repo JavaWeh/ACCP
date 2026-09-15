@@ -390,6 +390,91 @@
         "keyword": "additionalProperties",
         "additionalProperty": "owner_user_id"
       }
+    },
+    {
+      "file": "valid/m2-manifest.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/Manifest",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-register.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/AgentRegistration",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-handshake.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/HandshakeRequest",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-handshake-response.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/HandshakeResponse",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-claim.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/ClaimRequest",
+      "valid": true
+    },
+    {
+      "file": "invalid/m2-claim-no-revision.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/ClaimRequest",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "base_revision"
+      }
+    },
+    {
+      "file": "invalid/m2-claim-invalid-revision.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/ClaimRequest",
+      "valid": false,
+      "expected_error": {
+        "keyword": "pattern"
+      }
+    },
+    {
+      "file": "invalid/m2-handshake-old-version.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/HandshakeResponse",
+      "valid": false,
+      "expected_error": {
+        "keyword": "const"
+      }
+    },
+    {
+      "file": "valid/m2-artifact-content.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/ArtifactContent",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-artifact-content-body.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/ArtifactContentBody",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-event-task_canceled.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/Event",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-event-page.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/EventPage",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-event-session_revoked.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/Event",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-replay.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/ReplayReceipt",
+      "valid": true
+    },
+    {
+      "file": "valid/m2-run-report-page.json",
+      "schema": "https://accp.example/schemas/v0.2/m2.schema.json#/$defs/RunReportPage",
+      "valid": true
     }
   ]
 }

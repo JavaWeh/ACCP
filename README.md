@@ -2,7 +2,7 @@
 
 面向企业研发团队的多人、多 AI Coding Agent 协作控制平台。以人为责任主体，以 Agent 为执行代理，通过统一任务、上下文、事件与成果协议连接不同 AI 客户端。
 
-> **当前阶段：M1 人类控制面基础。** 已实现 Go API、PostgreSQL 迁移、人类身份/角色、Task 创建与提交/取消、Context 版本与人工发布。前端、Agent 执行、事件投递、成果验收和 MCP Gateway 待后续实现；下方架构展示完整目标。
+> **当前阶段：M2 异构执行。** 已实现 M1 人类控制面，以及 Agent Session、依赖 DAG、TaskRun/快照、租约、证据登记、事件 Worker、Go SDK 和 MCP stdio Bridge。最终人工验收、Git 核验和 MCP Gateway 留在 M3，Web 界面留在 M4；下方架构展示完整目标。
 
 ## 核心原则
 
@@ -44,7 +44,8 @@ flowchart LR
 
 | 主题 | 入口 |
 | --- | --- |
-| M1 启动、身份配置、API 操作与验收 | [M1 控制面](docs/m1-control-plane.md) |
+| M2 升级、Bridge、事件与一键验收 | [M2 异构执行](docs/m2-execution.md) |
+| M1 身份配置、基础 API 与历史验收 | [M1 控制面](docs/m1-control-plane.md) |
 | 总体架构、核心模块、Source of Truth | [架构设计](docs/architecture.md) |
 | 核心数据模型与状态机 | [数据模型](docs/data-model.md) |
 | API、事件、Adapter、幂等与兼容性 | [协作协议](docs/protocol.md) |
@@ -56,7 +57,7 @@ flowchart LR
 | 架构决策及代价 | [ADR 索引](docs/adr/README.md) |
 | OpenAPI、Schema 和正反例 | [协议契约](contracts/README.md) |
 
-## 启动 M1
+## 启动与验收
 
 需要 Docker、Docker Compose v2、Node.js 22：
 
@@ -64,9 +65,10 @@ flowchart LR
 node scripts/dev-env.mjs
 docker compose --env-file .accp-local/compose.env up --build -d
 docker compose --env-file .accp-local/compose.env --profile tools run --rm bootstrap
+node scripts/m2-smoke.mjs
 ```
 
-访问 `http://127.0.0.1:8080/readyz` 检查就绪状态。两个人类开发账号的随机凭证仅写入 `.accp-local/dev-users.json`。这些命令用于首次初始化；数据保存在命名卷中。生产 OIDC、二次启动及完整 API 操作见 [M1 使用说明](docs/m1-control-plane.md)。
+访问 `http://127.0.0.1:8080/readyz` 检查就绪状态。两个人类开发账号的随机凭证仅写入 `.accp-local/dev-users.json`。这些命令用于首次初始化；数据保存在命名卷中。已有 M1 数据时按 [M2 升级说明](docs/m2-execution.md#本地部署与从-m1-升级) 先停止旧 API、补充配置再迁移；不要重复 bootstrap 或删除数据卷。
 
 ## 校验文档与契约
 
@@ -83,7 +85,7 @@ npm run check:history
 ## MVP 路线
 
 1. **M1 已实现**：人类身份、项目角色、Task 提交/取消、Context 版本与发布。
-2. **M2 待实现**：通用 Adapter、TaskRun 与执行快照、依赖、租约、事件编排。
+2. **M2 已实现**：通用 SDK/Bridge、受限 Session、TaskRun/快照、依赖/租约、事件订阅与重放；尚无真实厂商客户端兼容性结论。
 3. 成果来源、Git 核验、MCP 受控操作、人工审批与验收。
 4. Web 操作界面、责任链查询、故障恢复及端到端验收。
 

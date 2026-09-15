@@ -34,8 +34,8 @@ func run() error {
 	if len(os.Args) > 1 {
 		command = os.Args[1]
 	}
-	if command != "serve" && command != "migrate" && command != "bootstrap" {
-		return fmt.Errorf("usage: accp serve | migrate | bootstrap [-development -output FILE | -file FILE]")
+	if command != "serve" && command != "migrate" && command != "bootstrap" && command != "worker" {
+		return fmt.Errorf("usage: accp serve | worker | migrate | bootstrap [-development -output FILE | -file FILE]")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -56,6 +56,16 @@ func run() error {
 	case "bootstrap":
 		return provision(startup, pool, os.Args[2:])
 	}
+	execution, err := config.LoadExecution()
+	if err != nil {
+		return err
+	}
+	if err = database.Ready(startup, pool); err != nil {
+		return fmt.Errorf("database migrations are not current; run accp migrate")
+	}
+	if command == "worker" {
+		return work(ctx, pool, execution)
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -72,14 +82,14 @@ func run() error {
 			return err
 		}
 	}
-	handler, err := controlplane.New(pool, verifier)
+	handler, err := controlplane.New(pool, verifier, controlplane.Options{SessionKey: execution.SessionKey, PublicURL: execution.PublicURL})
 	if err != nil {
 		return fmt.Errorf("contract initialization failed: %w", err)
 	}
 	server := &http.Server{Addr: cfg.ListenAddress, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32768}
 	stopped := make(chan error, 1)
 	go func() { stopped <- server.ListenAndServe() }()
-	slog.Info("ACCP M1 listening", "address", cfg.ListenAddress, "auth_mode", cfg.AuthMode)
+	slog.Info("ACCP M2 listening", "address", cfg.ListenAddress, "auth_mode", cfg.AuthMode)
 	select {
 	case err := <-stopped:
 		if !errors.Is(err, http.ErrServerClosed) {

@@ -1,0 +1,10 @@
+{
+  "id": "content_demo",
+  "organization_id": "org_demo",
+  "project_id": "project_demo",
+  "run_id": "run_demo",
+  "uri": "urn:accp:artifact-content:content_demo",
+  "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "media_type": "text/plain",
+  "content": "Example test report"
+}

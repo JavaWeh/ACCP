@@ -1,10 +1,10 @@
 openapi: 3.1.1
 info:
   title: ACCP Collaboration API
-  version: 0.1.0
-  description: "ACCP Collaboration Protocol v0.1. M1 implements the human control-plane subset marked
-    x-accp-milestone: M1. Other operations remain target contracts and return 404 in M1. See
-    docs/m1-control-plane.md for runtime restrictions."
+  version: 0.2.0
+  description: ACCP Collaboration Protocol v0.2. M1 and M2 operations are implemented. Operations marked future
+    are target contracts and return 404. M2 adds delegated Agent execution and events; final acceptance, Git
+    provider verification and MCP Gateway remain M3. See docs/m2-execution.md.
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -149,11 +149,13 @@ paths:
       tags:
         - Tasks
       summary: List project tasks
-      description: Read authorized project tasks.
+      description: Read authorized project tasks. M2 also allows a scoped Agent Session in the same project.
       x-accp-actors:
         - HUMAN
+        - AGENT
       security:
         - HumanBearer: []
+        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -202,17 +204,21 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
       x-accp-milestone: M1
+      x-accp-required-scope: tasks:read
   /tasks/{id}:
     get:
       operationId: getTask
       tags:
         - Tasks
       summary: Read task state
-      description: Authoritative state; events are notifications, not a replacement for this read.
+      description: Authoritative state; events are notifications, not a replacement for this read. M2 also allows a
+        scoped Agent Session in the same project.
       x-accp-actors:
         - HUMAN
+        - AGENT
       security:
         - HumanBearer: []
+        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -246,15 +252,15 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
       x-accp-milestone: M1
+      x-accp-required-scope: tasks:read
   /tasks/{id}/commands:
     post:
       operationId: commandTask
       tags:
         - Tasks
       summary: Submit, retry or cancel a task
-      description: Task Owner or ADMIN with reason. RETRY creates a new attempt on later claim. Cancellation does
-        not imply external rollback. M1 supports SUBMIT from DRAFT/BLOCKED and CANCEL; RETRY returns 501.
-        Execution and final acceptance are deferred.
+      description: Human Owner or ADMIN submits, retries or cancels execution with the current Task version. RETRY
+        creates no Run until the next authorized claim. Cancellation closes the active Run; DONE is immutable.
       x-accp-actors:
         - HUMAN
       security:
@@ -309,9 +315,10 @@ paths:
       operationId: createDependency
       tags:
         - Tasks
-      summary: Add a prerequisite
-      description: Only editable task states; same project; reject cycles and self-dependency. Check DAG within
-        project transaction lock.
+      summary: create Dependency
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - HUMAN
       security:
@@ -320,20 +327,27 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
+          description: Scoped resource identifier.
+          schema: &a1
+            type: string
+            pattern: ^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
           schema:
             type: string
-            minLength: 1
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/IfMatch"
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current Task version. Read Task again after assignment or dependency changes.
+          schema:
+            type: string
       responses:
         "201":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -348,9 +362,15 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
         "412":
           $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        "503":
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
@@ -360,14 +380,77 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/CreateDependency
-      x-accp-milestone: future
+    get:
+      operationId: listTaskDependencies
+      tags:
+        - Tasks
+      summary: list Task Dependencies
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m2.schema.json#/$defs/TaskDependencyPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-required-scope: tasks:read
   /tasks/{id}/assignments:
     post:
       operationId: assignTask
       tags:
         - Tasks
-      summary: Assign executor or capability queue
-      description: Human Owner authorizes execution; assignment cannot change ownership.
+      summary: assign Task
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics. Owner or ADMIN only. Target an Agent or the
+        general capability queue; other queues return UNSUPPORTED_QUEUE.
+      x-accp-milestone: M2
       x-accp-actors:
         - HUMAN
       security:
@@ -376,20 +459,25 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
           schema:
             type: string
-            minLength: 1
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/IfMatch"
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current Task version. Read Task again after assignment or dependency changes.
+          schema:
+            type: string
       responses:
         "201":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -404,9 +492,15 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
         "412":
           $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        "503":
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
@@ -416,28 +510,89 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/CreateAssignment
-      x-accp-milestone: future
-  /agents:
-    post:
-      operationId: registerAgent
+    get:
+      operationId: listTaskAssignments
       tags:
-        - Identity
-      summary: Register an Agent identity
-      description: Human member registers a client and its Adapter manifest. Does not itself grant execution permissions.
+        - Tasks
+      summary: list Task Assignments
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - HUMAN
       security:
         - HumanBearer: []
       parameters:
-        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m2.schema.json#/$defs/AssignmentPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /agents:
+    post:
+      operationId: registerAgent
+      tags:
+        - Identity
+      summary: register Agent
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
       responses:
         "201":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -452,6 +607,16 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
       requestBody:
@@ -459,30 +624,32 @@ paths:
         content:
           application/json:
             schema:
-              $ref: ./schemas/domain.schema.json#/$defs/AgentRegistration
-      x-accp-milestone: future
+              $ref: ./schemas/m2.schema.json#/$defs/AgentRegistration
   /agent-sessions:
     post:
       operationId: createAgentSession
       tags:
         - Identity
-      summary: Delegate a scoped Agent session
-      description: Human identity determines delegator; scopes cannot exceed current human permissions. Token must
-        not be logged.
+      summary: create Agent Session
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - HUMAN
       security:
         - HumanBearer: []
       parameters:
-        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
       responses:
         "201":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -497,6 +664,16 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
       requestBody:
@@ -505,15 +682,15 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/CreateSession
-      x-accp-milestone: future
   /agent-sessions/{id}/revoke:
     post:
       operationId: revokeAgentSession
       tags:
         - Identity
-      summary: Revoke an Agent session
-      description: Delegator or ADMIN revokes pending and future controlled actions. Already-running external
-        effects require reconciliation.
+      summary: revoke Agent Session
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - HUMAN
       security:
@@ -522,20 +699,25 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
           schema:
             type: string
-            minLength: 1
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/IfMatch"
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current Session version.
+          schema:
+            type: string
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -550,9 +732,15 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
         "412":
           $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        "503":
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
@@ -562,33 +750,37 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/Reason
-      x-accp-milestone: future
   /adapters/handshake:
     post:
       operationId: handshakeAdapter
       tags:
         - Adapters
-      summary: Negotiate collaboration capabilities
-      description: Select a supported protocol and capability subset; reject unsupported versions. Does not grant
-        additional scopes.
+      summary: handshake Adapter
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics. Only protocol 0.2 is selected. M2 does not
+        advertise mcp_uri because the Gateway is not implemented. The submitted manifest must match human
+        registration.
+      x-accp-milestone: M2
       x-accp-actors:
         - AGENT
       security:
         - AgentBearer: []
       parameters:
-        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
-                $ref: ./schemas/adapter.schema.json#/$defs/HandshakeResponse
+                $ref: ./schemas/m2.schema.json#/$defs/HandshakeResponse
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -599,37 +791,50 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-required-scope: handshake
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: ./schemas/adapter.schema.json#/$defs/HandshakeRequest
-      x-accp-milestone: future
+              $ref: ./schemas/m2.schema.json#/$defs/HandshakeRequest
   /task-runs/claim:
     post:
       operationId: claimTaskRun
       tags:
         - Tasks
-      summary: Atomically claim eligible work
-      description: Agent session identity is inferred. Pin published, readable contexts; allocate lease and fencing
-        token. Return 409 NO_ELIGIBLE_TASK when none is available.
+      summary: claim Task Run
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - AGENT
       security:
         - AgentBearer: []
       parameters:
-        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
       responses:
         "201":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -644,22 +849,34 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-required-scope: runs:claim
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: ./schemas/domain.schema.json#/$defs/ClaimRequest
-      x-accp-milestone: future
+              $ref: ./schemas/m2.schema.json#/$defs/ClaimRequest
   /task-runs/{id}:
     get:
       operationId: getTaskRun
       tags:
         - Tasks
-      summary: Read execution attempt
-      description: Agent may read only its authorized run; human project access still applies.
+      summary: get Task Run
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - HUMAN
         - AGENT
@@ -670,18 +887,11 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
-          schema:
-            type: string
-            minLength: 1
+          description: Scoped resource identifier.
+          schema: *a1
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -696,17 +906,28 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
-      x-accp-milestone: future
+      x-accp-required-scope: tasks:read
   /task-runs/{id}/heartbeat:
     post:
       operationId: heartbeatTaskRun
       tags:
         - Tasks
-      summary: Renew active execution lease
-      description: Check current session and fencing. Expired leases cannot be resurrected. Response includes
-        cancellation and Context update signals.
+      summary: heartbeat Task Run
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - AGENT
       security:
@@ -715,21 +936,26 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
           schema:
             type: string
-            minLength: 1
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/IfMatch"
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current Run version.
+          schema:
+            type: string
         - $ref: "#/components/parameters/Fencing"
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -744,27 +970,35 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
         "412":
+          $ref: "#/components/responses/Problem"
+        "422":
           $ref: "#/components/responses/Problem"
         "428":
           $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-required-scope: runs:write
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/HeartbeatRequest
-      x-accp-milestone: future
   /task-runs/{id}/reports:
     post:
       operationId: reportTaskRun
       tags:
         - Tasks
-      summary: Report progress or completion candidate
-      description: Agent cannot mark Task DONE. Validate artifact ownership and required evidence before completion
-        candidate enters review.
+      summary: report Task Run
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics. Completion candidates require verified stored
+        artifacts and enter IN_REVIEW. External references remain UNVERIFIED. Agents cannot set Task DONE.
+      x-accp-milestone: M2
       x-accp-actors:
         - AGENT
       security:
@@ -773,21 +1007,26 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
           schema:
             type: string
-            minLength: 1
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/IfMatch"
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current Run version.
+          schema:
+            type: string
         - $ref: "#/components/parameters/Fencing"
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -802,19 +1041,88 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
         "412":
+          $ref: "#/components/responses/Problem"
+        "422":
           $ref: "#/components/responses/Problem"
         "428":
           $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-required-scope: runs:write
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/RunReport
-      x-accp-milestone: future
+    get:
+      operationId: listRunReports
+      tags:
+        - Tasks
+      summary: List persisted execution reports
+      description: Project humans and the owning Agent Session may inspect immutable progress, failure and
+        completion-candidate reports. Sort by created_at for a timeline.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema:
+            type: string
+            pattern: ^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m2.schema.json#/$defs/RunReportPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-required-scope: tasks:read
   /projects/{id}/contexts:
     post:
       operationId: createContext
@@ -872,11 +1180,14 @@ paths:
       tags:
         - Contexts
       summary: List readable Context resources
-      description: Current resource ACLs are checked before listing metadata.
+      description: Current resource ACLs are checked before listing metadata. M2 also allows a scoped Agent Session
+        in the same project.
       x-accp-actors:
         - HUMAN
+        - AGENT
       security:
         - HumanBearer: []
+        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -925,6 +1236,7 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
       x-accp-milestone: M1
+      x-accp-required-scope: context:read
   /contexts/{id}/versions:
     post:
       operationId: createContextVersion
@@ -988,12 +1300,14 @@ paths:
       tags:
         - Contexts
       summary: List immutable Context versions
-      description: List immutable Context versions
+      description: List immutable Context versions M2 also allows a scoped Agent Session in the same project.
       x-accp-milestone: M1
       x-accp-actors:
         - HUMAN
+        - AGENT
       security:
         - HumanBearer: []
+        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -1002,13 +1316,13 @@ paths:
           schema:
             type: string
             minLength: 1
-        - &a1
+        - &a2
           name: cursor
           in: query
           description: Opaque continuation bound to this collection.
           schema:
             type: string
-        - &a2
+        - &a3
           name: limit
           in: query
           description: Maximum page size.
@@ -1039,6 +1353,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-required-scope: context:read
   /contexts/{id}/versions/{version}:
     get:
       operationId: getContextVersion
@@ -1046,10 +1361,13 @@ paths:
         - Contexts
       summary: Read a precise Context version
       description: Version path is a ContextVersion ID, not latest. Current ACL applies even to historical content.
+        M2 also allows a scoped Agent Session in the same project.
       x-accp-actors:
         - HUMAN
+        - AGENT
       security:
         - HumanBearer: []
+        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -1090,6 +1408,7 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
       x-accp-milestone: M1
+      x-accp-required-scope: context:read
   /contexts/{id}/versions/{version}/publish:
     post:
       operationId: publishContextVersion
@@ -1159,8 +1478,10 @@ paths:
       operationId: getContextSnapshot
       tags:
         - Contexts
-      summary: Read pinned execution inputs
-      description: Re-check current permissions; pinning does not freeze authorization.
+      summary: get Context Snapshot
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - HUMAN
         - AGENT
@@ -1171,18 +1492,11 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
-          schema:
-            type: string
-            minLength: 1
+          description: Scoped resource identifier.
+          schema: *a1
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -1197,17 +1511,28 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
-      x-accp-milestone: future
+      x-accp-required-scope: context:read
   /task-runs/{id}/artifacts:
     post:
       operationId: registerArtifact
       tags:
         - Artifacts
-      summary: Register verifiable execution output
-      description: Server derives provenance from authenticated Run. Do not trust client claims of verification or
-        acceptance.
+      summary: register Artifact
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - AGENT
       security:
@@ -1216,21 +1541,26 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
           schema:
             type: string
-            minLength: 1
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/IfMatch"
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current Run version.
+          schema:
+            type: string
         - $ref: "#/components/parameters/Fencing"
       responses:
         "201":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -1245,26 +1575,34 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
         "412":
+          $ref: "#/components/responses/Problem"
+        "422":
           $ref: "#/components/responses/Problem"
         "428":
           $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-required-scope: artifacts:write
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/RegisterArtifact
-      x-accp-milestone: future
   /artifacts/{id}:
     get:
       operationId: getArtifact
       tags:
         - Artifacts
-      summary: Read artifact and provenance
-      description: Verify resource scope; content access still requires object-level authorization.
+      summary: get Artifact
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
       x-accp-actors:
         - HUMAN
         - AGENT
@@ -1275,18 +1613,11 @@ paths:
         - name: id
           in: path
           required: true
-          description: Opaque resource identifier; scope is verified server-side.
-          schema:
-            type: string
-            minLength: 1
+          description: Scoped resource identifier.
+          schema: *a1
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -1301,9 +1632,19 @@ paths:
           $ref: "#/components/responses/Problem"
         "409":
           $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
-      x-accp-milestone: future
+      x-accp-required-scope: tasks:read
   /artifacts/{id}/reviews:
     post:
       operationId: reviewArtifact
@@ -1632,9 +1973,13 @@ paths:
       operationId: listEvents
       tags:
         - Events
-      summary: Read event page or SSE stream
-      description: Use Accept application/json for polling or text/event-stream for SSE. Expired cursor returns 410;
-        refetch resources then subscribe again.
+      summary: list Events
+      description: "Implemented in M2. Authorization is derived from current identity, membership and delegation.
+        See docs/m2-execution.md for state and recovery semantics. Accept: text/event-stream returns bounded
+        20-second SSE streams. Each accp.events message carries a complete EventPage and its cursor. Reconnect
+        using Last-Event-ID. Every page rechecks authorization; seven-day cursor retention. The accp.closed
+        event requests reauthentication or reconciliation."
+      x-accp-milestone: M2
       x-accp-actors:
         - HUMAN
         - AGENT
@@ -1645,20 +1990,13 @@ paths:
         - name: project_id
           in: query
           required: true
-          description: Project must be authorized by current identity.
-          schema:
-            type: string
-            minLength: 1
+          schema: *a1
         - name: cursor
           in: query
-          required: false
-          description: Opaque continuation cursor.
           schema:
             type: string
         - name: limit
           in: query
-          required: false
-          description: Maximum page size.
           schema:
             type: integer
             minimum: 1
@@ -1666,39 +2004,20 @@ paths:
             default: 50
         - name: Last-Event-ID
           in: header
-          required: false
-          description: SSE resume cursor; do not combine with a query cursor.
+          description: SSE page cursor; query cursor takes precedence.
           schema:
             type: string
       responses:
         "200":
-          description: Successful operation. Human ownership and resource scopes are validated by the server.
-          headers:
-            ETag:
-              description: Quoted resource version when returning a versioned entity.
-              schema:
-                type: string
+          description: Successful operation.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - items
-                  - next_cursor
-                additionalProperties: false
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: ./schemas/event.schema.json
-                  next_cursor:
-                    type:
-                      - string
-                      - "null"
+                $ref: ./schemas/m2.schema.json#/$defs/EventPage
             text/event-stream:
               schema:
                 type: string
-                description: SSE id is cursor, event is CloudEvents type, data is a single-line serialized envelope.
+                description: SSE accp.events page frames, followed optionally by accp.closed.
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -1711,9 +2030,17 @@ paths:
           $ref: "#/components/responses/Problem"
         "410":
           $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
-      x-accp-milestone: future
+      x-accp-required-scope: events:read
   /audit-records:
     get:
       operationId: listAuditRecords
@@ -1821,8 +2148,8 @@ paths:
       security:
         - HumanBearer: []
       parameters:
-        - *a1
         - *a2
+        - *a3
       responses:
         "200":
           description: Successful M1 operation.
@@ -1865,8 +2192,8 @@ paths:
           schema:
             type: string
             minLength: 1
-        - *a1
         - *a2
+        - *a3
       responses:
         "200":
           description: Successful M1 operation.
@@ -2003,12 +2330,15 @@ paths:
       tags:
         - Contexts
       summary: Read immutable text with current project authorization
-      description: Read immutable text with current project authorization
+      description: Read immutable text with current project authorization M2 also allows a scoped Agent Session in
+        the same project.
       x-accp-milestone: M1
       x-accp-actors:
         - HUMAN
+        - AGENT
       security:
         - HumanBearer: []
+        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -2039,6 +2369,7 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-required-scope: context:read
   /projects/{id}/audit-records:
     get:
       operationId: listProjectAuditRecords
@@ -2060,8 +2391,8 @@ paths:
           schema:
             type: string
             minLength: 1
-        - *a1
         - *a2
+        - *a3
       responses:
         "200":
           description: Successful M1 operation.
@@ -2090,12 +2421,15 @@ paths:
       tags:
         - Contexts
       summary: Read Context metadata and its current version
-      description: Read Context metadata and its current version
+      description: Read Context metadata and its current version M2 also allows a scoped Agent Session in the same
+        project.
       x-accp-milestone: M1
       x-accp-actors:
         - HUMAN
+        - AGENT
       security:
         - HumanBearer: []
+        - AgentBearer: []
       parameters:
         - name: id
           in: path
@@ -2126,6 +2460,435 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-required-scope: context:read
+  /projects/{id}/agents:
+    get:
+      operationId: listAgents
+      tags:
+        - Identity
+      summary: list Agents
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m2.schema.json#/$defs/AgentIdentityPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /agent-sessions/{id}:
+    get:
+      operationId: getAgentSession
+      tags:
+        - Identity
+      summary: get Agent Session
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+      responses:
+        "200":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/AgentSession
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /tasks/{id}/dependencies/{dependency}/remove:
+    post:
+      operationId: removeTaskDependency
+      tags:
+        - Tasks
+      summary: remove Task Dependency
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: dependency
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current Task version. Read Task again after assignment or dependency changes.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Task
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/Reason
+  /tasks/{id}/runs:
+    get:
+      operationId: listTaskRuns
+      tags:
+        - Tasks
+      summary: list Task Runs
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m2.schema.json#/$defs/TaskRunPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /task-runs/{id}/artifact-contents:
+    post:
+      operationId: uploadArtifactContent
+      tags:
+        - Artifacts
+      summary: upload Artifact Content
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - AGENT
+      security:
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+        - name: If-Match
+          in: header
+          required: true
+          description: Quoted current Run version.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Fencing"
+      responses:
+        "201":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m2.schema.json#/$defs/ArtifactContent
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-required-scope: artifacts:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/m1.schema.json#/$defs/UploadContent
+  /artifact-contents/{id}:
+    get:
+      operationId: getArtifactContent
+      tags:
+        - Artifacts
+      summary: get Artifact Content
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+      responses:
+        "200":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m2.schema.json#/$defs/ArtifactContentBody
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-required-scope: tasks:read
+  /projects/{id}/events/{event}/replay:
+    post:
+      operationId: replayEvent
+      tags:
+        - Events
+      summary: replay Event
+      description: Implemented in M2. Authorization is derived from current identity, membership and delegation. See
+        docs/m2-execution.md for state and recovery semantics. ADMIN only. Requeues the original event ID;
+        already processed Inbox entries do not create another feed entry or external side effect.
+      x-accp-milestone: M2
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: event
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Stable key for the same logical operation; retries must preserve body, version and fence.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      responses:
+        "202":
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m2.schema.json#/$defs/ReplayReceipt
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "410":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/domain.schema.json#/$defs/Reason
 components:
   securitySchemes:
     HumanBearer:

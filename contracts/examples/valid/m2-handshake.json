@@ -1,0 +1,25 @@
+{
+  "manifest": {
+    "adapter_id": "adapter_mcp_bridge",
+    "adapter_version": "0.1.0",
+    "protocol_versions": [
+      "0.2"
+    ],
+    "client": {
+      "name": "Example Client A",
+      "version": "example-1"
+    },
+    "capabilities": {
+      "claim": true,
+      "context_read": true,
+      "artifact_report": true,
+      "heartbeat": true,
+      "cancel": "cooperative",
+      "notifications": [
+        "poll",
+        "sse"
+      ],
+      "auto_start": false
+    }
+  }
+}

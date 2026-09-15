@@ -8,14 +8,17 @@
 | OpenAPI、JSON Schema、示例与文档 CI | 本次基线交付 |
 | Go 控制面、数据库迁移、人类身份与项目角色 | M1 已实现 |
 | Task 创建/查询/提交/取消、Context 正文/版本/发布 | M1 已实现 |
-| 成功写入审计、Context 发布 Outbox | M1 已实现；尚无事件投递 |
-| React 前端、TaskRun 与执行快照、成果验收 | 后续阶段 |
-| Adapter、MCP Gateway、实际客户端接入 | 未实现 |
+| 成功写入审计、Context 发布 Outbox | M1 已实现；M2 已加入事件投递 |
+| TaskRun、执行快照、DAG、租约、人工重试 | M2 已实现 |
+| Go SDK / Bridge、MCP stdio、事件订阅与重放 | M2 已实现；真实客户端联合验收仍待后续 |
+| React 前端、成果人工验收 | 后续阶段 |
+| MCP Gateway、实际厂商客户端兼容性 | 未实现 / 待验证 |
 | OIDC/JWKS 验证与预置人类映射 | M1 已实现；真实 IdP 待部署联调 |
-| 运行时审批、完整 Agent 审计链 | 未实现 |
+| 成功 Agent 写入的 Session/Owner/Run/快照审计 | M2 已实现 |
+| 运行时审批、拒绝审计和完整审核链 | M3 待实现 |
 | 性能、恢复和真实客户端端到端结果 | 待业务实现后验证 |
 
-启动命令和 M1 验证范围见 [M1 控制面](m1-control-plane.md)。Node.js 依赖服务于文档/契约校验和开发配置生成；业务后端使用 Go。
+M2 升级与验收见 [M2 异构执行](m2-execution.md)。启动命令和 M1 验证范围见 [M1 控制面](m1-control-plane.md)。Node.js 依赖服务于文档/契约校验和开发配置生成；业务后端使用 Go。
 
 ## MVP 范围
 
@@ -35,9 +38,9 @@ MVP 必须选取两个不同厂商的真实客户端完成同一流程。当前�
 ## 实施阶段
 
 1. **M1 领域与身份（已实现）**：数据库边界、OIDC、成员角色、Task 创建/提交/取消、Context 正文/版本/人工发布。
-2. **M2 异构执行**：依赖 DAG、TaskRun、执行快照、Adapter SDK/Bridge、claim、租约、心跳、Outbox/Inbox、事件订阅与重放。
-3. **受控交付**：Artifact、Git Provider、Gateway、审批 Worker、审计责任链。
-4. **产品闭环**：Web 任务/Context/成果/审批界面、两种客户端联合验收、故障恢复。
+2. **M2 异构执行（已实现）**：依赖 DAG、TaskRun、执行快照、Adapter SDK/Bridge、claim、租约、心跳、Outbox/Inbox、事件订阅与重放。
+3. **M3 受控交付**：Artifact、Git Provider、Gateway、审批 Worker、审计责任链。
+4. **M4 产品闭环**：Web 任务/Context/成果/审批界面、两种客户端联合验收、故障恢复。
 
 每阶段遵循公共契约，发现设计错误先记录 ADR 并同步契约，不绕过领域约束补丁式接入厂商 SDK。
 
@@ -61,7 +64,7 @@ MVP 必须选取两个不同厂商的真实客户端完成同一流程。当前�
 | M14 | DAG 循环、并发添加依赖 | 至少一个请求被拒绝，不形成循环 |
 | M15 | 数据库与对象存储恢复演练 | 元数据、快照摘要、审计关联保持一致 |
 
-上表是完整 MVP 验收要求。M1 已通过其中的人类 Owner、项目隔离与 Context 内容不可变等基础子场景；涉及 Agent、快照、网关、外部副作用、总线恢复的完整场景仍待实现，不能据 M1 测试标记整项完成。
+上表是完整 MVP 验收要求。M1 已通过其中的人类 Owner、项目隔离与 Context 内容不可变等基础子场景；M2 增加 Agent 授权、快照、并发领取、重试、撤销和事件重放子场景。网关、人工接受、外部副作用、真实客户端联合验收和完整恢复演练仍待后续，不能据阶段测试标记整个 MVP 完成。
 
 ## 非 MVP 范围
 

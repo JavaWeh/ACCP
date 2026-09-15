@@ -48,5 +48,21 @@ func NewValidator() (Validator, error) {
 		return nil, err
 	}
 	result["Event"] = event
+	for file, names := range map[string][]string{
+		"domain": {"AgentIdentity", "AgentSession", "CreateSession", "SessionGrant", "Reason", "CreateAssignment", "Assignment", "CreateDependency", "TaskDependency", "TaskRun", "ContextSnapshot", "ClaimResponse", "HeartbeatRequest", "HeartbeatResponse", "RunReport", "RegisterArtifact", "Artifact"},
+		"m2":     {"AgentRegistration", "HandshakeRequest", "HandshakeResponse", "ClaimRequest", "Event", "EventPage", "ArtifactContent", "RunReportPage"},
+	} {
+		version := "0.1"
+		if file == "m2" {
+			version = "0.2"
+		}
+		for _, name := range names {
+			s, err := compiler.Compile(fmt.Sprintf("https://accp.example/schemas/v%s/%s.schema.json#/$defs/%s", version, file, name))
+			if err != nil {
+				return nil, err
+			}
+			result["M2"+name] = s
+		}
+	}
 	return result, nil
 }

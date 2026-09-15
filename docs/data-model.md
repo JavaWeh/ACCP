@@ -1,5 +1,7 @@
 # 核心数据模型
 
+> M2 执行协议与运行边界见 [M2 异构执行](m2-execution.md) 和 [ADR 0005](adr/0005-m2-execution.md)。下文保留完整平台目标；Gateway、最终验收和 Web 界面尚在后续阶段。
+
 本文件定义领域约束；机器可读结构见 [Domain Schema](../contracts/schemas/domain.schema.json)。Schema 不能判断一个 ID 是否属于真实人类，也不能验证跨表权限，这些是未来服务端的强制约束。
 
 ## 标识与隔离

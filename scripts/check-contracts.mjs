@@ -73,7 +73,11 @@ export function checkExamples(root = process.cwd()) {
     if (!value || typeof value !== 'object') continue;
     for (const [key, child] of Object.entries(value)) {
       if (key === 'schema' && child && typeof child === 'object') {
-        const normalized = JSON.parse(JSON.stringify(child).replaceAll('./schemas/', 'https://accp.example/schemas/v0.1/'));
+        const normalized = JSON.parse(JSON.stringify(child).replace(/\.\/schemas\/([a-z0-9.-]+\.schema\.json)/g, (_match, file) => {
+          const schema = schemas.find((candidate) => candidate.$id.endsWith('/' + file));
+          if (!schema) throw new Error(`Unknown schema file ${file}`);
+          return schema.$id;
+        }));
         ajv.compile(normalized);
         compiled += 1;
       } else if (typeof child === 'object') queue.push(child);

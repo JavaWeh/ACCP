@@ -1,0 +1,16 @@
+{
+  "protocol_version": "0.1",
+  "accepted_capabilities": {
+    "claim": true,
+    "context_read": true,
+    "artifact_report": true,
+    "heartbeat": true,
+    "cancel": "cooperative",
+    "notifications": [
+      "poll",
+      "sse"
+    ],
+    "auto_start": false
+  },
+  "api_base_uri": "https://accp.example/api/v1"
+}
