@@ -1,0 +1,62 @@
+name: 功能建议
+description: 提出新能力或流程改进，明确问题、范围与验收标准。
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请搜索已有 Issue 并阅读 MVP 路线，说明建议所属阶段。
+        示例和 Agent 自评不能作为已实现能力或真实客户端兼容性的证明。
+        内容与附件须脱敏，不包含 token、凭证或真实业务数据。
+  - type: input
+    id: owner
+    attributes:
+      label: 人类 Owner
+      description: 填写负责人 GitHub 用户名；尚未分配时可先填提出者，Agent 不可作为 Owner。
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景与问题
+      description: 谁在什么场景遇到什么问题？当前能力为何无法满足？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案与范围
+      description: 描述预期行为、所属 MVP 阶段及本次不包含的工作。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案
+      description: 说明考虑过的其他方案、现有功能组合或临时办法及其不足；没有可填“无”。
+  - type: textarea
+    id: context
+    attributes:
+      label: Context 与依赖
+      description: 提供需求、ADR、接口契约版本或不可变链接及前置任务；尚无依据时明确说明。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 成果与验收
+      description: 列出预期成果和可验证的验收条件。
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: 风险与人工审核
+      description: 说明权限、数据、部署、协议兼容性影响及需人工审核的事项；无已知风险或待评估时明确说明。
+    validations:
+      required: true
+  - type: input
+    id: executor
+    attributes:
+      label: 执行者 / Agent
+      description: 可选，记录计划使用的客户端及版本，不会替代人类责任。

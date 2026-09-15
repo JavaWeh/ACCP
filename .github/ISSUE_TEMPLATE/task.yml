@@ -2,11 +2,16 @@ name: 协作任务
 description: 创建有人类 Owner、Context 依据与验收标准的 ACCP 工作项。
 title: "[Task] "
 body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请搜索已有 Issue，并阅读 CONTRIBUTING.md 与 MVP 路线。
+        内容与附件须脱敏，不包含 token、凭证或真实业务数据。
   - type: input
     id: owner
     attributes:
       label: 人类 Owner
-      description: 填写负责交付与验收的 GitHub 用户名，Agent 不可作为 Owner。
+      description: 填写负责交付与验收的 GitHub 用户名；尚未分配时可先填提出者，Agent 不可作为 Owner。
     validations:
       required: true
   - type: textarea

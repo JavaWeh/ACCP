@@ -1,0 +1,68 @@
+name: 缺陷报告
+description: 报告已实现功能的问题，提供可复现步骤与验收条件。
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请搜索已有 Issue，确认问题涉及已实现功能。
+        日志、配置与截图须脱敏，不要上传 token、凭证或真实业务数据。
+  - type: input
+    id: owner
+    attributes:
+      label: 人类 Owner
+      description: 填写负责人 GitHub 用户名；尚未分配时可先填报告者，Agent 不可作为 Owner。
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 版本与运行环境
+      description: 填写 ACCP Commit 或版本、操作系统、部署方式、相关依赖及客户端版本，不粘贴凭证。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: 提供前置条件、最小请求或操作步骤，并说明复现频率。
+      placeholder: |
+        前置条件：
+        1.
+        2.
+        复现频率：
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+      description: 描述应有结果；如有依据，附文档、契约或 Context 版本。
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为与证据
+      description: 描述实际结果，附脱敏错误信息、trace_id、日志或截图。
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响与临时解决办法
+      description: 说明受影响的功能、权限或数据，以及已尝试的解决办法；没有可填“无”。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 修复验收条件
+      description: 描述如何确认问题已修复，以及需要覆盖的回归场景。
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 关联 Context 与任务
+      description: 可选，提供相关 Issue、ADR、接口契约版本或不可变链接。
