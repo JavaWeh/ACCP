@@ -1,0 +1,7 @@
+{
+  "backend_id": "github_merge",
+  "name": "Merge approved pull request",
+  "resource_version": "commit_a1",
+  "enabled": true,
+  "reason": "Register operator-allowed repository."
+}

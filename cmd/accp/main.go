@@ -19,6 +19,8 @@ import (
 	"github.com/JavaWeh/ACCP/internal/config"
 	"github.com/JavaWeh/ACCP/internal/controlplane"
 	"github.com/JavaWeh/ACCP/internal/database"
+	"github.com/JavaWeh/ACCP/internal/gateway"
+	"github.com/JavaWeh/ACCP/internal/gitprovider"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -82,14 +84,18 @@ func run() error {
 			return err
 		}
 	}
-	handler, err := controlplane.New(pool, verifier, controlplane.Options{SessionKey: execution.SessionKey, PublicURL: execution.PublicURL})
+	tools, err := gateway.Load(os.Getenv("ACCP_TOOLS_FILE"), os.Getenv("ACCP_ENV") == "development")
+	if err != nil {
+		return err
+	}
+	handler, err := controlplane.New(pool, verifier, controlplane.Options{SessionKey: execution.SessionKey, PublicURL: execution.PublicURL, GitProvider: &gitprovider.GitHub{Token: os.Getenv("ACCP_GITHUB_TOKEN")}, Tools: tools, WebDirectory: os.Getenv("ACCP_WEB_DIR"), AuthMode: cfg.AuthMode, OIDCIssuer: cfg.Issuer, OIDCClientID: cfg.Audience})
 	if err != nil {
 		return fmt.Errorf("contract initialization failed: %w", err)
 	}
 	server := &http.Server{Addr: cfg.ListenAddress, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32768}
 	stopped := make(chan error, 1)
 	go func() { stopped <- server.ListenAndServe() }()
-	slog.Info("ACCP M2 listening", "address", cfg.ListenAddress, "auth_mode", cfg.AuthMode)
+	slog.Info("ACCP control plane listening", "address", cfg.ListenAddress, "auth_mode", cfg.AuthMode)
 	select {
 	case err := <-stopped:
 		if !errors.Is(err, http.ErrServerClosed) {

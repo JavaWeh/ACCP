@@ -1,0 +1,20 @@
+[
+  {
+    "id": "github_merge",
+    "project_id": "project_demo",
+    "resource_id": "repo_demo",
+    "kind": "git.merge",
+    "version": "1",
+    "repository_url": "https://github.com/example/example",
+    "read_only": false,
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "pull_request": {"type": "integer", "minimum": 1},
+        "commit_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"}
+      },
+      "required": ["pull_request", "commit_sha"],
+      "additionalProperties": false
+    }
+  }
+]

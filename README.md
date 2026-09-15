@@ -2,7 +2,7 @@
 
 面向企业研发团队的多人、多 AI Coding Agent 协作控制平台。以人为责任主体，以 Agent 为执行代理，通过统一任务、上下文、事件与成果协议连接不同 AI 客户端。
 
-> **当前阶段：M2 异构执行。** 已实现 M1 人类控制面，以及 Agent Session、依赖 DAG、TaskRun/快照、租约、证据登记、事件 Worker、Go SDK 和 MCP stdio Bridge。最终人工验收、Git 核验和 MCP Gateway 留在 M3，Web 界面留在 M4；下方架构展示完整目标。
+> **当前阶段：M3 受控交付与 M4 Web 控制台已实现。** 可通过浏览器管理任务、上下文、成果、人工验收、工具审批和审计；Agent 使用通用 Bridge 与 MCP Gateway。两个真实 AI 客户端的联合验收暂缓，企业 IdP、实际下游系统及生产运维仍需部署联调。
 
 ## 核心原则
 
@@ -36,7 +36,7 @@ flowchart LR
     Gateway --> Tools[Git / DB / CI / 文档 / 内部系统]
 ```
 
-参考技术栈：**Go + TypeScript/React + PostgreSQL + NATS JetStream + S3 兼容存储 + OIDC + OpenTelemetry**。采用模块化单体、独立 Worker 与 Gateway，优先企业私有部署。
+参考技术栈：**Go + TypeScript/React + PostgreSQL + NATS JetStream + S3 兼容存储 + OIDC + OpenTelemetry**。采用模块化单体、独立 Worker 与 Gateway，优先企业私有部署。当前有界正文保存在 PostgreSQL；S3 大对象存储和完整 OpenTelemetry 导出属于后续扩展。
 
 本地客户端保留现有使用方式；受治理的操作必须经过网关专用授权。客户端使用独立凭证绕行的操作不在 ACCP 强制审批与完整审计保证内。
 
@@ -44,6 +44,7 @@ flowchart LR
 
 | 主题 | 入口 |
 | --- | --- |
+| 平台入口、M3/M4 升级与界面验收 | [M3 / M4 平台](docs/m3-m4-platform.md) |
 | M2 升级、Bridge、事件与一键验收 | [M2 异构执行](docs/m2-execution.md) |
 | M1 身份配置、基础 API 与历史验收 | [M1 控制面](docs/m1-control-plane.md) |
 | 总体架构、核心模块、Source of Truth | [架构设计](docs/architecture.md) |
@@ -68,11 +69,11 @@ docker compose --env-file .accp-local/compose.env --profile tools run --rm boots
 node scripts/m2-smoke.mjs
 ```
 
-访问 `http://127.0.0.1:8080/readyz` 检查就绪状态。两个人类开发账号的随机凭证仅写入 `.accp-local/dev-users.json`。这些命令用于首次初始化；数据保存在命名卷中。已有 M1 数据时按 [M2 升级说明](docs/m2-execution.md#本地部署与从-m1-升级) 先停止旧 API、补充配置再迁移；不要重复 bootstrap 或删除数据卷。
+访问 `http://127.0.0.1:8080/` 使用 Web 平台，`/readyz` 检查就绪状态。两个人类开发账号的随机凭证仅写入 `.accp-local/dev-users.json`。这些命令用于首次初始化；数据保存在命名卷中。已有 M1/M2 数据时按 [M3/M4 升级说明](docs/m3-m4-platform.md#运行与升级) 保留项目名，补充配置、构建，再停止旧 API/Worker 并迁移；不要重复 bootstrap 或删除数据卷。
 
 ## 校验文档与契约
 
-需要 Node.js 22.22.3 和 npm 10（仅作为文档工具链，不是后端运行时）：
+需要 Node.js 22.22.3 和 npm 10（根目录为文档工具链，`web/` 独立维护 React 构建依赖）：
 
 ```sh
 npm ci --ignore-scripts
@@ -86,10 +87,10 @@ npm run check:history
 
 1. **M1 已实现**：人类身份、项目角色、Task 提交/取消、Context 版本与发布。
 2. **M2 已实现**：通用 SDK/Bridge、受限 Session、TaskRun/快照、依赖/租约、事件订阅与重放；尚无真实厂商客户端兼容性结论。
-3. 成果来源、Git 核验、MCP 受控操作、人工审批与验收。
-4. Web 操作界面、责任链查询、故障恢复及端到端验收。
+3. **M3 已实现**：成果来源、Git 核验、MCP 受控操作、独立人工审批、Owner 验收和未知结果核对。
+4. **M4 产品功能已实现**：Web 操作界面、责任链查询与浏览器自动验收；真实客户端联合验收暂缓。
 
-详细状态见 [MVP 验收矩阵](docs/mvp.md)。首个 Git 成果核验集成计划使用 GitHub，核心模型仍保持厂商无关；真实客户端兼容性将在后续联合验收。
+详细状态见 [MVP 验收矩阵](docs/mvp.md)。首个 Git 成果核验集成使用 GitHub，核心模型仍保持厂商无关；真实客户端兼容性等待后续联合验收。
 
 ## 贡献与许可证
 

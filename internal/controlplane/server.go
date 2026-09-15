@@ -19,6 +19,8 @@ import (
 
 	"github.com/JavaWeh/ACCP/internal/auth"
 	"github.com/JavaWeh/ACCP/internal/database"
+	"github.com/JavaWeh/ACCP/internal/gateway"
+	"github.com/JavaWeh/ACCP/internal/gitprovider"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -33,8 +35,14 @@ type Server struct {
 	options Options
 }
 type Options struct {
-	SessionKey []byte
-	PublicURL  string
+	SessionKey   []byte
+	PublicURL    string
+	GitProvider  gitprovider.Provider
+	Tools        *gateway.Registry
+	WebDirectory string
+	AuthMode     string
+	OIDCIssuer   string
+	OIDCClientID string
 }
 type request struct {
 	tx                        pgx.Tx
@@ -119,12 +127,12 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Option
 		"GET /api/v1/projects/{id}/audit-records":               {table: "projects", role: "REVIEWER", run: listAudit},
 	}
 	s.extendRoutes(routes)
+	s.deliveryRoutes(routes)
 	for pattern, op := range routes {
 		s.mux.HandleFunc(pattern, s.handle(op))
 	}
-	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		writeProblem(w, newID("trace"), fail(404, "NOT_FOUND", "This route is not implemented."))
-	})
+	s.mountConsole()
+	s.mountGateway()
 	return s, nil
 }
 
@@ -147,6 +155,7 @@ func (s *Server) handle(op operation) http.HandlerFunc {
 		w.Header().Set("X-Request-ID", trace)
 		result, err := s.execute(w, r, op, trace)
 		if err != nil {
+			s.recordDenial(r, op, trace, err)
 			writeProblem(w, trace, err)
 			return
 		}

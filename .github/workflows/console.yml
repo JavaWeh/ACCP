@@ -1,0 +1,53 @@
+name: Validate Web console
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: console-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install locked Web tooling
+        run: npm --prefix web ci --ignore-scripts
+      - name: Type check and build
+        run: |
+          npm --prefix web run check:format
+          npm --prefix web run build
+      - name: Install Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Start isolated platform
+        run: |
+          node scripts/dev-env.mjs
+          docker compose --env-file .accp-local/compose.env up --build --wait
+          docker compose --env-file .accp-local/compose.env --profile tools run --rm bootstrap
+      - name: Browser acceptance against real API and database
+        working-directory: web
+        env:
+          ACCP_WEB_URL: http://127.0.0.1:8080
+          ACCP_WEB_CREDENTIALS_FILE: ../.accp-local/dev-users.json
+        run: npm test
+      - name: Stop isolated services
+        if: always()
+        run: docker compose --env-file .accp-local/compose.env down

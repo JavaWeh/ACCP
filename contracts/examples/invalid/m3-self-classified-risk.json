@@ -1,0 +1,7 @@
+{
+  "tool_id": "tool_merge",
+  "resource_version": "a1",
+  "arguments": {},
+  "artifact_ids": [],
+  "risk": "READ_ONLY"
+}

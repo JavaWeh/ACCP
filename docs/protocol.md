@@ -1,10 +1,10 @@
 # ACCP Collaboration Protocol v0.1
 
-> M2 执行协议与运行边界见 [M2 异构执行](m2-execution.md) 和 [ADR 0005](adr/0005-m2-execution.md)。下文保留完整平台目标；Gateway、最终验收和 Web 界面尚在后续阶段。
+> 当前实现包含 M1–M3 控制面与 M4 Web 功能。运行、升级与验收见 [M3/M4 平台](m3-m4-platform.md)；边界与代价见 [ADR 0006](adr/0006-controlled-delivery-console.md)。真实客户端联合验收暂缓。
 
 ## 状态与传输
 
-M1 运行支持以 [控制面实现说明](m1-control-plane.md) 和 OpenAPI 的 `x-accp-milestone` 为准。下面保留完整目标协议；Agent、SSE、MCP、TaskRun 和快照尚未实现。
+运行支持以 OpenAPI 的 `x-accp-milestone: M1 | M2 | M3 | M4` 和实现说明为准；`future` 表示尚未实现的接口。Bridge 继续使用协作协议 0.2，M3 REST 增量不改变已注册客户端的协商版本。
 
 本协议是 ACCP 项目自有草案，不是外部 ACP 标准的实现声明。`/api/v1` 是 API 主版本命名空间，`0.1` 是当前预发布协议版本；在首个稳定版本前，破坏性修改仍必须记录并升级协议 minor，不能悄悄改变已登记 Adapter 的语义。
 

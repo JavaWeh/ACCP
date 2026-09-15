@@ -94,13 +94,8 @@ func TestM2ExistingAcceptedArtifactReleasesDependency(t *testing.T) {
 	if blocked["status"] != "BLOCKED" {
 		t.Fatal("pending artifact released dependency")
 	}
-	// Seed an existing human-accepted fact to test the orchestrator predicate.
-	// This is not an implemented M2 approval API or an end-to-end acceptance claim.
-	_, err := f.pool.Exec(context.Background(), `UPDATE artifacts SET acceptance_status='ACCEPTED',document=jsonb_set(document,'{acceptance_status}','"ACCEPTED"') WHERE id=$1`, artifact["id"])
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = f.server.Reconcile(context.Background()); err != nil {
+	f.expect(f.call("bob", "POST", "/artifacts/"+textValue(artifact, "id")+"/reviews", newID("key"), `"1"`, Object{"decision": "ACCEPT", "content_digest": artifact["content_digest"], "reason": "Human verified dependency evidence"}), 200, "M2Artifact")
+	if err := f.server.Reconcile(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	ready := f.expect(f.call("bob", "GET", "/tasks/"+textValue(b, "id"), "", "", nil), 200, "Task")

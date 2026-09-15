@@ -1,11 +1,12 @@
 # 协议契约
 
-本目录包含 ACCP v0.1 基础模型和 v0.2 执行增量。OpenAPI 的 `x-accp-milestone: M1` / `M2` 表示当前实现，`future` 表示后续能力；M2 支持人类身份和受限 Agent Session。运行限制与验收见 [M2 异构执行](../docs/m2-execution.md)。
+本目录包含 ACCP 基础模型、0.2 执行增量及 M3 受控交付契约。OpenAPI 的 `x-accp-milestone: M1 | M2 | M3 | M4` 表示对应实现阶段，`future` 表示后续能力。运行限制与验收见 [M3/M4 平台](../docs/m3-m4-platform.md)。
 
 ## 入口
 
 - [OpenAPI](openapi.yaml)：REST 请求、响应、鉴权、版本与错误。
 - [Domain Schema](schemas/domain.schema.json)：领域模型和命令输入输出。
+- [M3 Schema](schemas/m3.schema.json)：人工验收、工具策略、操作回执、审批和 Gateway 授权。
 - [M2 Schema](schemas/m2.schema.json)：0.2 能力协商、领取必需代码版本、新增事件和分页输出。
 - [M1 Schema](schemas/m1.schema.json)：人类/项目查询、角色变更与不可变内容上传。
 - [Event Schema](schemas/event.schema.json)：CloudEvents 信封与十类领域事件。

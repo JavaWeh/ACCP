@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://accp.example/schemas/v0.3/m3.schema.json",
+  "title": "ACCP controlled delivery contracts",
+  "$defs": {
+    "Reason": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "ArtifactReview": {
+      "type": "object",
+      "properties": {
+        "decision": {
+          "enum": [
+            "ACCEPT",
+            "REJECT"
+          ]
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "decision",
+        "content_digest",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "TaskReview": {
+      "type": "object",
+      "properties": {
+        "decision": {
+          "enum": [
+            "ACCEPT",
+            "REJECT"
+          ]
+        },
+        "task_run_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "artifact_id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "content_digest": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "artifact_id",
+              "version",
+              "content_digest"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 100
+        },
+        "acceptance_checks": {
+          "type": "array",
+          "items": {
+            "type": "boolean"
+          },
+          "minItems": 1,
+          "maxItems": 100
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "decision",
+        "task_run_id",
+        "artifacts",
+        "acceptance_checks",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "PolicyRequest": {
+      "type": "object",
+      "properties": {
+        "backend_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "resource_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "backend_id",
+        "name",
+        "resource_version",
+        "enabled",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "InvocationRequest": {
+      "type": "object",
+      "properties": {
+        "tool_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "resource_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "arguments": {
+          "type": "object",
+          "maxProperties": 100
+        },
+        "artifact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "tool_id",
+        "resource_version",
+        "arguments",
+        "artifact_ids"
+      ],
+      "additionalProperties": false
+    },
+    "ApprovalDecision": {
+      "$ref": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/ApprovalDecision"
+    },
+    "Invocation": {
+      "$ref": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/ToolInvocation"
+    },
+    "Approval": {
+      "$ref": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Approval"
+    },
+    "Artifact": {
+      "$ref": "https://accp.example/schemas/v0.1/domain.schema.json#/$defs/Artifact"
+    },
+    "GatewayGrant": {
+      "type": "object",
+      "properties": {
+        "access_token": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "token_type": {
+          "const": "Bearer"
+        },
+        "resource": {
+          "type": "string",
+          "format": "uri"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "access_token",
+        "token_type",
+        "resource",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "Policy": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "backend_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "resource_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "resource_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "risk": {
+          "enum": [
+            "READ_ONLY",
+            "HIGH"
+          ]
+        },
+        "tool_schema_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "input_schema": {
+          "type": "object"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "created_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "organization_id",
+        "backend_id",
+        "name",
+        "resource_id",
+        "resource_version",
+        "enabled",
+        "risk",
+        "tool_schema_version",
+        "input_schema",
+        "version",
+        "created_by_user_id",
+        "updated_at"
+      ],
+      "additionalProperties": false
+    },
+    "PolicyPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Policy"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "InvocationPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Invocation"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "ApprovalPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Approval"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

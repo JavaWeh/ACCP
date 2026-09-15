@@ -1,0 +1,15 @@
+{
+  "decision": "ACCEPT",
+  "task_run_id": "run_orders",
+  "artifacts": [
+    {
+      "artifact_id": "artifact_tests",
+      "version": 1,
+      "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "acceptance_checks": [
+    true
+  ],
+  "reason": "Owner checked the published acceptance criteria."
+}

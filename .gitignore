@@ -33,6 +33,8 @@ bin/
 dist/
 build/
 coverage/
+playwright-report/
+test-results/
 .cache/
 .npm/
 *.test

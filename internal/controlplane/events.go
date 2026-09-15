@@ -53,7 +53,35 @@ func recordAudit(q *request, action, resource string, version int64) error {
 	} else if err != pgx.ErrNoRows {
 		return err
 	}
-	_, err = q.tx.Exec(q.http.Context(), `INSERT INTO audit_records(id,project_id,organization_id,actor_user_id,action,resource_id,resource_version,trace_id,actor_kind,actor_session_id,task_run_id,owner_user_id,context_snapshot_id,reason) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, newID("audit"), q.project, q.org, q.user, action, resource, version, q.trace, kind, sessionID, runID, owner, snapshot, textValue(q.body, "reason"))
+	details := Object{}
+	if strings.Contains(action, "/reviews") || strings.Contains(action, "/verifications") || strings.Contains(action, "/decisions") {
+		var evidence []byte
+		switch {
+		case strings.Contains(action, "/tasks/"):
+			err = q.tx.QueryRow(q.http.Context(), `SELECT r.document FROM task_runs r WHERE r.task_id=$1 AND r.project_id=$2 ORDER BY attempt DESC LIMIT 1`, id, q.project).Scan(&evidence)
+		case strings.Contains(action, "/artifacts/"):
+			err = q.tx.QueryRow(q.http.Context(), `SELECT r.document FROM artifacts a JOIN task_runs r ON r.id=a.run_id WHERE a.id=$1 AND a.project_id=$2`, id, q.project).Scan(&evidence)
+			details["artifact_ids"] = []string{id}
+		case strings.Contains(action, "/approvals/"):
+			err = q.tx.QueryRow(q.http.Context(), `SELECT r.document FROM approvals a JOIN tool_invocations i ON i.id=a.invocation_id JOIN task_runs r ON r.id=i.run_id WHERE a.id=$1 AND a.project_id=$2`, id, q.project).Scan(&evidence)
+			details["approval_id"] = id
+		}
+		if err == nil && len(evidence) > 0 {
+			var doc Object
+			_ = json.Unmarshal(evidence, &doc)
+			runID = doc["id"]
+			owner = doc["owner_user_id"]
+			snapshot = doc["context_snapshot_id"]
+			details["delegated_by_user_id"] = doc["delegated_by_user_id"]
+			details["execution_session_id"] = doc["session_id"]
+			details["reviewed_by_user_id"] = q.user
+		}
+		if err != nil && err != pgx.ErrNoRows {
+			return err
+		}
+	}
+	metadata, _ := json.Marshal(details)
+	_, err = q.tx.Exec(q.http.Context(), `INSERT INTO audit_records(id,project_id,organization_id,actor_user_id,action,resource_id,resource_version,trace_id,actor_kind,actor_session_id,task_run_id,owner_user_id,context_snapshot_id,reason,details) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, newID("audit"), q.project, q.org, q.user, action, resource, version, q.trace, kind, sessionID, runID, owner, snapshot, textValue(q.body, "reason"), metadata)
 	return err
 }
 

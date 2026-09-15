@@ -28,7 +28,7 @@ compose.yaml                 本地开发环境
 .github/                     Issue、PR 模板与 CI
 ```
 
-Node 工具链用于验证和本地配置生成；Go 模块在 M1 引入。M2 执行模块已实现；React 应用按原路线留在 M4。基础身份见 [M1 控制面](m1-control-plane.md)，执行、升级与验收见 [M2 异构执行](m2-execution.md)。
+根目录 Node 工具链用于验证和本地配置生成，`web/` 是独立锁定依赖的 React 应用；Go 负责控制面、Bridge 和 Worker。M1–M3 后端与 M4 Web 产品功能均已实现。基础身份见 [M1 控制面](m1-control-plane.md)，执行、升级与验收见 [M2 异构执行](m2-execution.md)。
 
 ## 本地验证
 
@@ -71,3 +71,15 @@ CI 以只读权限运行并拉取完整历史，不上传工作区压缩包，�
 ## 推送与核对
 
 保留现有 LICENSE 和历史，不强制推送。若远程前进，先整合变更并重跑检查；推送后核对远程 SHA、文件树和 Actions 结果。最终报告应明确哪些检查实际通过，不能把已创建工作流等同于工作流已运行成功。
+
+## Web 验证
+
+```sh
+npm --prefix web ci --ignore-scripts
+npm --prefix web run build
+cd web
+npx playwright install chromium
+npm test
+```
+
+浏览器测试需运行独立的开发部署，设置 `ACCP_WEB_URL` 和 `ACCP_WEB_CREDENTIALS_FILE`；默认使用本机隔离测试环境。测试会创建真实 Context 和 Task，禁止指向生产环境。凭证、截图及测试结果目录不提交，不上传含授权信息的浏览器 trace。CI 使用一次性数据库与开发凭证完成这些操作。
