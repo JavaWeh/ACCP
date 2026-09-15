@@ -4,7 +4,7 @@
 
 ACCP 是企业研发协作控制面：保存责任、任务、共享上下文、成果与授权事实，连接人类成员和不同 AI Coding Client。它不承接模型推理服务，也不将聊天历史作为编排数据库。
 
-当前交付仅为设计和契约。参考实现使用 Go 后端、TypeScript/React 前端；优先单企业私有部署、多项目协作，所有资源保留企业隔离标识。
+当前已交付 [M1 人类控制面](m1-control-plane.md)：Go 后端与 PostgreSQL。TypeScript/React 前端、Worker、Gateway 和异构执行仍为目标设计；优先单企业私有部署、多项目协作，所有资源保留企业隔离标识。M1 的正文暂存、锁粒度与实现边界见 [ADR 0004](adr/0004-m1-foundation.md)。
 
 ## 架构图
 

@@ -1,0 +1,14 @@
+# Allow only public build inputs into the Docker build context.
+**
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!contracts/
+!contracts/embed.go
+!contracts/schemas/
+!contracts/schemas/**
+!Dockerfile
+!LICENSE

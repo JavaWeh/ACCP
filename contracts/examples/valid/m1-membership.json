@@ -1,0 +1,12 @@
+{
+  "id": "user_bob",
+  "organization_id": "org_demo",
+  "project_id": "project_demo",
+  "display_name": "Bob",
+  "roles": [
+    "MEMBER",
+    "REVIEWER"
+  ],
+  "active": true,
+  "version": 1
+}

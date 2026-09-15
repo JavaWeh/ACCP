@@ -20,10 +20,13 @@ contracts/openapi.yaml       REST 草案
 contracts/schemas/           领域、事件与 Adapter Schema
 contracts/examples/          正例与预期拒绝的反例
 scripts/                     文档/契约/私有文件校验工具及测试
+cmd/accp/                    Go 服务与操作者命令入口
+internal/                    M1 身份、配置、迁移、Task/Context 实现
+compose.yaml                 本地开发环境
 .github/                     Issue、PR 模板与 CI
 ```
 
-Node 工具链只做验证；未来业务 Go 模块及 React 应用需通过对应 MVP 任务引入。不要生成未实现的服务占位符或把 CLI 示例写成平台启动方式。
+Node 工具链用于验证和本地配置生成；Go 模块在 M1 引入。React 应用及执行模块通过后续 MVP 任务引入。M1 运行与集成测试见 [控制面使用说明](m1-control-plane.md)。
 
 ## 本地验证
 
@@ -35,7 +38,7 @@ git diff --check
 
 `check` 包含 Markdown、仓库内链接及锚点、OpenAPI、JSON Schema 和正反例、验证工具测试与私有路径检查。外部链接不在普通 CI 中发起网络请求，以免不稳定站点影响离线可重复验证；引用规范版本须在更新时人工核对。
 
-OpenAPI 校验还编译所有被引用的请求/响应 schema。额外一致性检查确保正例覆盖每个事件和核心模型、反例确实因指定约束失败。未来服务端的语义校验由 MVP 运行时测试承担。
+OpenAPI 校验还编译所有被引用的请求/响应 schema。额外一致性检查确保正例覆盖每个事件和核心模型、反例确实因指定约束失败。M1 的运行时测试使用真实 PostgreSQL；Go CI 同时进行 race 检测、vet、编译与 Docker 构建。
 
 工具依赖与 Action 均锁定版本。Markdown 校验器的 `smol-toml` 传递依赖显式覆盖到 1.8.0，以避开上游固定旧版本的已知拒绝服务漏洞；更新工具链时重新运行依赖审计和全部校验，不盲目执行带破坏性升级的自动修复。
 
@@ -61,7 +64,7 @@ CI 以只读权限运行并拉取完整历史，不上传工作区压缩包，�
 
 配置了 GitNexus 的贡献者在修改已有符号前做 impact，报告直接调用方、影响流程与风险；提交前做 detect_changes。索引为空或符号未找到时，报告未知并通过文件检查与测试补充，不能据此声称零风险。
 
-公共 CI 不依赖个人索引服务；本地索引和 Agent 配置不提交。当前基线主要是文档与新校验工具，没有业务调用图。
+公共 CI 不依赖个人索引服务；本地索引和 Agent 配置不提交。Go 模块变化后刷新本地索引，再检查实际影响范围。
 
 ## 推送与核对
 

@@ -1,0 +1,58 @@
+name: Validate M1 control plane
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: control-plane-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
+        env:
+          POSTGRES_USER: accp
+          POSTGRES_DB: accp
+          POSTGRES_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U accp -d accp"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      ACCP_TEST_DATABASE_URL: postgres://accp:ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/accp?sslmode=disable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify pinned modules and formatting
+        run: |
+          go mod download
+          go mod verify
+          test -z "$(gofmt -l cmd internal contracts/embed.go)"
+          go vet ./...
+      - name: Unit and PostgreSQL integration tests with race detector
+        run: go test -race -tags=integration -count=1 ./...
+      - name: Build standalone binary
+        run: go build -trimpath -o bin/accp ./cmd/accp
+      - name: Validate local deployment and build isolated image
+        run: |
+          node scripts/dev-env.mjs
+          docker compose --env-file .accp-local/compose.env config --quiet
+          docker build -t accp-m1:ci .

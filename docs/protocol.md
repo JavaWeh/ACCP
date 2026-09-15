@@ -2,6 +2,8 @@
 
 ## 状态与传输
 
+M1 运行支持以 [控制面实现说明](m1-control-plane.md) 和 OpenAPI 的 `x-accp-milestone` 为准。下面保留完整目标协议；Agent、SSE、MCP、TaskRun 和快照尚未实现。
+
 本协议是 ACCP 项目自有草案，不是外部 ACP 标准的实现声明。`/api/v1` 是 API 主版本命名空间，`0.1` 是当前预发布协议版本；在首个稳定版本前，破坏性修改仍必须记录并升级协议 minor，不能悄悄改变已登记 Adapter 的语义。
 
 - REST 使用 HTTPS + JSON；[OpenAPI](../contracts/openapi.yaml) 定义输入输出。

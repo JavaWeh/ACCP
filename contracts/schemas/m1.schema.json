@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://accp.example/schemas/v0.1/m1.schema.json",
+  "title": "M1 foundation extensions",
+  "$defs": {
+    "UploadContent": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 262144
+        },
+        "media_type": {
+          "type": "string",
+          "enum": [
+            "text/plain",
+            "text/markdown",
+            "application/json",
+            "application/yaml"
+          ]
+        }
+      },
+      "required": [
+        "content",
+        "media_type"
+      ],
+      "additionalProperties": false
+    },
+    "MembershipChange": {
+      "type": "object",
+      "properties": {
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER",
+              "REVIEWER",
+              "VIEWER"
+            ]
+          }
+        },
+        "active": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "roles",
+        "active"
+      ],
+      "additionalProperties": false
+    },
+    "Human": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "HUMAN"
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "display_name",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "Project": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER",
+              "REVIEWER",
+              "VIEWER"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "name",
+        "roles"
+      ],
+      "additionalProperties": false
+    },
+    "Membership": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER",
+              "REVIEWER",
+              "VIEWER"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "display_name",
+        "roles",
+        "active",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "ContentMetadata": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "content_uri": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^urn:accp:content:"
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "media_type": {
+          "type": "string",
+          "enum": [
+            "text/plain",
+            "text/markdown",
+            "application/json",
+            "application/yaml"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "content_uri",
+        "content_digest",
+        "media_type"
+      ],
+      "additionalProperties": false
+    },
+    "Content": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "content_uri": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^urn:accp:content:"
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "media_type": {
+          "type": "string",
+          "enum": [
+            "text/plain",
+            "text/markdown",
+            "application/json",
+            "application/yaml"
+          ]
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 262144
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "content_uri",
+        "content_digest",
+        "media_type",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "ProjectPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Project"
+          }
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "MembershipPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Membership"
+          }
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "ContextVersionPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "./domain.schema.json#/$defs/ContextVersion"
+          }
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
