@@ -6,7 +6,9 @@ mkdirSync('.accp-local', { recursive: true });
 const password = randomBytes(32).toString('hex');
 const additions = {
   ACCP_SESSION_KEY: randomBytes(32).toString('hex'),
-  ACCP_NATS_TOKEN: randomBytes(32).toString('hex'),
+  // NATS parses environment substitutions as config values; digit prefixes can
+  // be mistaken for numbers (for example, hexadecimal tokens starting in 1e).
+  ACCP_NATS_TOKEN: `accp_${randomBytes(32).toString('hex')}`,
 };
 if (process.argv[2] === '--upgrade-m2') {
   const existing = readFileSync('.accp-local/compose.env', 'utf8');
