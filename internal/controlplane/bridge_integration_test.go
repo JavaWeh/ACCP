@@ -47,7 +47,7 @@ func TestM2BridgeRealStdioTransport(t *testing.T) {
 	}
 	defer session.Close()
 	tools, err := session.ListTools(ctx, &mcp.ListToolsParams{})
-	if err != nil || len(tools.Tools) != 10 {
+	if err != nil || len(tools.Tools) != 11 {
 		t.Fatal("tool negotiation failed", err)
 	}
 	call := func(name string, input Object) Object {
@@ -72,6 +72,39 @@ func TestM2BridgeRealStdioTransport(t *testing.T) {
 	}
 	claim := call("accp_claim", Object{"idempotency_key": newID("key"), "body": Object{"project_id": "project_demo", "task_id": task["id"], "base_revision": strings.Repeat("a", 40)}})
 	run := claim["run"].(map[string]any)
+	snapshot := call("accp_snapshot", Object{"id": run["context_snapshot_id"]})
+	entry := snapshot["entries"].([]any)[0].(map[string]any)
+	version := call("accp_context_version", Object{"context_id": entry["context_id"], "context_version_id": entry["context_version_id"]})
+	if version["id"] != entry["context_version_id"] || version["content_digest"] != entry["content_digest"] {
+		t.Fatal("Bridge resolved a different Context version")
+	}
+	contentID := strings.TrimPrefix(textValue(version, "content_uri"), "urn:accp:content:")
+	content := call("accp_context_content", Object{"id": contentID})
+	if content["content_digest"] != entry["content_digest"] || content["content"] != "# Orders\nGET /orders" {
+		t.Fatal("Bridge could not read the exact frozen Context bytes")
+	}
+	cli := exec.CommandContext(ctx, binary, "call", "accp_context_version")
+	cli.Env = command.Env
+	cliInput, _ := json.Marshal(Object{"context_id": entry["context_id"], "context_version_id": entry["context_version_id"]})
+	cli.Stdin = strings.NewReader(string(cliInput))
+	cliOutput, err := cli.Output()
+	if err != nil {
+		t.Fatalf("CLI Context version read: %v", err)
+	}
+	var cliResult mcp.CallToolResult
+	if json.Unmarshal(cliOutput, &cliResult) != nil || cliResult.IsError {
+		t.Fatal("CLI did not preserve tool-specific Context version arguments")
+	}
+	for _, input := range []Object{
+		{"context_id": "../contexts", "context_version_id": entry["context_version_id"]},
+		{"context_id": entry["context_id"], "context_version_id": "../versions"},
+		{"context_id": "ctx_wrong_parent", "context_version_id": entry["context_version_id"]},
+	} {
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "accp_context_version", Arguments: input})
+		if err == nil && !result.IsError {
+			t.Fatal("invalid Context/version reference accepted")
+		}
+	}
 	heartbeat := call("accp_heartbeat", Object{"id": run["id"], "version": run["version"], "fencing_token": run["fencing_token"], "idempotency_key": newID("key"), "body": Object{"observed_at": now()}})
 	if heartbeat["run"].(map[string]any)["status"] != "RUNNING" {
 		t.Fatal("stdio heartbeat did not renew lease")

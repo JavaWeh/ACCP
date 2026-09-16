@@ -51,7 +51,7 @@ func run() error {
 	if err != nil || len(raw) > 1024*1024 {
 		return errors.New("invalid tool input")
 	}
-	var input bridge.Input
+	var input map[string]any
 	if json.Unmarshal(raw, &input) != nil {
 		return errors.New("invalid tool input JSON")
 	}

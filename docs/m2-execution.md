@@ -139,7 +139,9 @@ go build -o bin/accp-bridge ./cmd/accp-bridge
 
 启动命令为 `accp-bridge stdio`。它先通过 `/adapters/handshake` 协商，再仅通过 stdin/stdout 承载 MCP；错误写 stderr。MCP 版本固定为 `2025-11-25`。manifest 使用 [0.2 示例](../contracts/examples/valid/m2-manifest.json)，其中 client name/version 填实际客户端；修改后由人类重新注册。服务端核对 manifest 与注册记录一致。
 
-十个 MCP 工具：`accp_task`、`accp_run`、`accp_claim`、`accp_heartbeat`、`accp_report`、`accp_snapshot`、`accp_context_content`、`accp_artifact_upload`、`accp_artifact_register`、`accp_events`。
+十一个 MCP 工具：`accp_task`、`accp_run`、`accp_claim`、`accp_heartbeat`、`accp_report`、`accp_snapshot`、`accp_context_version`、`accp_context_content`、`accp_artifact_upload`、`accp_artifact_register`、`accp_events`。
+
+读取 Context 时，先用 `accp_snapshot` 获取冻结的 `entries`，再将同一条 entry 的 `context_id` 和 `context_version_id` 传给 `accp_context_version`。校验返回版本和摘要后，从 `content_uri` 的 `urn:accp:content:<content_id>` 取出正文 ID，交给 `accp_context_content`。Context ID、版本 ID 和内容摘要均不能代替正文 ID；不要改为读取最新版本。版本与正文读取沿用服务端 `context:read`、成员及项目边界检查。此工具为 v0.2 Bridge 的兼容新增，原有工具及 REST 契约不变。
 
 工具输入通过 `id` 指定资源；写入使用 `body`、`idempotency_key`、`version` 和 `fencing_token`。例如：
 
