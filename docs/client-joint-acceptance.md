@@ -21,6 +21,21 @@
 
 配置变化后重启 MCP 连接，确认 `tools/list` 中包含 `accp_context_version`。客户端凭证、配置、聊天记录和原始日志不提交公共仓库。
 
+### 写入参数
+
+Bridge 将 `body` 作为 REST 正文发送；外层 `id`、`version`、`fencing_token`、`idempotency_key` 用于路径和请求头。以下正文不允许额外字段：
+
+| 工具 | `body` 必填内容 |
+| --- | --- |
+| `accp_claim` | `project_id`、`base_revision`；可选 `task_id` 指定任务 |
+| `accp_heartbeat` | `observed_at`：真实 RFC3339 时间 |
+| `accp_artifact_upload` | `content`、`media_type` |
+| `accp_artifact_register` | `kind`、`uri`、`content_digest`、`media_type`；可选 `parent_artifact_ids`、`context_version_id`、`immutable_revision` |
+| `accp_report` 完成候选 | `kind: COMPLETION_CANDIDATE`、`artifact_ids`、字符串 `acceptance_report` |
+| `accp_report` 失败 | `kind: FAILURE`、`error_code`、字符串 `message` |
+
+除 claim 外，写入使用外层 `id=<Run ID>`、当前 `version`、claim 返回的 `fencing_token` 及本步骤幂等键。上传和登记不会改变 Run version；心跳返回的 `body.run.version` 必须用于后续写入。不要把文件名、Run ID 或自报来源信息添加到正文。完整约束见 [领域契约](../contracts/schemas/domain.schema.json)。
+
 ## 完整流程
 
 1. 第二客户端先尝试领取依赖未满足的任务，预期 `409 NO_CLAIMABLE_TASK`，且无 Run 被创建。
