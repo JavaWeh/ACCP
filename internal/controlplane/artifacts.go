@@ -54,12 +54,29 @@ func registerArtifact(q *request) (reply, error) {
 	if parents, ok := doc["parent_artifact_ids"].([]any); ok {
 		for _, id := range parents {
 			var valid bool
-			err = q.tx.QueryRow(q.http.Context(), `SELECT EXISTS(SELECT 1 FROM artifacts WHERE id=$1 AND run_id=$2 AND project_id=$3)`, id, run["id"], q.project).Scan(&valid)
+			// Project writes hold the project lock. Cross-Run parents must still
+			// match an accepted dependency frozen by the server at claim time.
+			err = q.tx.QueryRow(q.http.Context(), `SELECT EXISTS(
+				SELECT 1 FROM artifacts a
+				WHERE a.id=$1 AND a.project_id=$3 AND a.organization_id=$4
+				AND (a.run_id=$2 OR (
+					a.acceptance_status='ACCEPTED' AND a.verification_status='VERIFIED'
+					AND EXISTS (
+						SELECT 1 FROM context_snapshots s,
+						jsonb_array_elements(coalesce(s.document->'artifact_refs','[]'::jsonb)) ref
+						WHERE s.id=$5 AND s.project_id=$3 AND s.organization_id=$4
+						AND ref->>'artifact_id'=a.id
+						AND ref->'version'=a.document->'version'
+						AND ref->>'content_digest'=a.document->>'content_digest'
+						AND ref->>'task_id'=a.document->'provenance'->>'task_id'
+					)
+				))
+			)`, id, run["id"], q.project, q.org, run["context_snapshot_id"]).Scan(&valid)
 			if err != nil {
 				return reply{}, err
 			}
 			if !valid {
-				return reply{}, fail(422, "INVALID_PARENT", "M2 parent artifacts must belong to this Run.")
+				return reply{}, fail(422, "INVALID_PARENT", "Parent must belong to this Run or match a verified, accepted dependency in its frozen snapshot.")
 			}
 		}
 	}

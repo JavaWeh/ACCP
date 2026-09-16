@@ -1,6 +1,6 @@
 # 核心数据模型
 
-> 当前实现包含 M1–M3 控制面与 M4 Web 功能。运行、升级与验收见 [M3/M4 平台](m3-m4-platform.md)；边界与代价见 [ADR 0006](adr/0006-controlled-delivery-console.md)。真实客户端联合验收暂缓。
+> 当前实现包含 M1–M3 控制面与 M4 Web 功能。运行、升级与验收见 [M3/M4 平台](m3-m4-platform.md)；边界与代价见 [ADR 0006](adr/0006-controlled-delivery-console.md)。单人双客户端样例已验收，范围与限制见 [实际记录](acceptance-2026-09-16.md)。
 
 本文件定义领域约束；机器可读结构见 [Domain Schema](../contracts/schemas/domain.schema.json)。Schema 不能判断一个 ID 是否属于真实人类，也不能验证跨表权限，这些是未来服务端的强制约束。
 
@@ -91,3 +91,5 @@ Run 状态：`RUNNING`、`SUCCEEDED`、`FAILED`、`CANCELED`、`LOST`。`SUCCEED
 Artifact 保存 `task_id`、`task_run_id`、`session_id`、`agent_id`、`owner_user_id`、`delegated_by_user_id`、`context_snapshot_id` 及内容摘要。服务端从 Run 补全这些字段，客户端不能伪造责任链。Git 成果保存不可变 revision；人工接受前由服务端核验。非 Git 上传成果由服务端重算内容摘要。
 
 核验状态为 `UNVERIFIED / VERIFIED / FAILED`，验收状态为 `PENDING / ACCEPTED / REJECTED`。摘要证明内容一致，不能独自证明作者身份或业务正确性。
+
+`parent_artifact_ids` 可引用同一 Run 内已有成果，或当前 Run 冻结快照 `artifact_refs` 中的依赖成果。跨 Run 引用必须在同一企业、项目内，保持 `VERIFIED` 与 `ACCEPTED`，且成果 ID、版本、摘要和来源 Task 与快照一致；未入快照的成果及已变化的版本返回 `422 INVALID_PARENT`。子成果仍使用自身 Run 的责任链，快照保留父成果的版本证据。
