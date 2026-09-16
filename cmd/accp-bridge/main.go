@@ -40,7 +40,7 @@ func run() error {
 		return err
 	}
 	if len(os.Args) == 1 || len(os.Args) == 2 && os.Args[1] == "stdio" {
-		return bridge.New(c).Run(ctx, &mcp.StdioTransport{})
+		return bridge.NewWithAutoHeartbeat(c).Run(ctx, &mcp.StdioTransport{})
 	}
 	// CLI mode uses the same MCP tool definitions through an in-memory transport,
 	// avoiding a second implementation of protocol behavior.

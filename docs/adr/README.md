@@ -14,3 +14,5 @@ ADR 描述设计选择与代价；“接受”表示设计基线已选定，不�
 - [0005：M2 执行与协议增量](0005-m2-execution.md)。
 
 - [0006：受控交付与 Web 控制台](0006-controlled-delivery-console.md)。
+
+- [0007：常驻 Bridge 的有界自动续租](0007-bridge-lease-renewal.md)。
