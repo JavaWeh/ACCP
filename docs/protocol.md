@@ -1,6 +1,6 @@
 # ACCP Collaboration Protocol v0.1
 
-> 当前实现包含 M1–M3 控制面与 M4 Web 功能。运行、升级与验收见 [M3/M4 平台](m3-m4-platform.md)；边界与代价见 [ADR 0006](adr/0006-controlled-delivery-console.md)。真实客户端联合验收暂缓。
+> 当前实现包含 M1–M3 控制面与 M4 Web 功能。运行、升级与验收见 [M3/M4 平台](m3-m4-platform.md)；边界与代价见 [ADR 0006](adr/0006-controlled-delivery-console.md)。单人双客户端样例已验收，范围与限制见 [实际记录](acceptance-2026-09-16.md)。
 
 ## 状态与传输
 
