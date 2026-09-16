@@ -1,0 +1,46 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630">
+      <stop stop-color="#070B16"/>
+      <stop offset="1" stop-color="#111B36"/>
+    </linearGradient>
+    <linearGradient id="leg" x1="180" y1="490" x2="400" y2="150" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7B72FF"/>
+      <stop offset="1" stop-color="#4F6BFF"/>
+    </linearGradient>
+    <linearGradient id="plane" x1="165" y1="342" x2="413" y2="342" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#20C9FF"/>
+      <stop offset="1" stop-color="#3BE3BC"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="48" fill="url(#bg)"/>
+
+  <g transform="translate(38 0)">
+    <circle cx="288" cy="120" r="20" fill="#17213C"/>
+    <circle cx="288" cy="120" r="11" fill="#FFFFFF"/>
+    <path d="M288 140V160" stroke="#5770FF" stroke-width="12" stroke-linecap="round"/>
+
+    <path d="M148 492L260 190C271 162 305 162 316 190L428 492"
+          stroke="url(#leg)" stroke-width="56" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="169" y="321" width="238" height="66" rx="33" fill="url(#plane)"/>
+    <rect x="254" y="331" width="68" height="46" rx="14" fill="#0B1122"/>
+    <circle cx="276" cy="354" r="5" fill="#FFFFFF"/>
+    <circle cx="300" cy="354" r="5" fill="#FFFFFF"/>
+
+    <circle cx="148" cy="492" r="18" fill="#17213C"/>
+    <circle cx="148" cy="492" r="8" fill="#FFFFFF"/>
+    <circle cx="428" cy="492" r="18" fill="#17213C"/>
+    <circle cx="428" cy="492" r="8" fill="#FFFFFF"/>
+  </g>
+
+  <text x="548" y="308" fill="#FFFFFF"
+        font-family="Inter, Arial, sans-serif" font-size="148" font-weight="800"
+        letter-spacing="-6">ACCP</text>
+  <text x="557" y="372" fill="#A9B6D3"
+        font-family="Inter, Arial, sans-serif" font-size="28" font-weight="600"
+        letter-spacing="1.5">AGENT COLLABORATION</text>
+  <text x="557" y="413" fill="#A9B6D3"
+        font-family="Inter, Arial, sans-serif" font-size="28" font-weight="600"
+        letter-spacing="1.5">CONTROL PLANE</text>
+</svg>

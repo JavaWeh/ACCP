@@ -1,8 +1,20 @@
+import {
+  Avatar,
+  Tabs,
+  ProgressBar,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@heroui/react";
 import { useEffect, useState } from "react";
 import type { Doc } from "./api";
 import { label, stamp, short } from "./api";
 import type { Workspace } from "./main";
 import {
+  Button,
+  Input,
+  Select,
+  TextArea,
+  Checkbox,
   Action,
   Badge,
   Empty,
@@ -35,40 +47,41 @@ export function Tasks({ w }: { w: Workspace }) {
   );
   return (
     <>
-      <div className="toolbar">
-        <div className="segmented">
-          <button
-            className={filter === "all" ? "selected" : ""}
-            onClick={() => setFilter("all")}
-          >
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
+        <ToggleButtonGroup
+          aria-label="筛选任务"
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={[filter]}
+          onSelectionChange={(keys) => setFilter(String([...keys][0]))}
+        >
+          <ToggleButton id="all">
             全部任务 <small>{w.tasks.length}</small>
-          </button>
-          <button
-            className={filter === "mine" ? "selected" : ""}
-            onClick={() => setFilter("mine")}
-          >
-            我负责的
-          </button>
-        </div>
-        <input
-          className="search"
+          </ToggleButton>
+          <ToggleButton id="mine">我负责的</ToggleButton>
+        </ToggleButtonGroup>
+        <Input
+          className="w-full sm:ml-auto sm:max-w-72"
           aria-label="搜索任务"
           placeholder="搜索任务…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button className="primary" onClick={() => setCreating(true)}>
+        <Button variant="primary" onClick={() => setCreating(true)}>
           ＋ 创建任务
-        </button>
+        </Button>
       </div>
       {!w.tasks.length ? (
         <Empty title="还没有任务">
           先明确目标、Owner、验收条件与上下文，再分配 Agent 执行。
         </Empty>
       ) : (
-        <div className="board">
+        <div className="grid grid-cols-[repeat(7,280px)] items-start gap-4 overflow-x-auto pb-6">
           {columns.map((status) => (
-            <section className="board-column" key={status}>
+            <section
+              className="board-column min-h-80 rounded-xl bg-slate-100 p-3"
+              key={status}
+            >
               <h2>
                 <span className={`column-dot dot-${status}`} />
                 {label(status)}
@@ -78,35 +91,42 @@ export function Tasks({ w }: { w: Workspace }) {
                 {tasks
                   .filter((t) => t.status === status)
                   .map((task) => (
-                    <button
+                    <Button
+                      variant="secondary"
                       className="task-card"
                       key={task.id}
                       onClick={() => setSelected(task.id)}
                     >
-                      <span className="card-id">{short(task.id)}</span>
+                      <span className="font-mono text-xs text-slate-600">
+                        {short(task.id)}
+                      </span>
                       <h3>{task.title}</h3>
                       <p>{task.objective}</p>
-                      <div className="task-card-meta">
+                      <div className="flex justify-between gap-2 text-xs text-slate-600">
                         <span>▧ {task.context_version_ids.length} 项依据</span>
                         <span>{task.acceptance_criteria.length} 项验收</span>
                       </div>
                       <footer>
-                        <span className="avatar small">
-                          {String(
-                            w.members.find((m) => m.id === task.owner_user_id)
-                              ?.display_name || task.owner_user_id,
-                          ).slice(0, 1)}
-                        </span>
+                        <Avatar size="sm" aria-hidden="true">
+                          <Avatar.Fallback>
+                            {String(
+                              w.members.find((m) => m.id === task.owner_user_id)
+                                ?.display_name || task.owner_user_id,
+                            ).slice(0, 1)}
+                          </Avatar.Fallback>
+                        </Avatar>
                         <span>
                           {w.members.find((m) => m.id === task.owner_user_id)
                             ?.display_name || task.owner_user_id}
                         </span>
                         <span>→</span>
                       </footer>
-                    </button>
+                    </Button>
                   ))}
                 {!tasks.some((t) => t.status === status) && (
-                  <div className="column-empty">暂无任务</div>
+                  <div className="py-12 text-center text-xs text-slate-600">
+                    暂无任务
+                  </div>
                 )}
               </div>
             </section>
@@ -163,7 +183,7 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
         }}
       >
         <Field label="任务标题">
-          <input
+          <Input
             name="title"
             required
             maxLength={200}
@@ -171,16 +191,16 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
           />
         </Field>
         <Field label="目标与范围">
-          <textarea
+          <TextArea
             name="objective"
             required
             rows={3}
             placeholder="说明预期结果和本次交付范围"
           />
         </Field>
-        <div className="form-grid">
+        <div className="grid grid-cols-1 gap-x-5 sm:grid-cols-2">
           <Field label="人类负责人">
-            <select name="owner" defaultValue={w.me.id}>
+            <Select name="owner" defaultValue={w.me.id}>
               {w.members
                 .filter((m) => m.active)
                 .map((m) => (
@@ -188,20 +208,20 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
                     {m.display_name || m.id}
                   </option>
                 ))}
-            </select>
+            </Select>
           </Field>
           <Field label="代码仓库">
-            <select name="repo" required>
+            <Select name="repo" required>
               {repos.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.url}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         </div>
         <Field label="验收条件" hint="每行一项；最终由 Owner 逐项确认。">
-          <textarea
+          <TextArea
             name="criteria"
             required
             rows={3}
@@ -212,18 +232,13 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
           label="执行依据"
           hint="选择已发布的明确版本。任务领取后，输入会固定为执行快照。"
         >
-          <select
-            name="contexts"
-            multiple
-            required
-            size={Math.min(5, Math.max(2, versions.length))}
-          >
+          <Select name="contexts" multiple required>
             {versions.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.context_name} · {v.source_revision}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         {!versions.length && (
           <div className="notice">
@@ -289,7 +304,7 @@ function TaskDetail({
         <p>正在读取任务…</p>
       ) : (
         <>
-          <div className="detail-meta">
+          <div className="mb-5 flex flex-wrap items-center gap-3 text-sm text-slate-600">
             <Badge value={task.status} />
             <span>
               Owner：
@@ -298,24 +313,26 @@ function TaskDetail({
             </span>
             <span>版本 {task.version}</span>
           </div>
-          <p className="objective">{task.objective}</p>
-          <div className="tabs">
-            {[
-              { id: "overview", name: "任务与执行" },
-              { id: "evidence", name: "成果与验收" },
-              { id: "history", name: "报告与记录" },
-            ].map((t) => (
-              <button
-                key={t.id}
-                className={tab === t.id ? "active" : ""}
-                onClick={() => setTab(t.id)}
-              >
-                {t.name}
-              </button>
-            ))}
-          </div>
-          {tab === "overview" && (
-            <>
+          <p className="mb-5 text-sm leading-7 text-slate-600">
+            {task.objective}
+          </p>
+          <Tabs
+            selectedKey={tab}
+            onSelectionChange={(key) => setTab(String(key))}
+          >
+            <Tabs.List aria-label="任务详情">
+              {[
+                { id: "overview", name: "任务与执行" },
+                { id: "evidence", name: "成果与验收" },
+                { id: "history", name: "报告与记录" },
+              ].map((t) => (
+                <Tabs.Tab key={t.id} id={t.id}>
+                  {t.name}
+                  <Tabs.Indicator />
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+            <Tabs.Panel id="overview">
               <h3>验收条件</h3>
               <ul className="criteria">
                 {task.acceptance_criteria.map((c: string, i: number) => (
@@ -327,7 +344,7 @@ function TaskDetail({
               </ul>
               <h3>执行记录</h3>
               {!runs.length ? (
-                <p className="muted">
+                <p className="text-sm leading-6 text-slate-600">
                   尚未领取。分配后，由已授权的 Agent 领取任务。
                 </p>
               ) : (
@@ -359,7 +376,9 @@ function TaskDetail({
                   </div>
                 ))
               ) : (
-                <p className="muted">无前置任务依赖。</p>
+                <p className="text-sm leading-6 text-slate-600">
+                  无前置任务依赖。
+                </p>
               )}
               {canChange &&
                 ["DRAFT", "READY", "BLOCKED"].includes(task.status) && (
@@ -387,7 +406,7 @@ function TaskDetail({
                       }}
                     >
                       <Field label="前置任务">
-                        <select name="predecessor" required>
+                        <Select name="predecessor" required>
                           {w.tasks
                             .filter((t) => t.id !== id)
                             .map((t) => (
@@ -395,20 +414,20 @@ function TaskDetail({
                                 {t.title}
                               </option>
                             ))}
-                        </select>
+                        </Select>
                       </Field>
                       <Field label="满足条件">
-                        <select name="condition">
+                        <Select name="condition">
                           <option value="TASK_DONE">任务完成人工验收</option>
                           <option value="API_DOCUMENT">API 文档获得接受</option>
                           <option value="TEST_REPORT">测试报告获得接受</option>
-                        </select>
+                        </Select>
                       </Field>
                     </Form>
                   </details>
                 )}
               {canChange && (
-                <div className="detail-actions">
+                <div className="mt-6 flex flex-wrap items-center gap-4">
                   {["DRAFT", "BLOCKED"].includes(task.status) && (
                     <Action
                       run={async () => {
@@ -441,7 +460,7 @@ function TaskDetail({
                   )}
                   {!["DONE", "CANCELED"].includes(task.status) && (
                     <details>
-                      <summary className="danger-text">取消任务</summary>
+                      <summary className="text-danger">取消任务</summary>
                       <Form
                         submit="确认取消任务"
                         action={async (data) => {
@@ -455,17 +474,15 @@ function TaskDetail({
                         }}
                       >
                         <Field label="取消原因">
-                          <input name="reason" required />
+                          <Input name="reason" required />
                         </Field>
                       </Form>
                     </details>
                   )}
                 </div>
               )}
-            </>
-          )}
-          {tab === "evidence" && (
-            <>
+            </Tabs.Panel>
+            <Tabs.Panel id="evidence">
               {!artifacts.length ? (
                 <Empty title="等待执行成果">
                   Agent 需要提交可核验的文档、代码或测试证据。
@@ -485,7 +502,7 @@ function TaskDetail({
               {task.status === "IN_REVIEW" &&
                 task.owner_user_id === w.me.id &&
                 run && (
-                  <div className="review-box">
+                  <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
                     <h3>Owner 最终验收</h3>
                     <Form
                       submit="提交验收决定"
@@ -520,35 +537,33 @@ function TaskDetail({
                         <legend>逐项检查验收条件</legend>
                         {task.acceptance_criteria.map(
                           (c: string, i: number) => (
-                            <label key={i} className="checkbox">
-                              <input type="checkbox" name={`criterion_${i}`} />
+                            <Checkbox key={i} name={`criterion_${i}`}>
                               {c}
-                            </label>
+                            </Checkbox>
                           ),
                         )}
                       </fieldset>
                       <fieldset>
                         <legend>绑定本次验收成果</legend>
                         {artifacts.map((a) => (
-                          <label key={a.id} className="checkbox">
-                            <input
-                              type="checkbox"
-                              name="artifact"
-                              value={a.id}
-                              defaultChecked
-                            />
+                          <Checkbox
+                            key={a.id}
+                            name="artifact"
+                            value={a.id}
+                            defaultSelected
+                          >
                             {label(a.kind)} · {short(a.id)} · v{a.version}
-                          </label>
+                          </Checkbox>
                         ))}
                       </fieldset>
                       <Field label="验收决定">
-                        <select name="decision">
+                        <Select name="decision">
                           <option value="ACCEPT">接受成果，完成任务</option>
                           <option value="REJECT">退回修改</option>
-                        </select>
+                        </Select>
                       </Field>
                       <Field label="审核意见">
-                        <textarea
+                        <TextArea
                           name="reason"
                           required
                           placeholder="说明验收证据或需要修改的内容"
@@ -557,10 +572,8 @@ function TaskDetail({
                     </Form>
                   </div>
                 )}
-            </>
-          )}
-          {tab === "history" && (
-            <>
+            </Tabs.Panel>
+            <Tabs.Panel id="history">
               <h3>执行报告</h3>
               {reports.length ? (
                 reports.map((r) => (
@@ -569,12 +582,21 @@ function TaskDetail({
                     <small>{stamp(r.created_at)}</small>
                     <p>{r.message || r.acceptance_report || r.error_code}</p>
                     {r.progress_percent !== undefined && (
-                      <progress value={r.progress_percent} max="100" />
+                      <ProgressBar
+                        aria-label="执行进度"
+                        value={r.progress_percent}
+                      >
+                        <ProgressBar.Track>
+                          <ProgressBar.Fill />
+                        </ProgressBar.Track>
+                      </ProgressBar>
                     )}
                   </div>
                 ))
               ) : (
-                <p className="muted">暂无执行报告。</p>
+                <p className="text-sm leading-6 text-slate-600">
+                  暂无执行报告。
+                </p>
               )}
               <h3>人工验收记录</h3>
               {reviews.length ? (
@@ -589,14 +611,16 @@ function TaskDetail({
                   </div>
                 ))
               ) : (
-                <p className="muted">暂无验收记录。</p>
+                <p className="text-sm leading-6 text-slate-600">
+                  暂无验收记录。
+                </p>
               )}
               <details>
                 <summary>任务与执行来源</summary>
                 <Json data={{ task, runs }} />
               </details>
-            </>
-          )}
+            </Tabs.Panel>
+          </Tabs>
         </>
       )}
     </Modal>

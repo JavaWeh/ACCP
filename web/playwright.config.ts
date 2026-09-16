@@ -9,6 +9,7 @@ if (
   );
 export default defineConfig({
   testDir: "./tests",
+  testIgnore: "ui.spec.ts",
   timeout: 45000,
   workers: 1,
   retries: 0,

@@ -37,6 +37,9 @@ jobs:
       - name: Install Chromium
         working-directory: web
         run: npx playwright install --with-deps chromium
+      - name: Component and accessibility regression
+        working-directory: web
+        run: npm run test:ui
       - name: Start isolated platform
         run: |
           node scripts/dev-env.mjs

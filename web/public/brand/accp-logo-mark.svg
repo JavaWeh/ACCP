@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="leg" x1="116" y1="404" x2="364" y2="104" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6C63FF"/>
+      <stop offset="1" stop-color="#445BFF"/>
+    </linearGradient>
+    <linearGradient id="plane" x1="160" y1="286" x2="352" y2="286" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#19C2FF"/>
+      <stop offset="1" stop-color="#35E0B8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Human / authority node -->
+  <circle cx="256" cy="76" r="22" fill="#0E1733"/>
+  <circle cx="256" cy="76" r="12" fill="#FFFFFF"/>
+  <path d="M256 98V117" stroke="#445BFF" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- Stylized A: two coordinated execution rails -->
+  <path d="M113 409L229 137C240 111 272 111 283 137L399 409"
+        stroke="url(#leg)" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Control plane -->
+  <rect x="153" y="258" width="206" height="64" rx="32" fill="url(#plane)"/>
+  <rect x="226" y="268" width="60" height="44" rx="14" fill="#0E1733"/>
+  <circle cx="246" cy="290" r="5" fill="#FFFFFF"/>
+  <circle cx="266" cy="290" r="5" fill="#FFFFFF"/>
+
+  <!-- Agent endpoints -->
+  <circle cx="113" cy="409" r="18" fill="#0E1733"/>
+  <circle cx="113" cy="409" r="8" fill="#FFFFFF"/>
+  <circle cx="399" cy="409" r="18" fill="#0E1733"/>
+  <circle cx="399" cy="409" r="8" fill="#FFFFFF"/>
+</svg>

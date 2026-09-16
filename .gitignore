@@ -37,6 +37,7 @@ playwright-report/
 test-results/
 .cache/
 .npm/
+.npm-cache/
 *.test
 *.exe
 *.out
