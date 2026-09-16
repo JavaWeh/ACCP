@@ -6,6 +6,7 @@ export default defineConfig({
   timeout: 30000,
   workers: 1,
   use: {
+    locale: "zh-CN",
     channel: process.env.ACCP_UI_BROWSER || "chromium",
     baseURL: "http://127.0.0.1:18083",
     viewport: { width: 1440, height: 1000 },
