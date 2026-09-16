@@ -1,9 +1,15 @@
+import {
+  useI18n,
+  LocaleProvider,
+  LanguageSwitcher,
+  LocalizedError,
+} from "./i18n";
 import { Icon } from "./icons";
-import { Avatar, Card, I18nProvider, Spinner } from "@heroui/react";
+import { Avatar, Card, Spinner } from "@heroui/react";
 import { createRoot } from "react-dom/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UserManager, WebStorageStateStore } from "oidc-client-ts";
-import { API, label, stamp } from "./api";
+import { API } from "./api";
 import type { Doc, Membership } from "./api";
 import {
   Button,
@@ -47,19 +53,22 @@ type AuthConfig = {
   client_id: string;
   public_url: string;
 };
-const nav = [
-  { id: "overview", title: "工作概览" },
-  { id: "tasks", title: "任务协作" },
-  { id: "contexts", title: "共享上下文" },
-  { id: "artifacts", title: "交付成果" },
-  { id: "approvals", title: "审批中心" },
-  { id: "agents", title: "执行代理" },
-  { id: "tools", title: "工具网关" },
-  { id: "members", title: "项目成员" },
-  { id: "audit", title: "审计记录" },
-];
 
 function App() {
+  const { translate, label, number, time } = useI18n();
+
+  const nav = [
+    { id: "overview", title: translate("工作概览") },
+    { id: "tasks", title: translate("任务协作") },
+    { id: "contexts", title: translate("共享上下文") },
+    { id: "artifacts", title: translate("交付成果") },
+    { id: "approvals", title: translate("审批中心") },
+    { id: "agents", title: translate("执行代理") },
+    { id: "tools", title: translate("工具网关") },
+    { id: "members", title: translate("项目成员") },
+    { id: "audit", title: translate("审计记录") },
+  ];
+
   const [config, setConfig] = useState<AuthConfig>();
   const [token, setToken] = useState("");
   const [authError, setAuthError] = useState<unknown>();
@@ -90,7 +99,7 @@ function App() {
       new API(token, () => {
         setToken("");
         setMe(undefined);
-        setAuthError(new Error("登录已过期，请重新登录。"));
+        setAuthError(new LocalizedError("登录已过期，请重新登录。"));
       }),
     [token],
   );
@@ -115,7 +124,7 @@ function App() {
   useEffect(() => {
     fetch("/api/v1/auth/config")
       .then((r) => {
-        if (!r.ok) throw new Error("登录服务暂不可用");
+        if (!r.ok) throw new LocalizedError("登录服务暂不可用");
         return r.json();
       })
       .then(setConfig)
@@ -217,27 +226,30 @@ function App() {
             <img src="/brand/accp-logo-mark.svg" alt="" className="size-12" />{" "}
             ACCP{" "}
             <span className="ml-2 text-xs font-normal text-slate-400">
-              Workspace
+              {translate("Workspace")}
             </span>
           </div>
           <div className="relative max-w-lg">
             <p className="mb-6 text-xs font-semibold tracking-[0.2em] text-indigo-300">
-              BUILT FOR COLLABORATION
+              {translate("BUILT FOR COLLABORATION")}
             </p>
             <h1 className="text-5xl font-semibold leading-[1.3] tracking-tight xl:text-6xl">
-              让人负责，
+              {translate("让人负责，")}
               <br />
-              <span className="text-indigo-300">让协作有据可循。</span>
+              <span className="text-indigo-300">
+                {translate("让协作有据可循。")}
+              </span>
             </h1>
             <p className="mt-7 max-w-md text-base leading-8 text-slate-300">
-              把团队、AI
-              执行代理和交付证据连接起来。每项任务有明确的负责人，每一次交付都可追溯。
+              {translate(
+                "把团队、AI 执行代理和交付证据连接起来。每项任务有明确的负责人，每一次交付都可追溯。",
+              )}
             </p>
             <div className="mt-12 grid grid-cols-3 gap-3">
               {[
-                ["members", "人类治理"],
-                ["agents", "Agent 执行"],
-                ["artifacts", "成果验收"],
+                ["members", translate("人类治理")],
+                ["agents", translate("Agent 执行")],
+                ["artifacts", translate("成果验收")],
               ].map(([icon, title], i) => (
                 <div
                   key={icon}
@@ -255,26 +267,29 @@ function App() {
           </p>
         </section>
         <Card className="login-card m-auto w-full max-w-lg border-0 bg-transparent p-7 shadow-none sm:p-12">
+          <div className="mb-6 flex justify-end">
+            <LanguageSwitcher />
+          </div>
           <img
             src="/brand/accp-logo-mark.svg"
             alt="ACCP"
             className="mb-7 size-16"
           />
           <p className="mb-3 text-xs font-semibold tracking-widest text-indigo-700">
-            欢迎回来
+            {translate("欢迎回来")}
           </p>
           <h2 className="text-3xl font-semibold tracking-tight">
-            进入协作工作空间
+            {translate("进入协作工作空间")}
           </h2>
           <p className="mb-8 mt-3 text-sm text-slate-600">
-            使用你的企业身份访问授权项目。
+            {translate("使用你的企业身份访问授权项目。")}
           </p>
           {authError !== undefined && <Message error={authError} />}{" "}
           {!config ? (
-            <p>正在连接登录服务…</p>
+            <p>{translate("正在连接登录服务…")}</p>
           ) : config.mode === "development" ? (
             <Form
-              submit="登录工作空间"
+              submit={translate("登录工作空间")}
               action={async (data) => {
                 const value = text(data, "token");
                 const probe = new API(value, () => {});
@@ -284,15 +299,15 @@ function App() {
               }}
             >
               <div className="notice">
-                本地开发环境 · 使用管理员提供的个人开发凭证。
+                {translate("本地开发环境 · 使用管理员提供的个人开发凭证。")}
               </div>
-              <Field label="个人开发凭证">
+              <Field label={translate("个人开发凭证")}>
                 <Input
                   name="token"
                   type="password"
                   autoComplete="off"
                   required
-                  placeholder="输入个人访问凭证"
+                  placeholder={translate("输入个人访问凭证")}
                 />
               </Field>
             </Form>
@@ -302,11 +317,11 @@ function App() {
               className="w-full"
               onClick={() => manager?.signinRedirect().catch(setAuthError)}
             >
-              使用企业账号登录 →
+              {translate("使用企业账号登录 →")}
             </Button>
           )}
           <small className="mt-8 block border-t border-slate-200 pt-6 text-xs leading-6 text-slate-600">
-            每次执行都有明确的人类责任主体。
+            {translate("每次执行都有明确的人类责任主体。")}
           </small>
         </Card>
       </main>
@@ -321,7 +336,7 @@ function App() {
       <aside className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-60 lg:flex-col lg:border-r lg:border-b-0">
         <a
           href="/"
-          aria-label="ACCP 首页"
+          aria-label={translate("ACCP 首页")}
           className="block px-5 py-4 lg:px-6 lg:py-6"
         >
           <img
@@ -331,10 +346,10 @@ function App() {
           />
         </a>
         <p className="mb-3 hidden px-7 text-xs font-medium text-slate-600 lg:block">
-          工作空间
+          {translate("工作空间")}
         </p>
         <nav
-          aria-label="工作空间导航"
+          aria-label={translate("工作空间导航")}
           className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:overflow-y-auto lg:px-4"
         >
           {nav.map((item) => (
@@ -351,10 +366,10 @@ function App() {
               {item.id === "approvals" &&
                 data.approvals.some((a) => a.status === "PENDING") && (
                   <span className="ml-auto rounded-md bg-indigo-100 px-2 text-xs text-indigo-800">
-                    {
+                    {number(
                       data.approvals.filter((a) => a.status === "PENDING")
-                        .length
-                    }
+                        .length,
+                    )}
                   </span>
                 )}
             </Button>
@@ -362,17 +377,17 @@ function App() {
         </nav>
         <div className="mx-4 mt-auto mb-5 hidden rounded-xl border border-slate-200 bg-slate-50 p-4 lg:block">
           <Icon name="approvals" className="mb-3 text-indigo-600" />
-          <p className="text-sm font-medium">私有协作空间</p>
+          <p className="text-sm font-medium">{translate("私有协作空间")}</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            人类治理 · 全程可追溯
+            {translate("人类治理 · 全程可追溯")}
           </p>
         </div>
       </aside>
       <div className="flex min-h-screen min-w-0 flex-col lg:ml-60">
-        <header className="flex h-20 items-center justify-between gap-4 border-b border-slate-200 bg-white px-5 sm:px-8">
-          <div className="w-40 min-w-0 sm:w-52">
+        <header className="flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3 sm:px-8">
+          <div className="w-36 min-w-0 sm:w-52">
             <Select
-              aria-label="当前项目"
+              aria-label={translate("当前项目")}
               value={projectID}
               onChange={setProjectID}
             >
@@ -384,6 +399,7 @@ function App() {
             </Select>
           </div>
           <div className="flex shrink-0 items-center gap-3">
+            <LanguageSwitcher />
             <Avatar size="sm" color="accent" aria-hidden="true">
               <Avatar.Fallback>
                 {String(me.display_name || me.id).slice(0, 1)}
@@ -396,7 +412,7 @@ function App() {
               </p>
             </div>
             <Button variant="ghost" size="sm" onPress={logout}>
-              退出
+              {translate("退出")}
             </Button>
           </div>
         </header>
@@ -404,7 +420,7 @@ function App() {
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="mb-2 text-xs font-medium text-slate-600">
-                工作空间 / {project?.name || "项目"}
+                {translate("工作空间")} / {project?.name || translate("项目")}
               </p>
               <h1 className="text-3xl font-semibold tracking-tight">
                 {nav.find((n) => n.id === page)?.title}
@@ -413,8 +429,8 @@ function App() {
             <div className="flex items-center gap-3">
               <span className="hidden text-xs text-slate-600 sm:block">
                 {updated
-                  ? `更新于 ${new Date(updated).toLocaleTimeString("zh-CN", { hour12: false })}`
-                  : "正在同步"}
+                  ? translate("更新于 {time}", { time: time(updated) })
+                  : translate("正在同步")}
               </span>
               <Button
                 variant="outline"
@@ -422,20 +438,22 @@ function App() {
                 onPress={() => refresh().catch(setError)}
               >
                 <Icon name="audit" className="size-4" />
-                刷新
+                {translate("刷新")}
               </Button>
             </div>
           </div>
           {error !== undefined && <Message error={error} />}{" "}
           {!projects.length ? (
-            <Empty title="尚无可访问项目">请联系管理员配置项目成员关系。</Empty>
+            <Empty title={translate("尚无可访问项目")}>
+              {translate("请联系管理员配置项目成员关系。")}
+            </Empty>
           ) : !loaded ? (
             <div
               className="flex items-center justify-center gap-3 py-24 text-slate-600"
               role="status"
             >
               <Spinner />
-              正在读取项目数据…
+              {translate("正在读取项目数据…")}
             </div>
           ) : (
             workspace && (
@@ -456,7 +474,7 @@ function App() {
           )}
         </main>
         <footer className="px-6 py-6 text-center text-xs text-slate-600">
-          ACCP · 每一次交付，都有上下文与责任记录。
+          {translate("ACCP · 每一次交付，都有上下文与责任记录。")}
         </footer>
       </div>
     </div>
@@ -469,29 +487,31 @@ function Overview({
   w: Workspace;
   navigate: (page: string) => void;
 }) {
+  const { translate, stamp, number } = useI18n();
+
   const counts = [
     {
-      title: "项目任务",
+      title: translate("项目任务"),
       value: w.tasks.length,
-      detail: "当前项目所有任务",
+      detail: translate("当前项目所有任务"),
       page: "tasks",
     },
     {
-      title: "正在执行",
+      title: translate("正在执行"),
       value: w.tasks.filter((t) => t.status === "RUNNING").length,
-      detail: "Agent 正在执行的任务",
+      detail: translate("Agent 正在执行的任务"),
       page: "tasks",
     },
     {
-      title: "等待验收",
+      title: translate("等待验收"),
       value: w.tasks.filter((t) => t.status === "IN_REVIEW").length,
-      detail: "需要 Owner 确认成果",
+      detail: translate("需要 Owner 确认成果"),
       page: "tasks",
     },
     {
-      title: "待审批操作",
+      title: translate("待审批操作"),
       value: w.approvals.filter((t) => t.status === "PENDING").length,
-      detail: "等待独立人类审核",
+      detail: translate("等待独立人类审核"),
       page: "approvals",
     },
   ];
@@ -503,13 +523,13 @@ function Overview({
       <section className="flex flex-col justify-between gap-6 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-6 sm:flex-row sm:items-center sm:p-7">
         <div>
           <p className="mb-2 text-xs font-semibold tracking-wide text-indigo-700">
-            团队协作，一目了然
+            {translate("团队协作，一目了然")}
           </p>
           <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            把目标变成可追溯的交付。
+            {translate("把目标变成可追溯的交付。")}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            聚焦当前任务，跟进执行进展，确认每一次交付。
+            {translate("聚焦当前任务，跟进执行进展，确认每一次交付。")}
           </p>
         </div>
         <Button
@@ -517,7 +537,7 @@ function Overview({
           onPress={() => navigate("tasks")}
         >
           <Icon name="plus" />
-          进入任务协作
+          {translate("进入任务协作")}
         </Button>
       </section>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 sm:gap-5">
@@ -536,7 +556,7 @@ function Overview({
               />
             </span>
             <strong className="my-4 text-4xl font-semibold tracking-tight text-slate-900">
-              {c.value}
+              {number(c.value)}
             </strong>
             <span className="text-xs leading-5 text-slate-600">{c.detail}</span>
           </Button>
@@ -546,20 +566,20 @@ function Overview({
         <Card className="min-w-0 gap-0 overflow-hidden rounded-xl border border-slate-200 p-0 shadow-xs">
           <Card.Header className="flex-row items-center justify-between border-b border-slate-100 px-6 py-5">
             <div>
-              <Card.Title>近期任务</Card.Title>
+              <Card.Title>{translate("近期任务")}</Card.Title>
               <Card.Description className="mt-1">
-                团队正在推进的协作事项
+                {translate("团队正在推进的协作事项")}
               </Card.Description>
             </div>
             <Button variant="ghost" size="sm" onPress={() => navigate("tasks")}>
-              查看全部
+              {translate("查看全部")}
               <Icon name="arrow" />
             </Button>
           </Card.Header>
           <Card.Content className="p-3">
             {!recent.length ? (
-              <Empty title="从第一项任务开始">
-                创建目标、指定负责人并选择执行依据。
+              <Empty title={translate("从第一项任务开始")}>
+                {translate("创建目标、指定负责人并选择执行依据。")}
               </Empty>
             ) : (
               recent.map((task) => (
@@ -591,47 +611,47 @@ function Overview({
             )}
           </Card.Content>
           <Card.Footer className="border-t border-slate-100 px-6 py-4 text-xs text-slate-600">
-            每一项任务，都有明确的负责人和验收依据。
+            {translate("每一项任务，都有明确的负责人和验收依据。")}
           </Card.Footer>
         </Card>
-        <Card className="gap-0 rounded-xl border border-slate-200 p-0 shadow-xs">
+        <Card className="min-w-0 gap-0 rounded-xl border border-slate-200 p-0 shadow-xs">
           <Card.Header className="px-6 pt-5 pb-4">
-            <Card.Title>项目资源</Card.Title>
+            <Card.Title>{translate("项目资源")}</Card.Title>
             <Card.Description className="mt-1">
-              协作所需的信息与成员
+              {translate("协作所需的信息与成员")}
             </Card.Description>
           </Card.Header>
           <Card.Content className="space-y-1 px-3 pb-3">
             {[
               {
                 id: "contexts",
-                title: "共享上下文",
-                detail: "版本明确的执行依据",
+                title: translate("共享上下文"),
+                detail: translate("版本明确的执行依据"),
                 count: w.contexts.length,
               },
               {
                 id: "artifacts",
-                title: "交付成果",
-                detail: "可核验的交付证据",
+                title: translate("交付成果"),
+                detail: translate("可核验的交付证据"),
                 count: w.artifacts.length,
               },
               {
                 id: "members",
-                title: "项目成员",
-                detail: "项目角色与权限",
+                title: translate("项目成员"),
+                detail: translate("项目角色与权限"),
                 count: w.members.filter((m) => m.active).length,
               },
             ].map((item) => (
               <Button
                 variant="ghost"
                 key={item.id}
-                className="h-auto w-full justify-start gap-3 rounded-lg p-3 text-left"
+                className="h-auto w-full min-w-0 justify-start gap-3 rounded-lg p-3 text-left whitespace-normal"
                 onPress={() => navigate(item.id)}
               >
                 <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-indigo-50 text-indigo-600">
                   <Icon name={item.id} />
                 </span>
-                <span className="flex-1">
+                <span className="min-w-0 flex-1 break-words">
                   <span className="block text-sm font-medium text-slate-900">
                     {item.title}
                   </span>
@@ -640,7 +660,7 @@ function Overview({
                   </span>
                 </span>
                 <span className="text-lg font-semibold text-slate-700">
-                  {item.count}
+                  {number(item.count)}
                 </span>
                 <Icon name="arrow" className="size-4 text-slate-400" />
               </Button>
@@ -653,7 +673,7 @@ function Overview({
 }
 
 createRoot(document.getElementById("root")!).render(
-  <I18nProvider locale="zh-CN">
+  <LocaleProvider>
     <App />
-  </I18nProvider>,
+  </LocaleProvider>,
 );

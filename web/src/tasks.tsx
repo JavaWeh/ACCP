@@ -1,3 +1,4 @@
+import { useI18n } from "./i18n";
 import {
   Avatar,
   Tabs,
@@ -7,7 +8,7 @@ import {
 } from "@heroui/react";
 import { useEffect, useState } from "react";
 import type { Doc } from "./api";
-import { label, stamp, short } from "./api";
+import { short } from "./api";
 import type { Workspace } from "./main";
 import {
   Button,
@@ -36,6 +37,8 @@ const columns = [
   "CANCELED",
 ];
 export function Tasks({ w }: { w: Workspace }) {
+  const { translate, label, number } = useI18n();
+
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState("");
   const [search, setSearch] = useState("");
@@ -49,31 +52,34 @@ export function Tasks({ w }: { w: Workspace }) {
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
         <ToggleButtonGroup
-          aria-label="筛选任务"
+          aria-label={translate("筛选任务")}
           selectionMode="single"
           disallowEmptySelection
           selectedKeys={[filter]}
           onSelectionChange={(keys) => setFilter(String([...keys][0]))}
         >
           <ToggleButton id="all">
-            全部任务 <small>{w.tasks.length}</small>
+            {translate("全部任务")}
+            <small>{number(w.tasks.length)}</small>
           </ToggleButton>
-          <ToggleButton id="mine">我负责的</ToggleButton>
+          <ToggleButton id="mine">{translate("我负责的")}</ToggleButton>
         </ToggleButtonGroup>
         <Input
           className="w-full sm:ml-auto sm:max-w-72"
-          aria-label="搜索任务"
-          placeholder="搜索任务…"
+          aria-label={translate("搜索任务")}
+          placeholder={translate("搜索任务…")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <Button variant="primary" onClick={() => setCreating(true)}>
-          ＋ 创建任务
+          {translate("＋ 创建任务")}
         </Button>
       </div>
       {!w.tasks.length ? (
-        <Empty title="还没有任务">
-          先明确目标、Owner、验收条件与上下文，再分配 Agent 执行。
+        <Empty title={translate("还没有任务")}>
+          {translate(
+            "先明确目标、Owner、验收条件与上下文，再分配 Agent 执行。",
+          )}
         </Empty>
       ) : (
         <div className="grid grid-cols-[repeat(7,280px)] items-start gap-4 overflow-x-auto pb-6">
@@ -85,7 +91,9 @@ export function Tasks({ w }: { w: Workspace }) {
               <h2>
                 <span className={`column-dot dot-${status}`} />
                 {label(status)}
-                <small>{tasks.filter((t) => t.status === status).length}</small>
+                <small>
+                  {number(tasks.filter((t) => t.status === status).length)}
+                </small>
               </h2>
               <div>
                 {tasks
@@ -103,8 +111,17 @@ export function Tasks({ w }: { w: Workspace }) {
                       <h3>{task.title}</h3>
                       <p>{task.objective}</p>
                       <div className="flex justify-between gap-2 text-xs text-slate-600">
-                        <span>▧ {task.context_version_ids.length} 项依据</span>
-                        <span>{task.acceptance_criteria.length} 项验收</span>
+                        <span>
+                          ▧{" "}
+                          {translate("{count} 项依据", {
+                            count: task.context_version_ids.length,
+                          })}
+                        </span>
+                        <span>
+                          {translate("{count} 项验收", {
+                            count: task.acceptance_criteria.length,
+                          })}
+                        </span>
                       </div>
                       <footer>
                         <Avatar size="sm" aria-hidden="true">
@@ -125,7 +142,7 @@ export function Tasks({ w }: { w: Workspace }) {
                   ))}
                 {!tasks.some((t) => t.status === status) && (
                   <div className="py-12 text-center text-xs text-slate-600">
-                    暂无任务
+                    {translate("暂无任务")}
                   </div>
                 )}
               </div>
@@ -141,6 +158,8 @@ export function Tasks({ w }: { w: Workspace }) {
   );
 }
 function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
+  const { translate } = useI18n();
+
   const [versions, setVersions] = useState<Doc[]>([]);
   const [repos, setRepos] = useState<Doc[]>([]);
   const [error, setError] = useState<unknown>();
@@ -162,10 +181,10 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
       .catch(setError);
   }, [w.api, w.project.id, w.contexts]);
   return (
-    <Modal title="创建协作任务" close={close}>
+    <Modal title={translate("创建协作任务")} close={close}>
       {error !== undefined && <Message error={error} />}
       <Form
-        submit="创建草稿"
+        submit={translate("创建草稿")}
         onDone={close}
         action={async (data) => {
           await w.api.call(`/projects/${w.project.id}/tasks`, {
@@ -182,24 +201,24 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
           await w.refresh();
         }}
       >
-        <Field label="任务标题">
+        <Field label={translate("任务标题")}>
           <Input
             name="title"
             required
             maxLength={200}
-            placeholder="例如：实现订单查询 API"
+            placeholder={translate("例如：实现订单查询 API")}
           />
         </Field>
-        <Field label="目标与范围">
+        <Field label={translate("目标与范围")}>
           <TextArea
             name="objective"
             required
             rows={3}
-            placeholder="说明预期结果和本次交付范围"
+            placeholder={translate("说明预期结果和本次交付范围")}
           />
         </Field>
         <div className="grid grid-cols-1 gap-x-5 sm:grid-cols-2">
-          <Field label="人类负责人">
+          <Field label={translate("人类负责人")}>
             <Select name="owner" defaultValue={w.me.id}>
               {w.members
                 .filter((m) => m.active)
@@ -210,7 +229,7 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
                 ))}
             </Select>
           </Field>
-          <Field label="代码仓库">
+          <Field label={translate("代码仓库")}>
             <Select name="repo" required>
               {repos.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -220,17 +239,24 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
             </Select>
           </Field>
         </div>
-        <Field label="验收条件" hint="每行一项；最终由 Owner 逐项确认。">
+        <Field
+          label={translate("验收条件")}
+          hint={translate("每行一项；最终由 Owner 逐项确认。")}
+        >
           <TextArea
             name="criteria"
             required
             rows={3}
-            placeholder="能够按订单编号返回订单信息&#10;权限校验和测试通过"
+            placeholder={translate(
+              "能够按订单编号返回订单信息\n权限校验和测试通过",
+            )}
           />
         </Field>
         <Field
-          label="执行依据"
-          hint="选择已发布的明确版本。任务领取后，输入会固定为执行快照。"
+          label={translate("执行依据")}
+          hint={translate(
+            "选择已发布的明确版本。任务领取后，输入会固定为执行快照。",
+          )}
         >
           <Select name="contexts" multiple required>
             {versions.map((v) => (
@@ -242,7 +268,7 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
         </Field>
         {!versions.length && (
           <div className="notice">
-            请先到「共享上下文」创建并发布需求或 API 版本。
+            {translate("请先到「共享上下文」创建并发布需求或 API 版本。")}
           </div>
         )}
       </Form>
@@ -258,6 +284,8 @@ function TaskDetail({
   id: string;
   close: () => void;
 }) {
+  const { translate, label, stamp } = useI18n();
+
   const [task, setTask] = useState<Doc>();
   const [runs, setRuns] = useState<Doc[]>([]);
   const [artifacts, setArtifacts] = useState<Doc[]>([]);
@@ -298,20 +326,22 @@ function TaskDetail({
   const canChange =
     task?.owner_user_id === w.me.id || w.roles.includes("ADMIN");
   return (
-    <Modal title={task?.title || "任务详情"} close={close}>
+    <Modal title={task?.title || translate("任务详情")} close={close}>
       {error !== undefined && <Message error={error} />}{" "}
       {!task ? (
-        <p>正在读取任务…</p>
+        <p>{translate("正在读取任务…")}</p>
       ) : (
         <>
           <div className="mb-5 flex flex-wrap items-center gap-3 text-sm text-slate-600">
             <Badge value={task.status} />
             <span>
-              Owner：
+              {translate("负责人：")}
               {w.members.find((m) => m.id === task.owner_user_id)
                 ?.display_name || task.owner_user_id}
             </span>
-            <span>版本 {task.version}</span>
+            <span>
+              {translate("版本 {version}", { version: task.version })}
+            </span>
           </div>
           <p className="mb-5 text-sm leading-7 text-slate-600">
             {task.objective}
@@ -320,11 +350,11 @@ function TaskDetail({
             selectedKey={tab}
             onSelectionChange={(key) => setTab(String(key))}
           >
-            <Tabs.List aria-label="任务详情">
+            <Tabs.List aria-label={translate("任务详情")}>
               {[
-                { id: "overview", name: "任务与执行" },
-                { id: "evidence", name: "成果与验收" },
-                { id: "history", name: "报告与记录" },
+                { id: "overview", name: translate("任务与执行") },
+                { id: "evidence", name: translate("成果与验收") },
+                { id: "history", name: translate("报告与记录") },
               ].map((t) => (
                 <Tabs.Tab key={t.id} id={t.id}>
                   {t.name}
@@ -333,7 +363,7 @@ function TaskDetail({
               ))}
             </Tabs.List>
             <Tabs.Panel id="overview">
-              <h3>验收条件</h3>
+              <h3>{translate("验收条件")}</h3>
               <ul className="criteria">
                 {task.acceptance_criteria.map((c: string, i: number) => (
                   <li key={i}>
@@ -342,16 +372,16 @@ function TaskDetail({
                   </li>
                 ))}
               </ul>
-              <h3>执行记录</h3>
+              <h3>{translate("执行记录")}</h3>
               {!runs.length ? (
                 <p className="text-sm leading-6 text-slate-600">
-                  尚未领取。分配后，由已授权的 Agent 领取任务。
+                  {translate("尚未领取。分配后，由已授权的 Agent 领取任务。")}
                 </p>
               ) : (
                 runs.map((r) => (
                   <div key={r.id} className="record-row">
                     <span>
-                      第 {r.attempt} 次执行
+                      {translate("第 {count} 次执行", { count: r.attempt })}
                       <small>
                         {short(r.id)} · {r.agent_id}
                       </small>
@@ -360,7 +390,7 @@ function TaskDetail({
                   </div>
                 ))
               )}
-              <h3>任务依赖</h3>
+              <h3>{translate("任务依赖")}</h3>
               {dependencies.length ? (
                 dependencies.map((d) => (
                   <div key={d.id} className="record-row">
@@ -369,23 +399,25 @@ function TaskDetail({
                         ?.title || d.predecessor_task_id}
                       <small>
                         {d.condition.kind === "TASK_DONE"
-                          ? "等待前置任务完成"
-                          : `等待 ${label(d.condition.artifact_kind)} 获得接受`}
+                          ? translate("等待前置任务完成")
+                          : translate("等待 {kind} 获得接受", {
+                              kind: label(d.condition.artifact_kind),
+                            })}
                       </small>
                     </span>
                   </div>
                 ))
               ) : (
                 <p className="text-sm leading-6 text-slate-600">
-                  无前置任务依赖。
+                  {translate("无前置任务依赖。")}
                 </p>
               )}
               {canChange &&
                 ["DRAFT", "READY", "BLOCKED"].includes(task.status) && (
                   <details>
-                    <summary>配置前置依赖</summary>
+                    <summary>{translate("配置前置依赖")}</summary>
                     <Form
-                      submit="添加依赖"
+                      submit={translate("添加依赖")}
                       action={async (data) => {
                         const current = await w.api.call(`/tasks/${id}`);
                         await w.api.call(
@@ -405,7 +437,7 @@ function TaskDetail({
                         await refreshed();
                       }}
                     >
-                      <Field label="前置任务">
+                      <Field label={translate("前置任务")}>
                         <Select name="predecessor" required>
                           {w.tasks
                             .filter((t) => t.id !== id)
@@ -416,11 +448,17 @@ function TaskDetail({
                             ))}
                         </Select>
                       </Field>
-                      <Field label="满足条件">
+                      <Field label={translate("满足条件")}>
                         <Select name="condition">
-                          <option value="TASK_DONE">任务完成人工验收</option>
-                          <option value="API_DOCUMENT">API 文档获得接受</option>
-                          <option value="TEST_REPORT">测试报告获得接受</option>
+                          <option value="TASK_DONE">
+                            {translate("任务完成人工验收")}
+                          </option>
+                          <option value="API_DOCUMENT">
+                            {translate("API 文档获得接受")}
+                          </option>
+                          <option value="TEST_REPORT">
+                            {translate("测试报告获得接受")}
+                          </option>
                         </Select>
                       </Field>
                     </Form>
@@ -455,14 +493,18 @@ function TaskDetail({
                         await refreshed();
                       }}
                     >
-                      {runs.length ? "授权重新执行" : "分配并提交执行"}
+                      {runs.length
+                        ? translate("授权重新执行")
+                        : translate("分配并提交执行")}
                     </Action>
                   )}
                   {!["DONE", "CANCELED"].includes(task.status) && (
                     <details>
-                      <summary className="text-danger">取消任务</summary>
+                      <summary className="text-danger">
+                        {translate("取消任务")}
+                      </summary>
                       <Form
-                        submit="确认取消任务"
+                        submit={translate("确认取消任务")}
                         action={async (data) => {
                           const current = await w.api.call(`/tasks/${id}`);
                           await w.api.call(
@@ -473,7 +515,7 @@ function TaskDetail({
                           await refreshed();
                         }}
                       >
-                        <Field label="取消原因">
+                        <Field label={translate("取消原因")}>
                           <Input name="reason" required />
                         </Field>
                       </Form>
@@ -484,8 +526,8 @@ function TaskDetail({
             </Tabs.Panel>
             <Tabs.Panel id="evidence">
               {!artifacts.length ? (
-                <Empty title="等待执行成果">
-                  Agent 需要提交可核验的文档、代码或测试证据。
+                <Empty title={translate("等待执行成果")}>
+                  {translate("Agent 需要提交可核验的文档、代码或测试证据。")}
                 </Empty>
               ) : (
                 artifacts.map((a) => (
@@ -503,9 +545,9 @@ function TaskDetail({
                 task.owner_user_id === w.me.id &&
                 run && (
                   <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
-                    <h3>Owner 最终验收</h3>
+                    <h3>{translate("Owner 最终验收")}</h3>
                     <Form
-                      submit="提交验收决定"
+                      submit={translate("提交验收决定")}
                       action={async (data) => {
                         const selected = data
                           .getAll("artifact")
@@ -534,7 +576,7 @@ function TaskDetail({
                       }}
                     >
                       <fieldset>
-                        <legend>逐项检查验收条件</legend>
+                        <legend>{translate("逐项检查验收条件")}</legend>
                         {task.acceptance_criteria.map(
                           (c: string, i: number) => (
                             <Checkbox key={i} name={`criterion_${i}`}>
@@ -544,7 +586,7 @@ function TaskDetail({
                         )}
                       </fieldset>
                       <fieldset>
-                        <legend>绑定本次验收成果</legend>
+                        <legend>{translate("绑定本次验收成果")}</legend>
                         {artifacts.map((a) => (
                           <Checkbox
                             key={a.id}
@@ -556,17 +598,23 @@ function TaskDetail({
                           </Checkbox>
                         ))}
                       </fieldset>
-                      <Field label="验收决定">
+                      <Field label={translate("验收决定")}>
                         <Select name="decision">
-                          <option value="ACCEPT">接受成果，完成任务</option>
-                          <option value="REJECT">退回修改</option>
+                          <option value="ACCEPT">
+                            {translate("接受成果，完成任务")}
+                          </option>
+                          <option value="REJECT">
+                            {translate("退回修改")}
+                          </option>
                         </Select>
                       </Field>
-                      <Field label="审核意见">
+                      <Field label={translate("审核意见")}>
                         <TextArea
                           name="reason"
                           required
-                          placeholder="说明验收证据或需要修改的内容"
+                          placeholder={translate(
+                            "说明验收证据或需要修改的内容",
+                          )}
                         />
                       </Field>
                     </Form>
@@ -574,7 +622,7 @@ function TaskDetail({
                 )}
             </Tabs.Panel>
             <Tabs.Panel id="history">
-              <h3>执行报告</h3>
+              <h3>{translate("执行报告")}</h3>
               {reports.length ? (
                 reports.map((r) => (
                   <div className="timeline-item" key={r.id}>
@@ -583,7 +631,7 @@ function TaskDetail({
                     <p>{r.message || r.acceptance_report || r.error_code}</p>
                     {r.progress_percent !== undefined && (
                       <ProgressBar
-                        aria-label="执行进度"
+                        aria-label={translate("执行进度")}
                         value={r.progress_percent}
                       >
                         <ProgressBar.Track>
@@ -595,16 +643,18 @@ function TaskDetail({
                 ))
               ) : (
                 <p className="text-sm leading-6 text-slate-600">
-                  暂无执行报告。
+                  {translate("暂无执行报告。")}
                 </p>
               )}
-              <h3>人工验收记录</h3>
+              <h3>{translate("人工验收记录")}</h3>
               {reviews.length ? (
                 reviews.map((r) => (
                   <div className="timeline-item" key={r.id}>
                     <strong>
-                      {r.decision === "ACCEPT" ? "接受" : "退回"} ·{" "}
-                      {r.reviewed_by_user_id}
+                      {r.decision === "ACCEPT"
+                        ? translate("接受")
+                        : translate("退回")}{" "}
+                      · {r.reviewed_by_user_id}
                     </strong>
                     <small>{stamp(r.created_at)}</small>
                     <p>{r.reason}</p>
@@ -612,11 +662,11 @@ function TaskDetail({
                 ))
               ) : (
                 <p className="text-sm leading-6 text-slate-600">
-                  暂无验收记录。
+                  {translate("暂无验收记录。")}
                 </p>
               )}
               <details>
-                <summary>任务与执行来源</summary>
+                <summary>{translate("任务与执行来源")}</summary>
                 <Json data={{ task, runs }} />
               </details>
             </Tabs.Panel>

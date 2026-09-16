@@ -14,6 +14,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   use: {
+    locale: "zh-CN",
     channel: "chromium",
     baseURL: process.env.ACCP_WEB_URL || "http://127.0.0.1:18082",
     viewport: { width: 1440, height: 1000 },

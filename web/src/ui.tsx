@@ -1,3 +1,4 @@
+import { useI18n, LocalizedError } from "./i18n";
 import {
   Children,
   createContext,
@@ -25,11 +26,13 @@ import {
   TextArea as HeroTextArea,
   TextField,
 } from "@heroui/react";
-import { label, ApiError } from "./api";
+import { ApiError } from "./api";
 
 export { Button } from "@heroui/react";
 
 export function Badge({ value }: { value: string }) {
+  const { label } = useI18n();
+
   const color = [
     "DONE",
     "SUCCEEDED",
@@ -182,6 +185,8 @@ export function Select({
   onChange,
   ...props
 }: SelectProps) {
+  const { translate } = useI18n();
+
   const options = Children.toArray(children).filter(
     isValidElement<OptionProps>,
   );
@@ -203,7 +208,7 @@ export function Select({
       value={selected}
       isRequired={required}
       isDisabled={disabled}
-      placeholder={multiple ? "请选择执行依据" : "请选择"}
+      placeholder={multiple ? translate("请选择执行依据") : translate("请选择")}
       disabledKeys={options
         .filter((o) => o.props.disabled)
         .map((o) => o.props.value)}
@@ -258,7 +263,14 @@ export function Checkbox({
   );
 }
 export function Message({ error }: { error: unknown }) {
-  const message = error instanceof Error ? error.message : String(error);
+  const { translate } = useI18n();
+
+  const message =
+    error instanceof LocalizedError
+      ? translate(error.key)
+      : error instanceof Error
+        ? error.message
+        : String(error);
   return (
     <Alert role="alert" status="danger" className="my-4 break-words">
       <Alert.Indicator />
@@ -276,7 +288,7 @@ export function Message({ error }: { error: unknown }) {
 export function Form({
   action,
   children,
-  submit = "保存",
+  submit,
   onDone,
 }: {
   action: (data: FormData) => Promise<unknown>;
@@ -284,6 +296,8 @@ export function Form({
   submit?: string;
   onDone?: () => void;
 }) {
+  const { translate } = useI18n();
+
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const [error, setError] = useState<unknown>();
@@ -311,7 +325,7 @@ export function Form({
       <div className="form-actions">
         <Button type="submit" isDisabled={busy} aria-busy={busy}>
           {busy && <Spinner size="sm" color="current" />}
-          {busy ? "处理中…" : submit}
+          {busy ? translate("处理中…") : (submit ?? translate("保存"))}
         </Button>
       </div>
     </HeroForm>
@@ -326,6 +340,8 @@ export function Modal({
   children: ReactNode;
   close: () => void;
 }) {
+  const { translate } = useI18n();
+
   return (
     <HeroModal.Backdrop
       isOpen
@@ -337,7 +353,7 @@ export function Modal({
     >
       <HeroModal.Container size="lg" scroll="inside">
         <HeroModal.Dialog>
-          <HeroModal.CloseTrigger aria-label="关闭" />
+          <HeroModal.CloseTrigger aria-label={translate("关闭")} />
           <HeroModal.Header>
             <HeroModal.Heading>{title}</HeroModal.Heading>
           </HeroModal.Header>
@@ -363,6 +379,8 @@ export function Action({
   run: () => Promise<unknown>;
   danger?: boolean;
 }) {
+  const { translate } = useI18n();
+
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const [error, setError] = useState<unknown>();
@@ -388,7 +406,7 @@ export function Action({
         }}
       >
         {busy && <Spinner size="sm" color="current" />}
-        {busy ? "处理中…" : children}
+        {busy ? translate("处理中…") : children}
       </Button>
       {error !== undefined && <Message error={error} />}
     </div>
