@@ -37,7 +37,7 @@ func TestM2BridgeRealStdioTransport(t *testing.T) {
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build Bridge: %v %s", err, output)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	command := exec.CommandContext(ctx, binary, "stdio")
 	command.Env = append(os.Environ(), "ACCP_URL="+httpServer.URL, "ACCP_SESSION_TOKEN="+f.token, "ACCP_ADAPTER_MANIFEST="+manifest)
@@ -72,6 +72,18 @@ func TestM2BridgeRealStdioTransport(t *testing.T) {
 	}
 	claim := call("accp_claim", Object{"idempotency_key": newID("key"), "body": Object{"project_id": "project_demo", "task_id": task["id"], "base_revision": strings.Repeat("a", 40)}})
 	run := claim["run"].(map[string]any)
+	// Simulate a client waiting for human tool confirmation: no tools/call for
+	// longer than the original 90-second lease. Only the stdio Bridge can renew.
+	select {
+	case <-time.After(95 * time.Second):
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	current := f.expect(f.call(f.token, "GET", "/task-runs/"+textValue(run, "id"), "", "", nil), 200, "M2TaskRun")
+	expires, err := time.Parse(time.RFC3339Nano, textValue(current, "lease_expires_at"))
+	if err != nil || !time.Now().Before(expires) || revision(current, "version") < 5 || current["status"] != "RUNNING" {
+		t.Fatal("stdio Bridge did not keep the Run alive during tool confirmation")
+	}
 	snapshot := call("accp_snapshot", Object{"id": run["context_snapshot_id"]})
 	entry := snapshot["entries"].([]any)[0].(map[string]any)
 	version := call("accp_context_version", Object{"context_id": entry["context_id"], "context_version_id": entry["context_version_id"]})
@@ -108,5 +120,15 @@ func TestM2BridgeRealStdioTransport(t *testing.T) {
 	heartbeat := call("accp_heartbeat", Object{"id": run["id"], "version": run["version"], "fencing_token": run["fencing_token"], "idempotency_key": newID("key"), "body": Object{"observed_at": now()}})
 	if heartbeat["run"].(map[string]any)["status"] != "RUNNING" {
 		t.Fatal("stdio heartbeat did not renew lease")
+	}
+	// The stale claim version above is safe only because intervening changes
+	// were background heartbeats. Use the foreground response from here on.
+	run = heartbeat["run"].(map[string]any)
+	input := Object{"id": run["id"], "version": run["version"], "fencing_token": run["fencing_token"], "idempotency_key": newID("key"), "body": Object{"kind": "FAILURE", "error_code": "ACCEPTANCE_FINISHED", "message": "Synthetic Bridge test finished"}}
+	if call("accp_report", input)["status"] != "FAILED" {
+		t.Fatal("Bridge did not submit terminal report")
+	}
+	if call("accp_report", input)["status"] != "FAILED" {
+		t.Fatal("Bridge changed terminal report replay headers")
 	}
 }

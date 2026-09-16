@@ -158,7 +158,13 @@ go build -o bin/accp-bridge ./cmd/accp-bridge
 
 该输入用于 `accp_claim`；其中 Task ID 和 base_revision 必须替换成真实值。CLI 模式复用同一工具定义：`accp-bridge call accp_claim < input.json`。CLI 每次启动都会协商，不自动重试写入。
 
-M2 Bridge 提供显式心跳工具，调用客户端负责每 30 秒续租、读取返回的新 Run version，并在取消/租约拒绝时停止。Bridge 不自动续租无响应的客户端。`auto_start=false`、`cancel=cooperative`；不能自动启动的客户端由人类启动。`accp_events` 使用轮询，其他 Adapter 可直接使用 SSE。Go 集成可导入 [pkg/client](../pkg/client/client.go)，其 SDK 拒绝非 Session token、跨站重定向和远程明文 origin。
+常驻 `stdio` Bridge 为本 MCP 连接领取的 Run 自动续租：当前服务端建议间隔为 30 秒，Bridge 提前按 20 秒调度，单次后台请求最多 5 秒。等待模型或人工工具确认期间无需主动调用 `accp_heartbeat`。每条连接每 20 秒使用 MCP ping 检查存活；断开连接、Run 终态、Session 撤销、续租被拒绝或已知租约过期时停止。连续 30 分钟没有成功的 Run 读取或写入也停止续租，之后的读取不会重新启动调度。操作系统暂停、网络中断或进程退出仍可能导致失租；调度间隔不是实时保证。
+
+后台心跳与该 Run 的报告、上传、登记和显式心跳串行执行。客户端继续提供最近一次前台 Run 响应的 `version` 和原始 `fencing_token`；Bridge 只补偿自身后台心跳造成的版本推进，不能跨过前台报告或显式心跳的版本变化，也不会替换 fence。`auto_heartbeat` 输出显示本地调度的 `running`、`uncertain` 或 `stopped` 状态、停止原因及最近后台心跳的 Context 更新提示；最终授权仍由服务端决定。
+
+后台心跳遇到传输错误、408、429 或 5xx 时，保留原 key、正文、version 和 fence，每约 2 秒尝试核对，最长不超过已知租约。结果未知期间阻止新的 Run 写入；前台写入结果未知时暂停后台续租，等待客户端用完全相同的工具参数重试。Bridge 为每个 Run 最多保留 4096 条写入的参数摘要及实际请求头；重试仍发往服务端，不用本地成功缓存绕过撤销检查。该映射仅在当前连接内存中保存，进程重启后需核对权威 Run 与成果，不应换新 key 重做未知结果的写入。
+
+单次 `call` CLI 模式和直接使用 Go SDK 的调用方仍须自行每 30 秒续租，并采用返回的新 Run version。Bridge 不接管读取到的已有 Run，也不复活失效租约。`auto_start=false`、`cancel=cooperative`；不能自动启动的客户端由人类启动。Bridge 不能强制结束本地客户端或 shell；看到租约拒绝时必须停止执行。`accp_events` 使用轮询，其他 Adapter 可直接使用 SSE。Go 集成可导入 [pkg/client](../pkg/client/client.go)，其 SDK 拒绝非 Session token、跨站重定向和远程明文 origin。设计取舍见 [ADR 0007](adr/0007-bridge-lease-renewal.md)。
 
 这些工具只访问 ACCP 协作 API。M3 的 `/mcp` Gateway 尚未提供，因此 0.2 handshake 不返回 `mcp_uri`，也没有 Git/数据库/部署工具权限。
 

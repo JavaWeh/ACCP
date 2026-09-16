@@ -34,14 +34,14 @@ Bridge 将 `body` 作为 REST 正文发送；外层 `id`、`version`、`fencing_
 | `accp_report` 完成候选 | `kind: COMPLETION_CANDIDATE`、`artifact_ids`、字符串 `acceptance_report` |
 | `accp_report` 失败 | `kind: FAILURE`、`error_code`、字符串 `message` |
 
-除 claim 外，写入使用外层 `id=<Run ID>`、当前 `version`、claim 返回的 `fencing_token` 及本步骤幂等键。上传和登记不会改变 Run version；心跳返回的 `body.run.version` 必须用于后续写入。不要把文件名、Run ID 或自报来源信息添加到正文。完整约束见 [领域契约](../contracts/schemas/domain.schema.json)。
+除 claim 外，写入使用外层 `id=<Run ID>`、最近一次前台 Run 响应的 `version`、claim 返回的 `fencing_token` 及本步骤幂等键。上传和登记不会改变 Run version；显式心跳返回的 `body.run.version`、报告返回的 `body.version` 必须用于后续新写入。常驻 stdio Bridge 会补偿自身后台心跳的版本推进；未知结果重试仍须保持所有工具参数不变。不要把文件名、Run ID 或自报来源信息添加到正文。完整约束见 [领域契约](../contracts/schemas/domain.schema.json) 和 [自动续租边界](m2-execution.md#使用-local-bridge-和-go-sdk)。
 
 ## 完整流程
 
 1. 第二客户端先尝试领取依赖未满足的任务，预期 `409 NO_CLAIMABLE_TASK`，且无 Run 被创建。
 2. 第一客户端领取 API 任务，得到 Run、租约、fencing token 和 ContextSnapshot。
 3. 通过 `accp_snapshot` 读取 entry；用 entry 的 `context_id`、`context_version_id` 调用 `accp_context_version`；从返回的 `urn:accp:content:<content_id>` 读取正文。核对版本和摘要，禁止猜测正文 ID 或替换为最新版本。
-4. 客户端每 30 秒心跳并采用响应中的 Run version。租约过期后停止，保留 LOST Run，由人类发起新的执行尝试。
+4. 常驻 stdio Bridge 后台续租；验证无工具调用等待超过 90 秒后 Run 仍有效，并记录实际心跳间隔。CLI/直接 SDK 调用方仍每 30 秒显式心跳。检查断开、撤销、网络中断和 30 分钟 Run 工具空闲上限；续租停止或租约过期后停止执行，保留旧 Run，由人类决定后续尝试。自动化回归不能代替指定版本真实客户端的再次验收。
 5. 第一客户端提交与已发布 API Context 字节一致的 API_DOCUMENT，以及接入说明；上报 `COMPLETION_CANDIDATE`，任务停留在 IN_REVIEW。
 6. 人类查看具体成果正文、版本和摘要后接受 API 成果或验收任务。控制面产生 API_READY，依赖解除。
 7. 第二客户端领取任务，确认快照包含已接受的 API 成果引用和对应的 Context 版本，完成接入实现并运行测试。
