@@ -43,6 +43,12 @@ jobs:
       - name: Start isolated platform
         run: |
           node scripts/dev-env.mjs
+          while IFS='=' read -r key value; do
+            case "$key" in
+              POSTGRES_PASSWORD|ACCP_SESSION_KEY|ACCP_NATS_TOKEN) echo "::add-mask::$value" ;;
+            esac
+          done < .accp-local/compose.env
+          docker compose --env-file .accp-local/compose.env run --rm --no-deps nats -t -c /etc/nats/accp.conf
           docker compose --env-file .accp-local/compose.env up --build --wait
           docker compose --env-file .accp-local/compose.env --profile tools run --rm bootstrap
       - name: Browser acceptance against real API and database
@@ -51,6 +57,11 @@ jobs:
           ACCP_WEB_URL: http://127.0.0.1:8080
           ACCP_WEB_CREDENTIALS_FILE: ../.accp-local/dev-users.json
         run: npm test
+      - name: Diagnose failed NATS startup
+        if: failure() && hashFiles('.accp-local/compose.env') != ''
+        run: |
+          docker compose --env-file .accp-local/compose.env ps --all
+          docker compose --env-file .accp-local/compose.env logs --no-color --tail 100 nats
       - name: Stop isolated services
         if: always()
         run: docker compose --env-file .accp-local/compose.env down
