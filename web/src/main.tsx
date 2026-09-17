@@ -607,9 +607,15 @@ function App() {
                 {page === "overview" && (
                   <Overview w={workspace} navigate={setPage} />
                 )}{" "}
-                {["tasks", "contexts", "artifacts", "approvals", "tools"].includes(
-                  page,
-                ) && <CollectionControls page={page} next={nextCursor} />}
+                {[
+                  "tasks",
+                  "contexts",
+                  "artifacts",
+                  "approvals",
+                  "tools",
+                ].includes(page) && (
+                  <CollectionControls page={page} next={nextCursor} />
+                )}
                 {page === "tasks" && <Tasks w={workspace} />}{" "}
                 {page === "contexts" && <Contexts w={workspace} />}{" "}
                 {page === "artifacts" && <Artifacts w={workspace} />}{" "}

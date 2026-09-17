@@ -16,7 +16,10 @@ export function subscribe(api: API, project: string, changed: () => void) {
           Authorization: `Bearer ${api.token}`,
           Accept: "text/event-stream",
         },
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]),
+        signal: AbortSignal.any([
+          controller.signal,
+          AbortSignal.timeout(30000),
+        ]),
       });
       if (res.status === 410 || res.status === 400) {
         cursor = "";
