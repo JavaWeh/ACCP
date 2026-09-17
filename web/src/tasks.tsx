@@ -9,6 +9,9 @@ import {
 import { useEffect, useState } from "react";
 import type { Doc } from "./api";
 import { short } from "./api";
+import { navigate, useLocationQuery } from "./navigation";
+import { usePage } from "./use-page";
+import { TaskLifecycle } from "./task-lifecycle";
 import type { Workspace } from "./main";
 import {
   Button,
@@ -40,14 +43,19 @@ export function Tasks({ w }: { w: Workspace }) {
   const { translate, label, number } = useI18n();
 
   const [creating, setCreating] = useState(false);
-  const [selected, setSelected] = useState("");
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const tasks = w.tasks.filter(
-    (t) =>
-      (filter === "all" || t.owner_user_id === w.me.id) &&
-      `${t.title} ${t.objective}`.toLowerCase().includes(search.toLowerCase()),
-  );
+  const query = useLocationQuery();
+  const selected = query.get("task") || "";
+  const setSelected = (id: string) => navigate({ task: id });
+  const search = query.get("search") || "";
+  const setSearch = (value: string) =>
+    navigate({ search: value, cursor: undefined });
+  const filter = query.has("owner") ? "mine" : "all";
+  const setFilter = (value: string) =>
+    navigate({
+      owner: value === "mine" ? w.me.id : undefined,
+      cursor: undefined,
+    });
+  const tasks = w.tasks;
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
@@ -163,23 +171,27 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
   const [versions, setVersions] = useState<Doc[]>([]);
   const [repos, setRepos] = useState<Doc[]>([]);
   const [error, setError] = useState<unknown>();
+  const [searchVersions, setSearchVersions] = useState("");
+  const optionsPage = usePage(
+    w,
+    `/projects/${w.project.id}/context-version-options`,
+    "version_option_cursor",
+    true,
+    "sort=title&search=" + encodeURIComponent(searchVersions),
+  );
   useEffect(() => {
-    Promise.all([
-      Promise.all(
-        w.contexts.map((c) =>
-          w.api
-            .all(`/contexts/${c.id}/versions`)
-            .then((v) => v.map((x): Doc => ({ ...x, context_name: c.name }))),
-        ),
-      ),
-      w.api.all(`/projects/${w.project.id}/repositories`),
-    ])
-      .then(([v, r]) => {
-        setVersions(v.flat().filter((x) => x.status === "PUBLISHED"));
-        setRepos(r);
-      })
+    setVersions((previous) => [
+      ...new Map(
+        [...previous, ...optionsPage.items].map((v) => [v.id, v]),
+      ).values(),
+    ]);
+  }, [optionsPage.items]);
+  useEffect(() => {
+    w.api
+      .all(`/projects/${w.project.id}/repositories`)
+      .then(setRepos)
       .catch(setError);
-  }, [w.api, w.project.id, w.contexts]);
+  }, [w.api, w.project.id]);
   return (
     <Modal title={translate("创建协作任务")} close={close}>
       {error !== undefined && <Message error={error} />}
@@ -266,6 +278,16 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
             ))}
           </Select>
         </Field>
+        <Input
+          aria-label="查找执行依据"
+          placeholder="搜索 Context 名称"
+          value={searchVersions}
+          onChange={(e) => {
+            setSearchVersions(e.target.value);
+            navigate({ version_option_cursor: undefined });
+          }}
+        />
+        {optionsPage.controls}
         {!versions.length && (
           <div className="notice">
             {translate("请先到「共享上下文」创建并发布需求或 API 版本。")}
@@ -287,37 +309,44 @@ function TaskDetail({
   const { translate, label, stamp } = useI18n();
 
   const [task, setTask] = useState<Doc>();
-  const [runs, setRuns] = useState<Doc[]>([]);
-  const [artifacts, setArtifacts] = useState<Doc[]>([]);
-  const [reports, setReports] = useState<Doc[]>([]);
-  const [reviews, setReviews] = useState<Doc[]>([]);
-  const [dependencies, setDependencies] = useState<Doc[]>([]);
+  const runPage = usePage(
+    w,
+    `/tasks/${id}/runs`,
+    "run_cursor",
+    true,
+    "sort=-attempt",
+  );
+  const reviewPage = usePage(w, `/tasks/${id}/reviews`, "review_cursor");
+  const dependencyPage = usePage(
+    w,
+    `/tasks/${id}/dependencies`,
+    "dependency_cursor",
+  );
+  const runs = runPage.items,
+    reviews = reviewPage.items,
+    dependencies = dependencyPage.items;
+  const artifactPage = usePage(
+    w,
+    `/task-runs/${runs[0]?.id}/artifacts`,
+    "evidence_cursor",
+    !!runs.length,
+  );
+  const reportPage = usePage(
+    w,
+    `/task-runs/${runs[0]?.id}/reports`,
+    "report_cursor",
+    !!runs.length,
+  );
+  const artifacts = artifactPage.items,
+    reports = reportPage.items;
   const [error, setError] = useState<unknown>();
   const [tab, setTab] = useState("overview");
   async function load() {
-    const [t, r, rev, dep] = await Promise.all([
-      w.api.call(`/tasks/${id}`),
-      w.api.all(`/tasks/${id}/runs`),
-      w.api.all(`/tasks/${id}/reviews`),
-      w.api.all(`/tasks/${id}/dependencies`),
-    ]);
-    setTask(t);
-    r.sort((a, b) => b.attempt - a.attempt);
-    setRuns(r);
-    setReviews(rev);
-    setDependencies(dep);
-    if (r.length) {
-      const [a, p] = await Promise.all([
-        w.api.all(`/task-runs/${r[0].id}/artifacts`),
-        w.api.all(`/task-runs/${r[0].id}/reports`),
-      ]);
-      setArtifacts(a);
-      setReports(p);
-    }
+    setTask(await w.api.call(`/tasks/${id}`));
   }
   useEffect(() => {
     load().catch(setError);
-  }, [id, w.api]);
+  }, [id, w.api, w.tasks]);
   async function refreshed() {
     await load();
     await w.refresh();
@@ -346,6 +375,9 @@ function TaskDetail({
           <p className="mb-5 text-sm leading-7 text-slate-600">
             {task.objective}
           </p>
+          {canChange && (
+            <TaskLifecycle w={w} task={task} refreshed={refreshed} />
+          )}
           <Tabs
             selectedKey={tab}
             onSelectionChange={(key) => setTab(String(key))}
@@ -373,6 +405,7 @@ function TaskDetail({
                 ))}
               </ul>
               <h3>{translate("执行记录")}</h3>
+              {runPage.controls}
               {!runs.length ? (
                 <p className="text-sm leading-6 text-slate-600">
                   {translate("尚未领取。分配后，由已授权的 Agent 领取任务。")}
@@ -391,6 +424,7 @@ function TaskDetail({
                 ))
               )}
               <h3>{translate("任务依赖")}</h3>
+              {dependencyPage.controls}
               {dependencies.length ? (
                 dependencies.map((d) => (
                   <div key={d.id} className="record-row">
@@ -469,9 +503,11 @@ function TaskDetail({
                   {["DRAFT", "BLOCKED"].includes(task.status) && (
                     <Action
                       run={async () => {
-                        const assignments = await w.api.all(
-                          `/tasks/${id}/assignments`,
-                        );
+                        const assignments = (
+                          await w.api.call<{ items: Doc[] }>(
+                            `/tasks/${id}/assignments?limit=1`,
+                          )
+                        ).items;
                         let current = await w.api.call(`/tasks/${id}`);
                         if (!assignments.length) {
                           await w.api.call(
@@ -525,6 +561,7 @@ function TaskDetail({
               )}
             </Tabs.Panel>
             <Tabs.Panel id="evidence">
+              {artifactPage.controls}
               {!artifacts.length ? (
                 <Empty title={translate("等待执行成果")}>
                   {translate("Agent 需要提交可核验的文档、代码或测试证据。")}
@@ -622,6 +659,8 @@ function TaskDetail({
                 )}
             </Tabs.Panel>
             <Tabs.Panel id="history">
+              {reportPage.controls}
+              {reviewPage.controls}
               <h3>{translate("执行报告")}</h3>
               {reports.length ? (
                 reports.map((r) => (

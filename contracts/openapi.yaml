@@ -34,90 +34,109 @@ paths:
   /projects/{id}/diagnostics:
     get:
       operationId: projectDiagnostics
-      tags: [Governance]
+      tags:
+        - Governance
       summary: Read project diagnostic counters
       description: Current project ADMIN only. Server derives identity and project access. Local maintenance does not block diagnostic reads.
-      x-accp-actors: [HUMAN]
+      x-accp-actors:
+        - HUMAN
       security:
         - HumanBearer: []
       parameters:
         - name: id
           in: path
           required: true
-          schema: {type: string}
+          schema:
+            type: string
       responses:
-        '200':
+        "200":
           description: Authorized project operations data
           content:
             application/json:
               schema:
                 $ref: ./schemas/operations.schema.json#/$defs/Diagnostics
-        '403':
-          $ref: '#/components/responses/Problem'
+        "403":
+          $ref: "#/components/responses/Problem"
         default:
-          $ref: '#/components/responses/Problem'
+          $ref: "#/components/responses/Problem"
   /projects/{id}/event-failures:
     get:
       operationId: listProjectEventFailures
-      tags: [Governance]
+      tags:
+        - Governance
       summary: List failed project events
       description: Current project ADMIN only. Server derives identity and project access. Local maintenance does not block diagnostic reads.
-      x-accp-actors: [HUMAN]
+      x-accp-actors:
+        - HUMAN
       security:
         - HumanBearer: []
       parameters:
         - name: id
           in: path
           required: true
-          schema: {type: string}
+          schema:
+            type: string
         - name: limit
           in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
         - name: cursor
           in: query
-          schema: {type: string}
+          schema:
+            type: string
       responses:
-        '200':
+        "200":
           description: Authorized project operations data
           content:
             application/json:
               schema:
                 $ref: ./schemas/operations.schema.json#/$defs/FailurePage
-        '403':
-          $ref: '#/components/responses/Problem'
+        "403":
+          $ref: "#/components/responses/Problem"
         default:
-          $ref: '#/components/responses/Problem'
+          $ref: "#/components/responses/Problem"
   /projects/{id}/recovery-items:
     get:
       operationId: listProjectRecoveryItems
-      tags: [Governance]
+      tags:
+        - Governance
       summary: List recovery reconciliation items
       description: Current project ADMIN only. Server derives identity and project access. Local maintenance does not block diagnostic reads.
-      x-accp-actors: [HUMAN]
+      x-accp-actors:
+        - HUMAN
       security:
         - HumanBearer: []
       parameters:
         - name: id
           in: path
           required: true
-          schema: {type: string}
+          schema:
+            type: string
         - name: limit
           in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
         - name: cursor
           in: query
-          schema: {type: string}
+          schema:
+            type: string
       responses:
-        '200':
+        "200":
           description: Authorized project operations data
           content:
             application/json:
               schema:
                 $ref: ./schemas/operations.schema.json#/$defs/RecoveryItemPage
-        '403':
-          $ref: '#/components/responses/Problem'
+        "403":
+          $ref: "#/components/responses/Problem"
         default:
-          $ref: '#/components/responses/Problem'
+          $ref: "#/components/responses/Problem"
   /projects/{id}/repositories:
     get:
       operationId: listRepositories
@@ -152,6 +171,35 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - name: search
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: owner
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+            enum:
+              - id
+              - title
+              - updated
+              - -updated
       responses:
         "200":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
@@ -208,8 +256,6 @@ paths:
               description: Quoted resource version when applicable.
               schema:
                 type: string
-        default:
-          $ref: "#/components/responses/Problem"
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -225,6 +271,8 @@ paths:
         "422":
           $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        default:
           $ref: "#/components/responses/Problem"
       requestBody:
         required: true
@@ -296,7 +344,8 @@ paths:
         - HumanBearer: []
         - AgentBearer: []
       parameters:
-        - name: id
+        - &a6
+          name: id
           in: path
           required: true
           description: Opaque resource identifier; scope is verified server-side.
@@ -318,6 +367,41 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - name: search
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: owner
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+            enum:
+              - id
+              - title
+              - updated
+              - -updated
+        - name: archived
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
       responses:
         "200":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
@@ -1329,6 +1413,35 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - name: search
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: owner
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+            enum:
+              - id
+              - title
+              - updated
+              - -updated
       responses:
         "200":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
@@ -2507,8 +2620,6 @@ paths:
               description: Quoted resource version when applicable.
               schema:
                 type: string
-        default:
-          $ref: "#/components/responses/Problem"
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -2524,6 +2635,8 @@ paths:
         "422":
           $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        default:
           $ref: "#/components/responses/Problem"
       requestBody:
         required: true
@@ -2606,8 +2719,6 @@ paths:
               description: Quoted resource version when applicable.
               schema:
                 type: string
-        default:
-          $ref: "#/components/responses/Problem"
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -2623,6 +2734,8 @@ paths:
         "422":
           $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        default:
           $ref: "#/components/responses/Problem"
       requestBody:
         required: true
@@ -2803,6 +2916,19 @@ paths:
             minLength: 1
         - *a4
         - *a5
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum:
+              - id
+              - updated
+              - -updated
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 256
       responses:
         "200":
           description: Successful M1 operation.
@@ -2899,6 +3025,35 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - name: search
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: owner
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+            enum:
+              - id
+              - title
+              - updated
+              - -updated
       responses:
         "200":
           description: Successful operation.
@@ -3076,6 +3231,13 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum:
+              - id
+              - -attempt
       responses:
         "200":
           description: Successful operation.
@@ -3308,6 +3470,35 @@ paths:
           required: true
           description: Opaque authorized resource ID.
           schema: *a2
+        - name: search
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: owner
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+            enum:
+              - id
+              - title
+              - updated
+              - -updated
       responses:
         "200":
           description: Operation succeeded.
@@ -4124,8 +4315,6 @@ paths:
               description: Quoted resource version when applicable.
               schema:
                 type: string
-        default:
-          $ref: "#/components/responses/Problem"
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -4141,6 +4330,8 @@ paths:
         "422":
           $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        default:
           $ref: "#/components/responses/Problem"
     post:
       operationId: registerOrganizationMember
@@ -4167,8 +4358,6 @@ paths:
               description: Quoted resource version when applicable.
               schema:
                 type: string
-        default:
-          $ref: "#/components/responses/Problem"
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -4184,6 +4373,8 @@ paths:
         "422":
           $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        default:
           $ref: "#/components/responses/Problem"
       requestBody:
         required: true
@@ -4227,8 +4418,6 @@ paths:
               description: Quoted resource version when applicable.
               schema:
                 type: string
-        default:
-          $ref: "#/components/responses/Problem"
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -4244,6 +4433,8 @@ paths:
         "422":
           $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        default:
           $ref: "#/components/responses/Problem"
   /projects/{id}:
     get:
@@ -4276,8 +4467,6 @@ paths:
               description: Quoted resource version when applicable.
               schema:
                 type: string
-        default:
-          $ref: "#/components/responses/Problem"
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -4293,6 +4482,8 @@ paths:
         "422":
           $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        default:
           $ref: "#/components/responses/Problem"
   /projects/{id}/changes:
     post:
@@ -4327,8 +4518,6 @@ paths:
               description: Quoted resource version when applicable.
               schema:
                 type: string
-        default:
-          $ref: "#/components/responses/Problem"
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -4344,6 +4533,8 @@ paths:
         "422":
           $ref: "#/components/responses/Problem"
         "428":
+          $ref: "#/components/responses/Problem"
+        default:
           $ref: "#/components/responses/Problem"
       requestBody:
         required: true
@@ -4384,8 +4575,6 @@ paths:
               description: Quoted resource version when applicable.
               schema:
                 type: string
-        default:
-          $ref: "#/components/responses/Problem"
         "400":
           $ref: "#/components/responses/Problem"
         "401":
@@ -4402,12 +4591,497 @@ paths:
           $ref: "#/components/responses/Problem"
         "428":
           $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: ./schemas/management.schema.json#/$defs/ProjectCommand
+  /tasks/{id}/changes:
+    post:
+      operationId: taskLifecycleEditchanges
+      tags:
+        - Tasks
+      summary: Task changes
+      description: Human Owner or project ADMIN only; current If-Match, reason and Idempotency-Key required. Stop active Runs and resolve outstanding tool operations first. Immutable history is retained.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Task
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/lifecycle.schema.json#/$defs/Edit
+      x-accp-milestone: D07
+    get:
+      operationId: listTaskChanges
+      tags:
+        - Tasks
+      summary: List immutable task changes
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Versioned history with actor and reason
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/lifecycle.schema.json#/$defs/ChangePage
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /tasks/{id}/owner-transfers:
+    post:
+      operationId: taskLifecycleTransferownertransfers
+      tags:
+        - Tasks
+      summary: Task owner-transfers
+      description: Human Owner or project ADMIN only; current If-Match, reason and Idempotency-Key required. Stop active Runs and resolve outstanding tool operations first. Immutable history is retained.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Task
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/lifecycle.schema.json#/$defs/Transfer
+      x-accp-milestone: D07
+  /tasks/{id}/inputs:
+    post:
+      operationId: taskLifecycleInputsinputs
+      tags:
+        - Tasks
+      summary: Task inputs
+      description: Human Owner or project ADMIN only; current If-Match, reason and Idempotency-Key required. Stop active Runs and resolve outstanding tool operations first. Immutable history is retained.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Task
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/lifecycle.schema.json#/$defs/Inputs
+      x-accp-milestone: D07
+  /tasks/{id}/archive:
+    post:
+      operationId: taskLifecycleReasonarchive
+      tags:
+        - Tasks
+      summary: Task archive
+      description: Human Owner or project ADMIN only; current If-Match, reason and Idempotency-Key required. Stop active Runs and resolve outstanding tool operations first. Immutable history is retained.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Task
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/lifecycle.schema.json#/$defs/Reason
+      x-accp-milestone: D07
+  /tasks/{id}/restore:
+    post:
+      operationId: taskLifecycleReasonrestore
+      tags:
+        - Tasks
+      summary: Task restore
+      description: Human Owner or project ADMIN only; current If-Match, reason and Idempotency-Key required. Stop active Runs and resolve outstanding tool operations first. Immutable history is retained.
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Task
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/lifecycle.schema.json#/$defs/Reason
+      x-accp-milestone: D07
+  /projects/{id}/summary:
+    get:
+      operationId: projectSummary
+      tags:
+        - Tasks
+      summary: Current project task and visible approval counts
+      security:
+        - HumanBearer: []
+      parameters:
+        - *a6
+      responses:
+        "200":
+          description: Counts exclude archived tasks; approval count requires REVIEWER or ADMIN.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: integer
+                    minimum: 0
+                  running:
+                    type: integer
+                    minimum: 0
+                  review:
+                    type: integer
+                    minimum: 0
+                  approvals:
+                    type: integer
+                    minimum: 0
+                required:
+                  - tasks
+                  - running
+                  - review
+                  - approvals
+                additionalProperties: false
+        "403":
+          $ref: "#/components/responses/Problem"
+  /projects/{id}/context-version-options:
+    get:
+      operationId: contextVersionOptions
+      tags:
+        - Contexts
+      summary: Search published Context versions for explicit task inputs
+      description: Current resource ACLs are checked before listing metadata. M2 also allows a scoped Agent Session in the same project.
+      x-accp-actors:
+        - HUMAN
+        - AGENT
+      security:
+        - HumanBearer: []
+        - AgentBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource identifier; scope is verified server-side.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: search
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: owner
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: Optional server filter; changing filters invalidates the cursor. Unfiltered requests preserve legacy ID ordering.
+          schema:
+            type: string
+            enum:
+              - id
+              - title
+              - updated
+              - -updated
+      responses:
+        "200":
+          description: Successful operation. Human ownership and resource scopes are validated by the server.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        context_id:
+                          type: string
+                        context_name:
+                          type: string
+                        title:
+                          type: string
+                        source_revision:
+                          type: string
+                        status:
+                          type: string
+                      required:
+                        - id
+                        - context_id
+                        - context_name
+                        - title
+                        - source_revision
+                        - status
+                      additionalProperties: false
+                  next_cursor:
+                    type:
+                      - string
+                      - "null"
+                required:
+                  - items
+                additionalProperties: false
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-milestone: M1
+      x-accp-required-scope: context:read
 components:
   securitySchemes:
     HumanBearer:

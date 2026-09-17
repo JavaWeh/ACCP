@@ -108,6 +108,25 @@ async function consoleFixture(page: Page) {
     if (/\/projects\/[^/]+\/tasks$/.test(path)) return send({ items: tasks });
     if (/\/projects\/[^/]+\/contexts$/.test(path))
       return send({ items: contexts });
+    if (/\/projects\/[^/]+\/context-version-options$/.test(path))
+      return send({
+        items: [
+          {
+            id: "version_api",
+            context_id: "context_api",
+            context_name: "订单 API",
+            status: "PUBLISHED",
+            source_revision: "1.0",
+          },
+          {
+            id: "version_rules",
+            context_id: "context_rules",
+            context_name: "项目规范",
+            status: "PUBLISHED",
+            source_revision: "2.0",
+          },
+        ],
+      });
     if (path === "/contexts/context_api/versions")
       return send({
         items: [
@@ -254,6 +273,7 @@ test("dialogs trap focus, Escape dismisses and returns focus to the trigger", as
   await page.getByRole("option", { name: "API 契约", exact: true }).click();
   await expect(type).toContainText("API 契约");
   await expect(page.locator(".select__popover")).toHaveCount(0);
+  await expect(type).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();

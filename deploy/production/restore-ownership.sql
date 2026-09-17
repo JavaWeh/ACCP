@@ -18,6 +18,9 @@ BEGIN
   FOR item IN SELECT sequencename FROM pg_sequences WHERE schemaname='accp' LOOP
     EXECUTE format('ALTER SEQUENCE accp.%I OWNER TO accp_migrator',item.sequencename);
   END LOOP;
+  FOR item IN SELECT viewname FROM pg_views WHERE schemaname='accp' LOOP
+    EXECUTE format('ALTER VIEW accp.%I OWNER TO accp_migrator',item.viewname);
+  END LOOP;
   FOR item IN SELECT p.proname,pg_get_function_identity_arguments(p.oid) AS arguments FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='accp' LOOP
     EXECUTE format('ALTER FUNCTION accp.%I(%s) OWNER TO accp_migrator',item.proname,item.arguments);
   END LOOP;

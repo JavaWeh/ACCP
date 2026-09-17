@@ -610,6 +610,39 @@
       "expected_error": {
         "keyword": "minimum"
       }
+    },
+    {
+      "file": "valid/task-draft-edit.json",
+      "schema": "https://accp.example/schemas/v0.5/lifecycle.schema.json#/$defs/Edit",
+      "valid": true
+    },
+    {
+      "file": "valid/task-owner-transfer.json",
+      "schema": "https://accp.example/schemas/v0.5/lifecycle.schema.json#/$defs/Transfer",
+      "valid": true
+    },
+    {
+      "file": "invalid/task-transfer-injected-project.json",
+      "schema": "https://accp.example/schemas/v0.5/lifecycle.schema.json#/$defs/Transfer",
+      "valid": false,
+      "expected_error": {
+        "keyword": "additionalProperties",
+        "additionalProperty": "project_id"
+      }
+    },
+    {
+      "file": "invalid/task-edit-no-reason.json",
+      "schema": "https://accp.example/schemas/v0.5/lifecycle.schema.json#/$defs/Edit",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "reason"
+      }
+    },
+    {
+      "file": "valid/event-task-changed.json",
+      "schema": "https://accp.example/schemas/v0.1/event.schema.json",
+      "valid": true
     }
   ]
 }

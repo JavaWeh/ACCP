@@ -1,0 +1,8 @@
+{
+  "title": "Updated task",
+  "objective": "Deliver reviewed work",
+  "acceptance_criteria": [
+    "Tests pass"
+  ],
+  "reason": "Clarify acceptance"
+}

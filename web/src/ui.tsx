@@ -26,7 +26,7 @@ import {
   TextArea as HeroTextArea,
   TextField,
 } from "@heroui/react";
-import { ApiError } from "./api";
+import { ApiError, PendingSubmission, VersionConflict } from "./api";
 
 export { Button } from "@heroui/react";
 
@@ -284,6 +284,28 @@ export function Message({ error }: { error: unknown }) {
           <Alert.Description>
             {error.code} · {error.trace}
           </Alert.Description>
+        )}
+        {error instanceof VersionConflict && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              本次提交
+              <Json data={error.submitted} />
+            </div>
+            <div>
+              当前版本
+              <Json data={error.current} />
+            </div>
+          </div>
+        )}
+        {error instanceof PendingSubmission && (
+          <Action
+            run={async () => {
+              await error.retry();
+              window.dispatchEvent(new Event("accp:confirmed"));
+            }}
+          >
+            重试原请求
+          </Action>
         )}
       </Alert.Content>
     </Alert>
