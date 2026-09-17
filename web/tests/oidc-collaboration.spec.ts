@@ -101,7 +101,9 @@ test("real OIDC task editing, archive restore and bound pagination with runtime 
   await page.goto(`/?project=${seed.project}&page=tasks&task=${seed.task}`);
   await page.getByRole("button", { name: "使用企业账号登录 →" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", {
+    name: /^OIDC (lifecycle draft|edited task)$/,
+  });
   await dialog.getByText("任务变更与责任记录", { exact: true }).click();
   await dialog.getByRole("button", { name: "变更类型" }).click();
   await page.getByRole("option", { name: "编辑草稿", exact: true }).click();
