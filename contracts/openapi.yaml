@@ -31,6 +31,93 @@ security:
   - HumanBearer: []
   - AgentBearer: []
 paths:
+  /projects/{id}/diagnostics:
+    get:
+      operationId: projectDiagnostics
+      tags: [Governance]
+      summary: Read project diagnostic counters
+      description: Current project ADMIN only. Server derives identity and project access. Local maintenance does not block diagnostic reads.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Authorized project operations data
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/operations.schema.json#/$defs/Diagnostics
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+  /projects/{id}/event-failures:
+    get:
+      operationId: listProjectEventFailures
+      tags: [Governance]
+      summary: List failed project events
+      description: Current project ADMIN only. Server derives identity and project access. Local maintenance does not block diagnostic reads.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+        - name: cursor
+          in: query
+          schema: {type: string}
+      responses:
+        '200':
+          description: Authorized project operations data
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/operations.schema.json#/$defs/FailurePage
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
+  /projects/{id}/recovery-items:
+    get:
+      operationId: listProjectRecoveryItems
+      tags: [Governance]
+      summary: List recovery reconciliation items
+      description: Current project ADMIN only. Server derives identity and project access. Local maintenance does not block diagnostic reads.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+        - name: cursor
+          in: query
+          schema: {type: string}
+      responses:
+        '200':
+          description: Authorized project operations data
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/operations.schema.json#/$defs/RecoveryItemPage
+        '403':
+          $ref: '#/components/responses/Problem'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{id}/repositories:
     get:
       operationId: listRepositories

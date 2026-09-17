@@ -13,12 +13,14 @@ export default defineConfig({
     trace: "off",
     screenshot: "only-on-failure",
   },
-  webServer: {
-    command:
-      "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 18083 --strictPort",
-    url: "http://127.0.0.1:18083",
-    reuseExistingServer: false,
-  },
+  webServer: process.env.ACCP_UI_MANAGED_SERVER
+    ? undefined
+    : {
+        command:
+          "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 18083 --strictPort",
+        url: "http://127.0.0.1:18083",
+        reuseExistingServer: false,
+      },
   reporter: [["list"]],
   outputDir: "test-results/ui",
 });

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/JavaWeh/ACCP/internal/auth"
+	"github.com/JavaWeh/ACCP/internal/database"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -132,6 +133,14 @@ func (s *Server) invocationTransaction(ctx context.Context, project, org string)
 	tx, e := s.pool.Begin(ctx)
 	if e != nil {
 		return nil, e
+	}
+	allowed, e := database.RuntimeAllowed(ctx, tx)
+	if e != nil || !allowed {
+		_ = tx.Rollback(ctx)
+		if e != nil {
+			return nil, e
+		}
+		return nil, pgx.ErrNoRows
 	}
 	var id string
 	e = tx.QueryRow(ctx, `SELECT id FROM projects WHERE id=$1 AND organization_id=$2 FOR UPDATE SKIP LOCKED`, project, org).Scan(&id)

@@ -79,6 +79,7 @@ services:
       <<: *runtime
       DATABASE_URL_FILE: /run/secrets/api_url
       ACCP_LISTEN_ADDR: 0.0.0.0:8080
+      ACCP_METRICS_ADDR: 0.0.0.0:9090
     secrets: [api_url, session_keys, nats_token, github_token]
     restart: unless-stopped
     healthcheck:
