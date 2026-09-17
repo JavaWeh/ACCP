@@ -30,3 +30,5 @@
 !deploy/
 !deploy/acceptance/
 !deploy/acceptance/Dockerfile
+!deploy/capacity/
+!deploy/capacity/entrypoint.sh

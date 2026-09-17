@@ -80,6 +80,7 @@ services:
       DATABASE_URL_FILE: /run/secrets/api_url
       ACCP_LISTEN_ADDR: 0.0.0.0:8080
       ACCP_METRICS_ADDR: 0.0.0.0:9090
+      ACCP_DB_MAX_CONNS: ${ACCP_API_DB_MAX_CONNS:-20}
     secrets: [api_url, session_keys, nats_token, github_token]
     restart: unless-stopped
     healthcheck:
@@ -95,6 +96,7 @@ services:
     environment:
       <<: *runtime
       DATABASE_URL_FILE: /run/secrets/worker_url
+      ACCP_DB_MAX_CONNS: ${ACCP_WORKER_DB_MAX_CONNS:-10}
     secrets: [worker_url, session_keys, nats_token, github_token]
     restart: unless-stopped
     healthcheck:

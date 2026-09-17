@@ -1,0 +1,98 @@
+name: Build candidate and handoff artifacts
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Candidate version (vX.Y.Z-rc.N only)
+        required: true
+        default: v0.5.0-rc.1
+permissions:
+  contents: read
+concurrency:
+  group: candidate-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  RELEASE_VERSION: ${{ inputs.version || 'v0.5.0-rc.1' }}
+jobs:
+  bridge:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: windows-2022, target: windows/amd64, artifact: windows-amd64}
+          - {runner: ubuntu-24.04, target: linux/amd64, artifact: linux-amd64}
+          - {runner: ubuntu-24.04-arm, target: linux/arm64, artifact: linux-arm64}
+          - {runner: macos-15-intel, target: darwin/amd64, artifact: darwin-amd64}
+          - {runner: macos-15, target: darwin/arm64, artifact: darwin-arm64}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with: {go-version-file: go.mod}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: 22.22.3}
+      - name: Build package and verify native startup
+        env:
+          ACCP_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: node scripts/build-candidate.mjs "$RELEASE_VERSION" .accp-local/candidate
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bridge-${{ matrix.artifact }}
+          path: .accp-local/candidate
+          retention-days: 30
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false, fetch-depth: 0}
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with: {go-version-file: go.mod}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: 22.22.3}
+      - name: Dependencies, contracts and history boundary
+        run: |
+          npm ci --ignore-scripts
+          npm --prefix web ci --ignore-scripts
+          npm run check
+          npm run check:history
+          npm --prefix web run check:format
+          npm --prefix web run build
+      - name: Dependency and secret scans
+        run: |
+          mkdir -p .accp-local/scans
+          go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 -json ./... > .accp-local/scans/go-vulnerabilities.json
+          npm audit --json > .accp-local/scans/tooling-audit.json
+          npm --prefix web audit --json > .accp-local/scans/web-audit.json
+          go run github.com/zricethezav/gitleaks/v8@v8.28.0 git . --redact --no-banner --report-path .accp-local/scans/secrets.json
+      - name: Candidate packages and SBOM
+        run: |
+          node scripts/build-candidate.mjs "$RELEASE_VERSION" .accp-local/candidate
+          npm --prefix web sbom --sbom-format cyclonedx > .accp-local/candidate/web.cdx.json
+          sha256sum .accp-local/candidate/web.cdx.json > .accp-local/candidate/WEB-SHA256SUMS
+      - name: Versioned API and Worker image archives
+        run: |
+          docker build --build-arg "VERSION=$RELEASE_VERSION" --build-arg "REVISION=$GITHUB_SHA" --build-arg "BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -t "accp-api:$RELEASE_VERSION" -t "accp-worker:$RELEASE_VERSION" .
+          docker run --rm "accp-api:$RELEASE_VERSION" --version
+          docker build -f deploy/production/Dockerfile.ops --build-arg "VERSION=$RELEASE_VERSION" --build-arg "REVISION=$GITHUB_SHA" --build-arg "BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -t "accp-ops:$RELEASE_VERSION" .
+          docker run --rm "accp-ops:$RELEASE_VERSION" --version
+          docker image inspect "accp-api:$RELEASE_VERSION" "accp-worker:$RELEASE_VERSION" "accp-ops:$RELEASE_VERSION" > .accp-local/candidate/images.json
+          docker save "accp-api:$RELEASE_VERSION" > .accp-local/candidate/api.tar
+          docker save "accp-ops:$RELEASE_VERSION" > .accp-local/candidate/ops.tar
+          docker run --rm --network none -v "$PWD/.accp-local/candidate:/out" anchore/syft:v1.31.0 docker-archive:/out/api.tar -o cyclonedx-json=/out/api.cdx.json
+          docker run --rm --network none -v "$PWD/.accp-local/candidate:/out" anchore/syft:v1.31.0 docker-archive:/out/ops.tar -o cyclonedx-json=/out/ops.cdx.json
+          rm .accp-local/candidate/api.tar .accp-local/candidate/ops.tar
+          docker save "accp-api:$RELEASE_VERSION" "accp-worker:$RELEASE_VERSION" "accp-ops:$RELEASE_VERSION" | gzip > .accp-local/candidate/images.tar.gz
+          sha256sum .accp-local/candidate/images.tar.gz > .accp-local/candidate/IMAGES-SHA256SUMS
+          (cd .accp-local/candidate && sha256sum *.json *.tar.gz > SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: candidate-installation-and-images
+          path: |
+            .accp-local/candidate
+            .accp-local/scans
+          retention-days: 30
