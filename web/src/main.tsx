@@ -15,8 +15,11 @@ import {
 } from "oidc-client-ts";
 import { Management } from "./management";
 import { Operations } from "./operations";
+import { navigate, useLocationQuery } from "./navigation";
+import { subscribe } from "./events";
+import { CollectionControls } from "./pagination";
 import { API } from "./api";
-import type { Doc, Membership } from "./api";
+import type { Doc, Membership, Page } from "./api";
 import {
   Button,
   Input,
@@ -41,6 +44,7 @@ import {
 import "./style.css";
 
 export type Workspace = {
+  revision: string;
   api: API;
   project: Doc;
   me: Doc;
@@ -50,6 +54,7 @@ export type Workspace = {
   artifacts: Doc[];
   approvals: Doc[];
   tools: Doc[];
+  counts: { tasks: number; running: number; review: number; approvals: number };
   roles: string[];
   refresh: () => Promise<void>;
 };
@@ -80,10 +85,28 @@ function App() {
   const [config, setConfig] = useState<AuthConfig>();
   const [token, setToken] = useState("");
   const [authError, setAuthError] = useState<unknown>();
-  const [page, setPage] = useState("overview");
+  const query = useLocationQuery();
+  const page = query.get("page") || (query.has("task") ? "tasks" : "overview");
+  const setPage = (page: string) => navigate({ page }, true);
+  const listQuery = new URLSearchParams({ limit: "25" });
+  for (const key of ["cursor", "search", "status", "owner", "sort", "archived"])
+    if (query.has(key)) listQuery.set(key, query.get(key)!);
+  if (page === "tasks" && !listQuery.has("archived"))
+    listQuery.set("archived", "false");
+  const listKey = listQuery.toString();
+  const [nextCursor, setNextCursor] = useState("");
   const [me, setMe] = useState<Doc>();
   const [projects, setProjects] = useState<Doc[]>([]);
-  const [projectID, setProjectID] = useState("");
+  const [projectID, updateProjectID] = useState(
+    () => query.get("project") || "",
+  );
+  const setProjectID = (id: string) => {
+    updateProjectID(id);
+    navigate({ project: id }, true);
+  };
+  useEffect(() => {
+    if (query.get("project")) updateProjectID(query.get("project")!);
+  }, [query.get("project")]);
   const [data, setData] = useState<{
     members: Membership[];
     tasks: Doc[];
@@ -102,6 +125,12 @@ function App() {
   const [error, setError] = useState<unknown>();
   const [loaded, setLoaded] = useState(false);
   const [updated, setUpdated] = useState("");
+  const [counts, setCounts] = useState({
+    tasks: 0,
+    running: 0,
+    review: 0,
+    approvals: 0,
+  });
   const api = useMemo(
     () =>
       new API(token, () => {
@@ -153,7 +182,12 @@ function App() {
             : await manager.getUser();
         if (active && user && !user.expired && user.access_token) {
           setToken(user.access_token);
-          history.replaceState(null, "", "/");
+          const returnTo = (user.state as { returnTo?: string })?.returnTo;
+          if (returnTo?.startsWith("/?"))
+            history.replaceState(null, "", returnTo);
+          else if (location.pathname === "/auth/callback")
+            history.replaceState(null, "", "/");
+          window.dispatchEvent(new PopStateEvent("popstate"));
         }
         await manager.clearStaleState();
       } catch (e) {
@@ -188,8 +222,10 @@ function App() {
       .then(([human, list]) => {
         if (active) {
           setMe(human);
+          api.actor = human.id;
           setProjects(list);
-          setProjectID(list[0]?.id || "");
+          const requested = new URLSearchParams(location.search).get("project");
+          updateProjectID(requested || list[0]?.id || "");
         }
       })
       .catch((e) => {
@@ -207,28 +243,78 @@ function App() {
     const members = await api.all<Membership>(`${prefix}/members`);
     const roles: string[] = members.find((m) => m.id === me.id)?.roles || [];
     const reviewer = roles.includes("REVIEWER") || roles.includes("ADMIN");
-    const [tasks, contexts, artifacts, approvals, tools] = await Promise.all([
-      api.all(`${prefix}/tasks`),
-      api.all(`${prefix}/contexts`),
-      api.all(`${prefix}/artifacts`),
-      reviewer ? api.all(`${prefix}/approvals`) : Promise.resolve([]),
-      api.all(`${prefix}/tools`),
-    ]);
+    if (page === "overview") {
+      const summary = await api.call<{
+        tasks: number;
+        running: number;
+        review: number;
+        approvals: number;
+      }>(prefix + "/summary");
+      if (generation === refreshGeneration.current) setCounts(summary);
+    }
+    const empty: Page = { items: [] };
+    const load = (collection: string, active: boolean, params = listKey) =>
+      active
+        ? api.call<Page>(prefix + "/" + collection + "?" + params)
+        : Promise.resolve(empty);
+    const [taskPage, contextPage, artifactPage, approvalPage, toolPage] =
+      await Promise.all([
+        load(
+          "tasks",
+          page === "tasks" || page === "overview",
+          page === "overview" ? "sort=-updated&limit=6" : listKey,
+        ),
+        load(
+          "contexts",
+          page === "contexts",
+          page === "tasks" ? "limit=100" : listKey,
+        ),
+        load("artifacts", page === "artifacts"),
+        load("approvals", page === "approvals" && reviewer),
+        load("tools", page === "tools"),
+      ]);
+    const tasks = taskPage.items,
+      contexts = contextPage.items,
+      artifacts = artifactPage.items,
+      approvals = approvalPage.items,
+      tools = toolPage.items;
     if (generation !== refreshGeneration.current) return;
     setData({ members, tasks, contexts, artifacts, approvals, tools });
+    setNextCursor(
+      {
+        tasks: taskPage,
+        contexts: contextPage,
+        artifacts: artifactPage,
+        approvals: approvalPage,
+        tools: toolPage,
+      }[page]?.next_cursor || "",
+    );
     setError(undefined);
     setLoaded(true);
     setUpdated(new Date().toISOString());
-  }, [projectID, me, api]);
+  }, [projectID, me, api, page, listKey]);
   useEffect(() => {
-    setLoaded(false);
     refresh().catch(setError);
-    const timer = setInterval(() => refresh().catch(setError), 10000);
+    const confirmed = () => {
+      refresh().catch(setError);
+    };
+    window.addEventListener("accp:confirmed", confirmed);
     return () => {
       ++refreshGeneration.current;
-      clearInterval(timer);
+      window.removeEventListener("accp:confirmed", confirmed);
     };
   }, [refresh]);
+  useEffect(() => {
+    setLoaded(false);
+  }, [page, projectID]);
+  const latestRefresh = useRef(refresh);
+  latestRefresh.current = refresh;
+  useEffect(() => {
+    if (!projectID || !token || !me) return;
+    return subscribe(api, projectID, () =>
+      latestRefresh.current().catch(setError),
+    );
+  }, [api, projectID, token, me]);
   async function logout() {
     ++refreshGeneration.current;
     setToken("");
@@ -351,7 +437,13 @@ function App() {
             <Button
               variant="primary"
               className="w-full"
-              onClick={() => manager?.signinRedirect().catch(setAuthError)}
+              onClick={() =>
+                manager
+                  ?.signinRedirect({
+                    state: { returnTo: location.pathname + location.search },
+                  })
+                  .catch(setAuthError)
+              }
             >
               {translate("使用企业账号登录 →")}
             </Button>
@@ -365,7 +457,7 @@ function App() {
   const project = projects.find((p) => p.id === projectID);
   const roles: string[] = data.members.find((m) => m.id === me.id)?.roles || [];
   const workspace = project
-    ? { api, project, me, ...data, roles, refresh }
+    ? { api, project, me, ...data, counts, roles, refresh, revision: updated }
     : undefined;
   return (
     <div className="min-h-screen bg-slate-50">
@@ -515,6 +607,9 @@ function App() {
                 {page === "overview" && (
                   <Overview w={workspace} navigate={setPage} />
                 )}{" "}
+                {["tasks", "contexts", "artifacts", "approvals", "tools"].includes(
+                  page,
+                ) && <CollectionControls page={page} next={nextCursor} />}
                 {page === "tasks" && <Tasks w={workspace} />}{" "}
                 {page === "contexts" && <Contexts w={workspace} />}{" "}
                 {page === "artifacts" && <Artifacts w={workspace} />}{" "}
@@ -547,25 +642,25 @@ function Overview({
   const counts = [
     {
       title: translate("项目任务"),
-      value: w.tasks.length,
+      value: w.counts.tasks || 0,
       detail: translate("当前项目所有任务"),
       page: "tasks",
     },
     {
       title: translate("正在执行"),
-      value: w.tasks.filter((t) => t.status === "RUNNING").length,
+      value: w.counts.running || 0,
       detail: translate("Agent 正在执行的任务"),
       page: "tasks",
     },
     {
       title: translate("等待验收"),
-      value: w.tasks.filter((t) => t.status === "IN_REVIEW").length,
+      value: w.counts.review || 0,
       detail: translate("需要 Owner 确认成果"),
       page: "tasks",
     },
     {
       title: translate("待审批操作"),
-      value: w.approvals.filter((t) => t.status === "PENDING").length,
+      value: w.counts.approvals || 0,
       detail: translate("等待独立人类审核"),
       page: "approvals",
     },

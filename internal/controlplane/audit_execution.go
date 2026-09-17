@@ -6,6 +6,9 @@ import (
 )
 
 func executionAudit(q *request) (reply, error) {
+	if q.http.URL.Query().Has("sort") || q.http.URL.Query().Has("search") {
+		return filteredResources(q, "audit_documents", "")
+	}
 	limit, cursor, err := pageParams(q.http)
 	if err != nil {
 		return reply{}, err

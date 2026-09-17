@@ -78,5 +78,12 @@ func NewValidator() (Validator, error) {
 		}
 		result["Management"+name] = s
 	}
+	for _, name := range []string{"Edit", "Transfer", "Inputs", "Reason", "Change", "ChangePage"} {
+		s, err := compiler.Compile("https://accp.example/schemas/v0.5/lifecycle.schema.json#/$defs/" + name)
+		if err != nil {
+			return nil, err
+		}
+		result["Lifecycle"+name] = s
+	}
 	return result, nil
 }
