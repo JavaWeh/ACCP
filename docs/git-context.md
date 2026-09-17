@@ -14,4 +14,4 @@ Web 可对照当前发布版本与候选正文，分页查看仍引用其他版�
 
 验证状态：Provider 正反例和隔离数据库 Linux race（4.508 秒）已通过，覆盖 mutable ref、内容去重、权限撤销、伪造正文、跨项目拒绝、差异基线、影响查询与活跃快照不变。全量 Linux race 通过（controlplane 248.740 秒），Go vet 通过。79 正例、32 反例、462 OpenAPI Schema 位置、10 工具测试及 18 项 Web 浏览器回归通过。008 隔离升级及 11 项 doctor 通过。
 
-真实 GitHub/OIDC 场景已执行，来源读取被共享出口匿名 API 限额拒绝（HTTP 403，剩余 0），尚未计为通过。已有身份登录和项目/来源登记成功，不将这部分替代完整来源验收。测试 `web/tests/oidc-git-context.spec.ts` 在额度恢复或配置合规 Git Provider 凭据后复验；不绕过限流，不向浏览器交付 Provider 密钥。
+本机真实 GitHub/OIDC 首次场景受共享出口匿名 API 限额拒绝（HTTP 403，剩余 0），该次保留为失败记录。随后 [PR #14 官方容器验收](https://github.com/JavaWeh/ACCP/actions/runs/35182699031) 中同一脚本真实执行通过：1 passed（2.9s），Git 外部读取 629 ms；commit `e42dc8532301705bf238b715f8bf3c0cbf41f11e`、blob `8f3e6ad3c70a4e1a9b1050c52bcea90f901291bc`，重复同步去重、差异查看和人工发布均成功。浏览器仅挂载随机隔离账号、公开 CA 与公共测试文件，没有 Provider 密钥。

@@ -1,0 +1,119 @@
+{
+  "authentication": "real development token database lookup; OIDC separately accepted",
+  "authorization_errors": 0,
+  "complete": true,
+  "completed_at": "2026-09-17T08:43:39.8815254Z",
+  "duplicate_active_runs": 0,
+  "duplicate_effects": 0,
+  "effect_calls": 20,
+  "heartbeat_errors": 0,
+  "label": "quiet-final",
+  "minimum_active_runs": 20,
+  "passed": true,
+  "phases": [
+    {
+      "authorization": {
+        "count": 1500,
+        "p95_ms": 101.89,
+        "errors": 0
+      },
+      "dropped": 0,
+      "duration_seconds": 300,
+      "error_rate": 0,
+      "event_p95_ms": 363.49634999999887,
+      "pending_events": 2,
+      "phase": "warmup",
+      "read": {
+        "count": 10500,
+        "p95_ms": 77.591,
+        "errors": 0
+      },
+      "target_rps": 50,
+      "thresholds_pass": true,
+      "total": {
+        "count": 15000,
+        "p95_ms": 82.848,
+        "errors": 0
+      },
+      "write": {
+        "count": 3000,
+        "p95_ms": 102.365,
+        "errors": 0
+      }
+    },
+    {
+      "authorization": {
+        "count": 6000,
+        "p95_ms": 33.287,
+        "errors": 0
+      },
+      "dropped": 0,
+      "duration_seconds": 1200,
+      "error_rate": 0,
+      "event_p95_ms": 252.33299999999997,
+      "pending_events": 2,
+      "phase": "steady",
+      "read": {
+        "count": 42000,
+        "p95_ms": 33.023,
+        "errors": 0
+      },
+      "target_rps": 50,
+      "thresholds_pass": true,
+      "total": {
+        "count": 60000,
+        "p95_ms": 35.281,
+        "errors": 0
+      },
+      "write": {
+        "count": 12000,
+        "p95_ms": 41.54,
+        "errors": 0
+      }
+    },
+    {
+      "authorization": {
+        "count": 2999,
+        "p95_ms": 68.537,
+        "errors": 0
+      },
+      "dropped": 6,
+      "duration_seconds": 300,
+      "error_rate": 0.0002,
+      "event_p95_ms": 379.88445000000013,
+      "pending_events": 3,
+      "phase": "burst",
+      "read": {
+        "count": 20995,
+        "p95_ms": 48.432,
+        "errors": 0
+      },
+      "target_rps": 100,
+      "thresholds_pass": true,
+      "total": {
+        "count": 29994,
+        "p95_ms": 57.797,
+        "errors": 0
+      },
+      "write": {
+        "count": 6000,
+        "p95_ms": 73.659,
+        "errors": 0
+      }
+    }
+  ],
+  "population": {
+    "concurrent_runs": 20,
+    "hot_project_tasks": 70000,
+    "humans": 50,
+    "projects": 20,
+    "tasks": 100000
+  },
+  "resources": {
+    "memory_gib": 16,
+    "vCPU": 8
+  },
+  "smoke_only": false,
+  "started_at": "2026-09-17T08:13:39.6759176Z",
+  "succeeded_invocations": 20
+}

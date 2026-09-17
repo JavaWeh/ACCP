@@ -1,0 +1,75 @@
+{
+  "checked_at": "2026-09-17T07:29:39.636Z",
+  "host_exclusive": false,
+  "concurrent_isolated_runs": true,
+  "runs": [
+    {
+      "label": "baseline",
+      "services": [
+        {
+          "service": "postgres",
+          "image": "sha256:7296f210ae81031ec955dbad9a67a84fe958572a2153b8d0826a647522904dc1",
+          "quota": 300000,
+          "period": 100000,
+          "cpus": 3,
+          "memory_bytes": 10737418240,
+          "enforced": true
+        },
+        {
+          "service": "nats",
+          "image": "sha256:e317eb6ac10bc33a158896aec219c58122b17191d82ad8059edfdd348687beca",
+          "quota": 100000,
+          "period": 100000,
+          "cpus": 1,
+          "memory_bytes": 2147483648,
+          "enforced": true
+        },
+        {
+          "service": "bench",
+          "image": "sha256:634110e833148fd7ba56514e601d5160a92087a4af3f6c2ecab8571b36dca96a",
+          "quota": 400000,
+          "period": 100000,
+          "cpus": 4,
+          "memory_bytes": 4294967296,
+          "enforced": true
+        }
+      ],
+      "total_cpus": 8,
+      "total_memory_gib": 16
+    },
+    {
+      "label": "optimized",
+      "services": [
+        {
+          "service": "postgres",
+          "image": "sha256:7296f210ae81031ec955dbad9a67a84fe958572a2153b8d0826a647522904dc1",
+          "quota": 300000,
+          "period": 100000,
+          "cpus": 3,
+          "memory_bytes": 10737418240,
+          "enforced": true
+        },
+        {
+          "service": "nats",
+          "image": "sha256:e317eb6ac10bc33a158896aec219c58122b17191d82ad8059edfdd348687beca",
+          "quota": 100000,
+          "period": 100000,
+          "cpus": 1,
+          "memory_bytes": 2147483648,
+          "enforced": true
+        },
+        {
+          "service": "bench",
+          "image": "sha256:9c62d664a154d5f3315e9218a358d52e0919891bf0677103fd60615cc71b8eaa",
+          "quota": 400000,
+          "period": 100000,
+          "cpus": 4,
+          "memory_bytes": 4294967296,
+          "enforced": true
+        }
+      ],
+      "total_cpus": 8,
+      "total_memory_gib": 16
+    }
+  ]
+}

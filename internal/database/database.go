@@ -5,7 +5,10 @@ import (
 	"crypto/sha256"
 	"embed"
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,6 +26,17 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("invalid database configuration")
 	}
 	cfg.MaxConns = 10
+	if value := os.Getenv("ACCP_DB_MAX_CONNS"); value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 2 || n > 64 {
+			return nil, fmt.Errorf("ACCP_DB_MAX_CONNS must be 2 through 64")
+		}
+		cfg.MaxConns = int32(n)
+	}
+	cfg.MinConns = 2
+	cfg.MaxConnIdleTime = 5 * time.Minute
+	cfg.MaxConnLifetime = 30 * time.Minute
+	cfg.MaxConnLifetimeJitter = 5 * time.Minute
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err

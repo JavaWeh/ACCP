@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Workspace } from "./main";
 import type { Doc, Page } from "./api";
+import { HandoffDownloads } from "./handoff";
 import { Button, Empty, Field, Form, Input, Json, Message, text } from "./ui";
 
 export function Operations({ w }: { w: Workspace }) {
@@ -33,6 +34,7 @@ export function Operations({ w }: { w: Workspace }) {
   if (!admin) return <Empty title="需要当前项目管理员权限" />;
   return (
     <div className="space-y-6">
+      <HandoffDownloads key={w.project.id} w={w} />
       <p>先核对失败原因与外部结果，再执行重放或核对。UNKNOWN 不会自动重试。</p>
       <Button onPress={() => refresh().catch(setError)}>刷新诊断</Button>
       {error !== undefined && <Message error={error} />}

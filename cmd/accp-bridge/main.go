@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/JavaWeh/ACCP/internal/bridge"
+	"github.com/JavaWeh/ACCP/internal/buildinfo"
 	"github.com/JavaWeh/ACCP/pkg/client"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -22,6 +23,9 @@ func main() {
 	}
 }
 func run() error {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		return buildinfo.Write(os.Stdout)
+	}
 	c, err := client.New(os.Getenv("ACCP_URL"), os.Getenv("ACCP_SESSION_TOKEN"))
 	if err != nil {
 		return err

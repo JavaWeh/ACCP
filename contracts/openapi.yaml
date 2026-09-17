@@ -5236,6 +5236,76 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
       x-accp-milestone: D09
+  /projects/{id}/audit-export:
+    get:
+      operationId: exportProjectAudit
+      tags:
+        - Governance
+      summary: Read project audit export page
+      description: Current project ADMIN only. Each page rechecks authorization. Use
+        the local audit-export command for a consistent full REPEATABLE READ
+        snapshot.
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque resource ID; scope is verified by the server.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          description: Opaque continuation bound to this collection.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum:
+              - id
+              - updated
+              - -updated
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 256
+      responses:
+        "200":
+          description: Successful M1 operation.
+          headers:
+            ETag:
+              description: Quoted version for versioned resources.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/AuditPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
 components:
   securitySchemes:
     HumanBearer:
