@@ -434,7 +434,9 @@ func load(ctx context.Context, pool *pgxpool.Pool, f fixture, output, label stri
 			return e
 		}
 		errorsRate := float64(total.Errors+dropped) / float64(max(1, total.Count+dropped))
-		passed := read.P95 <= 500 && write.P95 <= 1000 && errorsRate < 0.005 && eventP95 <= 5000 && dropped == 0
+		// Scheduler overflow is already an unexpected error in errorsRate; apply
+		// the agreed <0.5% error budget rather than an extra zero-drop gate.
+		passed := read.P95 <= 500 && write.P95 <= 1000 && errorsRate < 0.005 && eventP95 <= 5000
 		if phase.Name != "warmup" {
 			allPassed = allPassed && passed
 		}

@@ -107,6 +107,7 @@ if (!target) {
   for (const p of [
     "deploy/production",
     "deploy/acceptance",
+    "configs/nats.conf",
     "internal/database/migrations",
     "docs",
     "README.md",
@@ -119,6 +120,13 @@ if (!target) {
   ]) {
     cpSync(p, join(bundle, p), { recursive: true });
   }
+  execFileSync(
+    process.execPath,
+    ["scripts/check-candidate-bundle.mjs", bundle],
+    {
+      stdio: "inherit",
+    },
+  );
   writeFileSync(
     join(bundle, "release.json"),
     JSON.stringify(
