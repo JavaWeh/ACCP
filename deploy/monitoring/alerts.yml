@@ -1,0 +1,38 @@
+groups:
+  - name: accp
+    rules:
+      - alert: ACCPUnavailable
+        expr: up{job="accp"} == 0 or accp_database_up == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: 'ACCP API metrics or database unavailable'}
+      - alert: ACCPRequestErrors
+        expr: sum(rate(accp_http_request_duration_seconds_count{status_class="5xx"}[5m])) / clamp_min(sum(rate(accp_http_request_duration_seconds_count[5m])), 0.001) > 0.005
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: 'ACCP unexpected request errors exceed 0.5%'}
+      - alert: ACCPRequestLatency
+        expr: histogram_quantile(0.95, sum by(le)(rate(accp_http_request_duration_seconds_bucket[5m]))) > 1
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: 'ACCP request p95 exceeds one second'}
+      - alert: ACCPEventBacklog
+        expr: accp_outbox_oldest_seconds > 5 or accp_event_failures > 0
+        for: 30s
+        labels: {severity: warning}
+        annotations: {summary: 'Check event failures before authorized replay'}
+      - alert: ACCPWorkerStalled
+        expr: accp_worker_event_lag_seconds > 60 or accp_worker_governance_lag_seconds > 60
+        for: 15s
+        labels: {severity: critical}
+        annotations: {summary: 'ACCP Worker has stopped making progress'}
+      - alert: ACCPLeaseLost
+        expr: accp_runs_lease_expired > 0 or delta(accp_runs_lost[5m]) > 0
+        for: 15s
+        labels: {severity: warning}
+        annotations: {summary: 'An execution lease expired or was lost'}
+      - alert: ACCPHumanActionRequired
+        expr: accp_operations_unknown > 0 or accp_recovery_pending > 0 or accp_approvals_pending > 0
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: 'Human approval or reconciliation required; never blindly retry UNKNOWN'}

@@ -7,6 +7,7 @@ GRANT SELECT ON ALL TABLES IN SCHEMA accp TO accp_api,accp_worker;
 -- columns are granted here; runtime roles cannot alter active/status/name.
 GRANT UPDATE(id) ON organizations,human_users TO accp_api;
 GRANT UPDATE(id) ON projects TO accp_worker;
+GRANT UPDATE(id) ON runtime_state TO accp_api,accp_worker;
 GRANT SELECT,INSERT ON organizations,human_users,projects,memberships,repositories TO accp_bootstrap;
 GRANT SELECT ON schema_migrations TO accp_bootstrap;
 GRANT INSERT ON human_users,projects,memberships,repositories,organization_idempotency,organization_audit,
