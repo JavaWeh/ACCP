@@ -97,13 +97,9 @@ for (const platform of targets) {
       JSON.stringify(result, null, 2),
     );
   }
-  execFileSync("tar", [
-    "-czf",
-    join(output, name + ".tar.gz"),
-    "-C",
-    output,
-    name,
-  ]);
+  // Relative archive paths also work with GNU tar on Git Bash, where a drive
+  // letter in an absolute archive path is interpreted as a remote host.
+  execFileSync("tar", ["-czf", name + ".tar.gz", name], { cwd: output });
 }
 if (!target) {
   const bundle = join(output, `accp-install-${version}`);
@@ -131,13 +127,11 @@ if (!target) {
       2,
     ),
   );
-  execFileSync("tar", [
-    "-czf",
-    join(output, `accp-install-${version}.tar.gz`),
-    "-C",
-    output,
-    `accp-install-${version}`,
-  ]);
+  execFileSync(
+    "tar",
+    ["-czf", `accp-install-${version}.tar.gz`, `accp-install-${version}`],
+    { cwd: output },
+  );
 }
 // Go dependency inventory is a CycloneDX SBOM; Web and images have separate inventories.
 const modules = execFileSync(go, ["list", "-m", "-json", "all"], {

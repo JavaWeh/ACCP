@@ -65,7 +65,7 @@ jobs:
       - name: Dependency and secret scans
         run: |
           mkdir -p .accp-local/scans
-          go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 -json ./... > .accp-local/scans/go-vulnerabilities.json
+          go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -json ./... > .accp-local/scans/go-vulnerabilities.json
           npm audit --json > .accp-local/scans/tooling-audit.json
           npm --prefix web audit --json > .accp-local/scans/web-audit.json
           go run github.com/zricethezav/gitleaks/v8@v8.28.0 git . --redact --no-banner --report-path .accp-local/scans/secrets.json
