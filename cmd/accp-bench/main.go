@@ -358,6 +358,7 @@ func load(ctx context.Context, pool *pgxpool.Pool, f fixture, output, label stri
 	}
 	report := object{"label": label, "started_at": time.Now().UTC(), "smoke_only": smoke, "resources": object{"vCPU": 8, "memory_gib": 16}, "authentication": "real development token database lookup; OIDC separately accepted", "population": object{"humans": 50, "projects": 20, "tasks": 100000, "concurrent_runs": 20, "hot_project_tasks": 70000}}
 	allPassed := !smoke
+	authorizationErrors := 0
 	sequence := 0
 	writeID := 100
 	phaseReports := []object{}
@@ -427,6 +428,8 @@ func load(ctx context.Context, pool *pgxpool.Pool, f fixture, output, label stri
 		}
 		wg.Wait()
 		read, write, total := summarize(samples, "read"), summarize(samples, "write"), summarize(samples, "")
+		authorization := summarize(samples, "authorization")
+		authorizationErrors += authorization.Errors
 		var eventP95 float64
 		var pending int
 		e = pool.QueryRow(ctx, `SELECT coalesce(percentile_cont(0.95) WITHIN GROUP(ORDER BY extract(epoch FROM (coalesce(f.recorded_at,now())-o.created_at))*1000),0),count(*) FILTER(WHERE f.event_id IS NULL) FROM outbox_events o LEFT JOIN event_feed f ON f.event_id=o.id WHERE o.created_at >= $1`, started).Scan(&eventP95, &pending)
@@ -436,11 +439,11 @@ func load(ctx context.Context, pool *pgxpool.Pool, f fixture, output, label stri
 		errorsRate := float64(total.Errors+dropped) / float64(max(1, total.Count+dropped))
 		// Scheduler overflow is already an unexpected error in errorsRate; apply
 		// the agreed <0.5% error budget rather than an extra zero-drop gate.
-		passed := read.P95 <= 500 && write.P95 <= 1000 && errorsRate < 0.005 && eventP95 <= 5000
+		passed := phaseThresholds(read, write, authorization, errorsRate, eventP95)
 		if phase.Name != "warmup" {
 			allPassed = allPassed && passed
 		}
-		entry := object{"phase": phase.Name, "duration_seconds": phase.Duration.Seconds(), "target_rps": phase.RPS, "read": read, "write": write, "authorization": summarize(samples, "authorization"), "total": total, "dropped": dropped, "error_rate": errorsRate, "event_p95_ms": eventP95, "pending_events": pending, "thresholds_pass": passed}
+		entry := object{"phase": phase.Name, "duration_seconds": phase.Duration.Seconds(), "target_rps": phase.RPS, "read": read, "write": write, "authorization": authorization, "total": total, "dropped": dropped, "error_rate": errorsRate, "event_p95_ms": eventP95, "pending_events": pending, "thresholds_pass": passed}
 		phaseReports = append(phaseReports, entry)
 		encoded, _ := json.Marshal(entry)
 		fmt.Println(string(encoded))
@@ -472,8 +475,9 @@ func load(ctx context.Context, pool *pgxpool.Pool, f fixture, output, label stri
 	report["effect_calls"] = calls
 	report["duplicate_effects"] = duplicateEffects
 	report["succeeded_invocations"] = completedEffects
+	report["authorization_errors"] = authorizationErrors
 	report["complete"] = true
-	report["passed"] = allPassed && duplicates == 0 && heartbeatErrors == 0 && minActive == 20 && calls == 20 && duplicateEffects == 0 && completedEffects == 20
+	report["passed"] = allPassed && authorizationErrors == 0 && duplicates == 0 && heartbeatErrors == 0 && minActive == 20 && calls == 20 && duplicateEffects == 0 && completedEffects == 20
 	if e = writeReport(output, report); e != nil {
 		return e
 	}
