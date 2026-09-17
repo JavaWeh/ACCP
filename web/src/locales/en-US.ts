@@ -1,6 +1,32 @@
 import type { MessageKey, MessageValue } from "./zh-CN";
 
 export const enUS = {
+  项目管理: "Project administration",
+  "项目已归档，历史记录只读。":
+    "This project is archived. Historical records are read-only.",
+  需要项目管理员权限: "Project administrator access required",
+  操作原因: "Reason for this operation",
+  创建项目: "Create project",
+  项目名称: "Project name",
+  登记企业成员: "Register enterprise member",
+  "登记身份不会自动授予项目访问权。":
+    "Registering an identity does not grant project access.",
+  身份主体标识: "Identity subject",
+  显示名称: "Display name",
+  项目设置: "Project settings",
+  使用中: "Active",
+  已归档: "Archived",
+  归档项目: "Archive project",
+  恢复项目: "Restore project",
+  "归档前必须结束任务并核对所有未结操作。":
+    "Finish tasks and reconcile all pending operations before archiving.",
+  添加项目成员: "Add project member",
+  企业成员: "Enterprise member",
+  登记仓库: "Register repository",
+  "GitHub 仓库地址": "GitHub repository URL",
+  默认分支: "Default branch",
+  "请先登记仓库，再创建任务。": "Register a repository before creating a task.",
+  企业管理审计: "Enterprise administration audit",
   工作概览: "Overview",
   任务协作: "Tasks",
   共享上下文: "Shared context",

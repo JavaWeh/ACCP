@@ -68,7 +68,7 @@ Task 请求：
 
 ## 身份与私有部署
 
-生产默认使用 OIDC，必须配置 `DATABASE_URL`、`ACCP_OIDC_ISSUER`（HTTPS）与 `ACCP_OIDC_AUDIENCE`（专门分配给 ACCP API 的 audience）。验证器读取 discovery/JWKS，检查 RS256 签名、issuer、audience、有效期和 subject。只接受 IdP 为该 API 签发的 JWT bearer；不支持 opaque token。不要将 Web 登录客户端 ID 当作 API audience。
+生产默认使用 OIDC，必须配置 `DATABASE_URL`、`ACCP_OIDC_ISSUER`（HTTPS）、`ACCP_OIDC_CLIENT_ID`（公共 SPA）与不同的 `ACCP_OIDC_AUDIENCE`（专门分配给 ACCP API）。验证器读取 discovery/JWKS，检查 RS256 签名、issuer、audience、有效期和 subject，并要求签名 header `typ=at+jwt` 或签名 payload `typ=Bearer`。只接受 IdP 为该 API 签发的 JWT access token；拒绝 ID token 和 opaque token。新 kid 会触发 JWKS 刷新，已缓存旧 key 的退出仍受 JWT 有效期约束，不能把发布新 JWKS 等同于立即撤销所有旧 token。参见 [ADR 0008](adr/0008-product-foundation.md)。
 
 身份先由操作者确认，再用 `(issuer, subject)` 映射到独立的人类表。请求正文、邮件、显示名或自报 `kind` 不能建立可信人类身份；未映射的机器账号/Agent token 被拒绝。M1 不提供公开注册接口。
 

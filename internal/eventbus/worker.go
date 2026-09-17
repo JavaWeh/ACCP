@@ -62,6 +62,7 @@ func New(ctx context.Context, pool *pgxpool.Pool, url, token, namespace string, 
 func (w *Worker) Close() { w.nc.Close() }
 func (w *Worker) Run(ctx context.Context) error {
 	ticker := time.NewTicker(250 * time.Millisecond)
+	lastHealth := time.Time{}
 	defer ticker.Stop()
 	for {
 		select {
@@ -70,12 +71,23 @@ func (w *Worker) Run(ctx context.Context) error {
 		case <-ticker.C:
 		}
 		step, cancel := context.WithTimeout(ctx, 5*time.Second)
+		healthy := w.nc.IsConnected()
 		if err := w.RelayOne(step); err != nil && ctx.Err() == nil {
+			healthy = false
 			slog.Warn("event relay deferred", "error_type", fmt.Sprintf("%T", err))
 		}
 		cancel()
 		if err := w.ConsumeOne(ctx); err != nil && ctx.Err() == nil {
+			healthy = false
 			slog.Warn("event consume deferred", "error_type", fmt.Sprintf("%T", err))
+		}
+		if healthy && time.Since(lastHealth) > 5*time.Second {
+			healthCtx, done := context.WithTimeout(ctx, 2*time.Second)
+			_, err := w.pool.Exec(healthCtx, `INSERT INTO worker_health(id,event_at) VALUES('default',now()) ON CONFLICT(id) DO UPDATE SET event_at=now()`)
+			done()
+			if err == nil {
+				lastHealth = time.Now()
+			}
 		}
 	}
 }

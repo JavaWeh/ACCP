@@ -541,6 +541,62 @@
         "keyword": "additionalProperties",
         "additionalProperty": "risk"
       }
+    },
+    {
+      "file": "valid/management-CreateProject.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/CreateProject",
+      "valid": true
+    },
+    {
+      "file": "valid/management-ProjectChange.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/ProjectChange",
+      "valid": true
+    },
+    {
+      "file": "valid/management-ProjectCommand.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/ProjectCommand",
+      "valid": true
+    },
+    {
+      "file": "valid/management-RegisterHuman.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/RegisterHuman",
+      "valid": true
+    },
+    {
+      "file": "valid/management-AddMember.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/AddMember",
+      "valid": true
+    },
+    {
+      "file": "valid/management-RegisterRepository.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/RegisterRepository",
+      "valid": true
+    },
+    {
+      "file": "invalid/management-agent-role.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/AddMember",
+      "valid": false,
+      "expected_error": {
+        "keyword": "enum"
+      }
+    },
+    {
+      "file": "invalid/management-owner-injection.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/CreateProject",
+      "valid": false,
+      "expected_error": {
+        "keyword": "additionalProperties",
+        "additionalProperty": "organization_id"
+      }
+    },
+    {
+      "file": "invalid/management-archive-no-reason.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/ProjectCommand",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "reason"
+      }
     }
   ]
 }

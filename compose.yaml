@@ -33,6 +33,7 @@ services:
       ACCP_ENV: ${ACCP_ENV:-production}
       ACCP_AUTH_MODE: ${ACCP_AUTH_MODE:-oidc}
       ACCP_OIDC_ISSUER: ${ACCP_OIDC_ISSUER:-}
+      ACCP_OIDC_CLIENT_ID: ${ACCP_OIDC_CLIENT_ID:-}
       ACCP_OIDC_AUDIENCE: ${ACCP_OIDC_AUDIENCE:-}
       ACCP_SESSION_KEY: ${ACCP_SESSION_KEY:?Generate or upgrade local configuration}
       ACCP_PUBLIC_URL: ${ACCP_PUBLIC_URL:?Set the externally reachable API origin}

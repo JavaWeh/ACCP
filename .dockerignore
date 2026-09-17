@@ -24,3 +24,9 @@
 !web/src/**
 !web/public/
 !web/public/**
+!web/playwright.oidc.config.ts
+!web/tests/
+!web/tests/oidc.spec.ts
+!deploy/
+!deploy/acceptance/
+!deploy/acceptance/Dockerfile

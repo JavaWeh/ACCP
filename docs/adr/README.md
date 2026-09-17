@@ -16,3 +16,5 @@ ADR 描述设计选择与代价；“接受”表示设计基线已选定，不�
 - [0006：受控交付与 Web 控制台](0006-controlled-delivery-console.md)。
 
 - [0007：常驻 Bridge 的有界自动续租](0007-bridge-lease-renewal.md)。
+
+- [0008：企业持续管理、API 身份与单机生产基线](0008-product-foundation.md)。

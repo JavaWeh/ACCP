@@ -2,6 +2,8 @@
 
 当前运行实现见 [M3/M4 平台](m3-m4-platform.md)。成果验收、独立操作审批与 Gateway 已实现；本地独立凭证绕行仍不属于强制治理范围。
 
+D01 增量：任一有效项目 ADMIN 可登记本企业成员、创建项目及读取企业管理审计；只能管理其有 ADMIN 角色的项目成员。登记身份不自动赋权，停用项目成员撤销该项目全部既有 Session；全局人类停用仅由本机运维命令完成。项目归档必须先结束任务和处理未结操作，恢复不恢复旧 Session。权限、最后管理员保护与迁移规则见 [ADR 0008](adr/0008-product-foundation.md)。
+
 ## 人类责任与身份
 
 Task Owner 对任务交付负责；delegated_by_user_id 表示把权限委托给 Agent 的人；AgentIdentity 表示执行客户端；AgentSession 表示一次有期限的授权关系。实际请求主体、Owner、委托人和审核人分别保存，不能把它们合并为一个 user_id。

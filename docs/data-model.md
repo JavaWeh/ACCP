@@ -1,5 +1,7 @@
 # 核心数据模型
 
+D01 的 `projects` 新增 `status`（ACTIVE/ARCHIVED）、单调 `version` 与创建/更新时间。企业管理写入使用独立 `organization_idempotency` 和不可变 `organization_audit`；既有项目审计仍保留其项目边界。`worker_health` 是可更新的单 Worker 运行诊断数据，不是业务事实或审计来源。数据库增量为 `004_management.sql`，既有项目迁移为 ACTIVE/version 1；规则见 [ADR 0008](adr/0008-product-foundation.md)。
+
 > 当前实现包含 M1–M3 控制面与 M4 Web 功能。运行、升级与验收见 [M3/M4 平台](m3-m4-platform.md)；边界与代价见 [ADR 0006](adr/0006-controlled-delivery-console.md)。单人双客户端样例已验收，范围与限制见 [实际记录](acceptance-2026-09-16.md)。
 
 本文件定义领域约束；机器可读结构见 [Domain Schema](../contracts/schemas/domain.schema.json)。Schema 不能判断一个 ID 是否属于真实人类，也不能验证跨表权限，这些是未来服务端的强制约束。

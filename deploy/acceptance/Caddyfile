@@ -1,0 +1,8 @@
+https://accp.localhost:18443 {
+  tls /etc/accp/tls/certificate.pem /etc/accp/tls/private.key
+  reverse_proxy api:8080
+}
+https://idp.localhost:18443 {
+  tls /etc/accp/tls/certificate.pem /etc/accp/tls/private.key
+  reverse_proxy keycloak:8080
+}

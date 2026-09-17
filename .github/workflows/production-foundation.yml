@@ -1,0 +1,61 @@
+name: Validate production foundation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-oidc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.22.3
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - name: Generate disposable local identities and TLS
+        run: |
+          node scripts/production-env.mjs --directory .accp-local/product-deploy --public-url https://accp.localhost:18443 --issuer https://idp.localhost:18443/realms/accp --client-id accp-web --audience accp-api --admin-subject 00000000-0000-0000-0000-000000000001 --repository https://github.com/example/orders
+          node scripts/oidc-fixture.mjs .accp-local/product-deploy
+          go run scripts/oidc-cert.go .accp-local/product-deploy/tls
+          docker build -t accp:product-d01-d03 .
+      - name: Install, bootstrap and validate least privilege
+        run: |
+          compose=(docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml)
+          "${compose[@]}" up -d
+          "${compose[@]}" --profile tools run --rm bootstrap
+          docker exec -i accp-product-postgres-1 psql -X -U accp_operator -d accp < deploy/production/check-privileges.sql
+          ready=false
+          for attempt in $(seq 1 30); do
+            if "${compose[@]}" --profile tools run --rm doctor; then ready=true; break; fi
+            sleep 5
+          done
+          test "$ready" = true
+      - name: Real PKCE browser acceptance
+        run: docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml --profile tests run --build --rm browser
+      - name: Worker failure detection and recovery
+        run: |
+          compose=(docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml)
+          "${compose[@]}" stop worker
+          sleep 65
+          if "${compose[@]}" --profile tools run --rm doctor; then exit 1; fi
+          "${compose[@]}" start worker
+          sleep 15
+          "${compose[@]}" --profile tools run --rm doctor
+      - name: Stop isolated services
+        if: always() && hashFiles('.accp-local/product-deploy/compose.env') != ''
+        run: docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml down

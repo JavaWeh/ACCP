@@ -20,6 +20,7 @@ func TestExplicitAuthenticationConfiguration(t *testing.T) {
 			t.Setenv("ACCP_AUTH_MODE", tc.mode)
 			t.Setenv("ACCP_OIDC_ISSUER", tc.issuer)
 			t.Setenv("ACCP_OIDC_AUDIENCE", tc.audience)
+			t.Setenv("ACCP_OIDC_CLIENT_ID", "accp-web")
 			_, err := Load()
 			if (err == nil) != tc.valid {
 				t.Fatalf("valid=%v, error=%v", tc.valid, err)

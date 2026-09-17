@@ -1,0 +1,14 @@
+import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
+import {resolve,join} from 'node:path';
+import {randomBytes} from 'node:crypto';
+const root=resolve(process.argv[2]||'.accp-local/product-deploy');
+if(existsSync(join(root,'realm')))throw new Error('OIDC fixture already exists');
+mkdirSync(join(root,'realm'),{mode:0o755});
+const write=(path,value)=>writeFileSync(join(root,path),value,{mode:path.startsWith('realm/')||path==='secrets/keycloak_admin'?0o444:0o600,flag:'wx'});
+const users=['admin','member','unmapped'].map((username,i)=>({id:'00000000-0000-0000-0000-'+String(i+1).padStart(12,'0'),username,password:randomBytes(24).toString('hex')}));
+write('oidc-users.json',JSON.stringify(users));
+write('secrets/keycloak_admin',randomBytes(24).toString('hex'));
+write('realm/accp.json',JSON.stringify({realm:'accp',enabled:true,sslRequired:'all',accessTokenLifespan:300,registrationAllowed:false,resetPasswordAllowed:false,clients:[{clientId:'accp-web',enabled:true,publicClient:true,standardFlowEnabled:true,directAccessGrantsEnabled:false,redirectUris:['https://accp.localhost:18443/auth/callback'],webOrigins:['https://accp.localhost:18443'],attributes:{'pkce.code.challenge.method':'S256','post.logout.redirect.uris':'https://accp.localhost:18443'},protocolMappers:[{name:'api-audience',protocol:'openid-connect',protocolMapper:'oidc-audience-mapper',config:{'included.custom.audience':'accp-api','id.token.claim':'false','access.token.claim':'true'}}]}],users:users.map(u=>({id:u.id,username:u.username,enabled:true,emailVerified:true,firstName:u.username,lastName:'Acceptance',email:u.username+'@example.test',credentials:[{type:'password',value:u.password,temporary:false}]}))},null,2));
+const env=readFileSync(join(root,'compose.env'),'utf8');
+writeFileSync(join(root,'compose.env'),env+'ACCP_IMAGE=accp:product-d01-d03\nACCP_HTTP_PORT=18084\nACCP_HTTPS_PORT=18443\nACCP_TLS_LISTEN_PORT=18443\nACCP_BIND_ADDR=127.0.0.1\n');
+console.log('Isolated OIDC fixture generated; credentials remain in the deployment directory.');

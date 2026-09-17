@@ -1,0 +1,58 @@
+# Overlay on deploy/production/compose.yaml; all paths resolve relative to that first file.
+services:
+  api:
+    environment:
+      SSL_CERT_FILE: /etc/accp/ca.pem
+    volumes:
+      - ${ACCP_DEPLOY_DIR}/tls/ca.pem:/etc/accp/ca.pem:ro
+    depends_on:
+      keycloak: {condition: service_started}
+      caddy: {condition: service_started}
+  worker:
+    environment:
+      SSL_CERT_FILE: /etc/accp/ca.pem
+    volumes:
+      - ${ACCP_DEPLOY_DIR}/tls/ca.pem:/etc/accp/ca.pem:ro
+  doctor:
+    environment:
+      SSL_CERT_FILE: /etc/accp/ca.pem
+    volumes:
+      - ${ACCP_DEPLOY_DIR}/tls/ca.pem:/etc/accp/ca.pem:ro
+  caddy:
+    volumes:
+      - ../acceptance/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      private:
+        aliases: [accp.localhost, idp.localhost]
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3@sha256:29be7252db0a106f1cd2ac17b9a56ff2668073da645638a38b9fc67deeb2d6c4
+    entrypoint: [/bin/bash, -ec]
+    command: ['export KC_BOOTSTRAP_ADMIN_PASSWORD="$$(cat /run/secrets/keycloak_admin)"; exec /opt/keycloak/bin/kc.sh start-dev --import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: acceptance-admin
+      KC_HOSTNAME: https://idp.localhost:18443
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: 'true'
+      KC_HEALTH_ENABLED: 'true'
+    secrets: [keycloak_admin]
+    volumes:
+      - ${ACCP_DEPLOY_DIR}/realm:/opt/keycloak/data/import:ro
+      - keycloak-data:/opt/keycloak/data
+    networks: [private]
+  browser:
+    profiles: [tests]
+    build:
+      context: ../..
+      dockerfile: deploy/acceptance/Dockerfile
+    environment:
+      ACCP_OIDC_URL: https://accp.localhost:18443
+      ACCP_OIDC_CREDENTIALS_FILE: /fixture/oidc-users.json
+      NODE_EXTRA_CA_CERTS: /fixture/tls/ca.pem
+    volumes:
+      - ${ACCP_DEPLOY_DIR}/oidc-users.json:/fixture/oidc-users.json:ro
+      - ${ACCP_DEPLOY_DIR}/tls/ca.pem:/fixture/tls/ca.pem:ro
+    networks: [private]
+secrets:
+  keycloak_admin: {file: '${ACCP_DEPLOY_DIR}/secrets/keycloak_admin'}
+volumes:
+  keycloak-data: {}

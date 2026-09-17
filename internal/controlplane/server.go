@@ -36,6 +36,8 @@ type Server struct {
 }
 type Options struct {
 	SessionKey   []byte
+	SessionKeys  map[string][]byte
+	ActiveKeyID  string
 	PublicURL    string
 	GitProvider  gitprovider.Provider
 	Tools        *gateway.Registry
@@ -69,6 +71,8 @@ func (p problem) Error() string                  { return p.code }
 func fail(status int, code, detail string) error { return problem{status, code, detail} }
 
 type operation struct {
+	organization        bool
+	archivedWrite       bool
 	table, schema, role string
 	conditional         bool
 	run                 func(*request) (reply, error)
@@ -89,6 +93,9 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Option
 	if len(options) > 0 {
 		s.options = options[0]
 		s.signer, err = auth.NewSessionSigner(s.options.SessionKey)
+		if len(s.options.SessionKeys) > 0 {
+			s.signer, err = auth.NewKeyring(s.options.ActiveKeyID, s.options.SessionKeys, s.options.SessionKey)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -128,6 +135,7 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Option
 	}
 	s.extendRoutes(routes)
 	s.deliveryRoutes(routes)
+	s.managementRoutes(routes)
 	for pattern, op := range routes {
 		s.mux.HandleFunc(pattern, s.handle(op))
 	}
@@ -188,6 +196,9 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 			return empty, fail(400, "INVALID_BODY", "The request does not match the published JSON Schema.")
 		}
 	}
+	if op.organization {
+		return s.executeOrganization(q, op)
+	}
 	if op.table != "" || op.bodyProject || op.queryProject || q.session != nil {
 		switch {
 		case op.bodyProject:
@@ -209,8 +220,8 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 		if write {
 			lock = " FOR UPDATE"
 		}
-		var project string
-		err = tx.QueryRow(r.Context(), `SELECT id FROM projects WHERE id=$1 AND organization_id=$2`+lock, q.project, q.org).Scan(&project)
+		var project, projectStatus string
+		err = tx.QueryRow(r.Context(), `SELECT id,status FROM projects WHERE id=$1 AND organization_id=$2`+lock, q.project, q.org).Scan(&project, &projectStatus)
 		if err == pgx.ErrNoRows {
 			return empty, fail(404, "NOT_FOUND", "Project not found.")
 		}
@@ -229,6 +240,9 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 		}
 		if err = s.authorizeSession(q, op); err != nil {
 			return empty, err
+		}
+		if write && projectStatus == "ARCHIVED" && !op.archivedWrite {
+			return empty, fail(409, "PROJECT_ARCHIVED", "Restore the project before writing; historical data is read-only.")
 		}
 	}
 	var key, digest, route string
