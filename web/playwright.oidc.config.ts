@@ -1,11 +1,13 @@
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
-  testMatch: process.env.ACCP_OIDC_LIFECYCLE
-    ? "oidc-lifecycle.spec.ts"
-    : process.env.ACCP_OIDC_COLLABORATION
-      ? "oidc-collaboration.spec.ts"
-      : "oidc.spec.ts",
+  testMatch: process.env.ACCP_OIDC_GIT_CONTEXT
+    ? "oidc-git-context.spec.ts"
+    : process.env.ACCP_OIDC_LIFECYCLE
+      ? "oidc-lifecycle.spec.ts"
+      : process.env.ACCP_OIDC_COLLABORATION
+        ? "oidc-collaboration.spec.ts"
+        : "oidc.spec.ts",
   workers: 1,
   timeout: 60000,
   use: {
