@@ -1,0 +1,10 @@
+{
+  "validated_at": "2026-09-17T08:44:24.674Z",
+  "report_sha256": "25a694754e0e9d565051f6483e4f6655c0f3d6d1f0a1b9d39abe8cf74ca83e01",
+  "resource_evidence_sha256": "970e411169165dac2fac69f8a274cbc2f297315fa31250f87fe143c645e0d649",
+  "authorization_checks": 10499,
+  "authorization_errors": 0,
+  "agreed_thresholds_pass": true,
+  "complete_workload": true,
+  "note": "Original report retained. Strict authorization gate and all agreed performance and safety thresholds verified against the complete isolated run and actual cgroup limits."
+}
