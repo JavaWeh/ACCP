@@ -2,14 +2,14 @@
 
 ## 数据与运行方式
 
-仅在独立空数据库 `accp_capacity` 运行，必须设置 `ACCP_BENCH_ISOLATED=1`。使用 [容量 Compose](../deploy/capacity/compose.yaml) 限制总资源为 8 vCPU、16 GiB：PostgreSQL 3/10 GiB、NATS 1/2 GiB、HTTP 控制面与驱动 4/4 GiB。无宿主数据库端口、无日常环境复用，不关闭 PostgreSQL 持久化。
+仅在独立空数据库 `accp_capacity` 运行，必须设置 `ACCP_BENCH_ISOLATED=1`。使用 [容量 Compose](../deploy/capacity/compose.yaml) 的显式 CPU period/quota 和内存上限限制总资源为 8 vCPU、16 GiB：PostgreSQL 3/10 GiB、NATS 1/2 GiB、HTTP 控制面与驱动 4/4 GiB。[Docker 资源说明](https://docs.docker.com/engine/containers/resource_constraints/#cpu) 区分配置与实际内核限制；不能只读取 YAML 或报告中的目标值。无宿主数据库端口、无日常环境复用，不关闭 PostgreSQL 持久化。
 
 ```sh
 node scripts/capacity-env.mjs .accp-local/capacity-optimized
 docker build -f deploy/capacity/Dockerfile -t accp:bench-optimized .
 ```
 
-将新目录 compose.env 的 ACCP_BENCH_IMAGE 改成上一步镜像。每轮使用不同 Compose 项目名和新目录、新卷，先运行 `docker compose -p accp-capacity-optimized --env-file .accp-local/capacity-optimized/compose.env -f deploy/capacity/compose.yaml run --rm bench -mode seed`，再使用同一配置 `run --name accp-capacity-optimized-run bench -mode run -label optimized`。保留任务容器和 report.json 以便核对退出码与日志。`-smoke` 仅 30 秒脚本检查，报告永不判为容量通过。
+将新目录 compose.env 的 ACCP_BENCH_IMAGE 改成上一步镜像。每轮使用不同 Compose 项目名和新目录、新卷，先用 `docker compose -p accp-capacity-optimized --env-file .accp-local/capacity-optimized/compose.env -f deploy/capacity/compose.yaml up -d postgres nats` 启动依赖，再运行 `node scripts/check-capacity-resources.mjs accp-capacity-optimized-postgres-1 accp-capacity-optimized-nats-1` 核对 Docker 配置和内核 cgroup，保存输出。使用同一 Compose 参数执行 `run --rm bench -mode seed` 和 `run --name accp-capacity-optimized-run bench -mode run -label optimized`。压测入口在读取凭据前强制核验自身 4 CPU/4 GiB 限制；无限额或不匹配时直接退出。保留任务容器和 report.json 以便核对退出码与日志。`-smoke` 仅 30 秒脚本检查，报告永不判为容量通过。
 
 种子使用真实 bootstrap/Context API，再批量插入 100000 个草稿任务及关联。50 人、20 项目，其中热点项目 70000 个任务。20 个 Run 通过注册、委托、握手、分配、提交和 claim API 创建，每 5 秒续租；每个 Run 提交正文成果与独立人工批准的工具操作。受控下游将每次调用同步追加到数据库之外的 receipt 文件，重复执行也记录；运行期间重复调度，最终核对 20 次调用、20 个成功账本、零重复。
 
@@ -27,7 +27,7 @@ docker build -f deploy/capacity/Dockerfile -t accp:bench-optimized .
 
 批处理与池配置需要在最终提交重跑全量 race 和实际负载。基线未优化镜像与优化镜像应分别保存 digest、阶段报告和退出状态，不覆盖失败或中断的结果。本轮不包含连续稳定性观察与正式生产放行。
 
-## 2026-09-17 基线结果
+## 2026-09-17 未落实 CPU 配额的诊断结果
 
 [完整基线报告](reports/capacity-baseline-2026-09-17.json) 对应镜像 `sha256:634110e833148fd7ba56514e601d5160a92087a4af3f6c2ecab8571b36dca96a`，运行于 `06:07:55Z–06:37:58Z`，退出码 1，明确未通过。
 
@@ -36,12 +36,12 @@ docker build -f deploy/capacity/Dockerfile -t accp:bench-optimized .
 | 稳定 20 分钟 / 50 RPS | 1835.151 ms | 2155.816 ms | 1.282% | 963815.506 ms | 769 |
 | 突发 5 分钟 / 100 RPS | 2326.557 ms | 2607.657 ms | 23.211% | 282748.416 ms | 6963 |
 
-最低活跃 Run 为 10，心跳失败 2230 次，未出现重复活跃 Run。基线镜像没有后续增加的独立工具调用回执验证，因此不能用它证明副作用安全通过。早先两次基线因 Docker 引擎重启中断，均不计入完整运行。此次预热与其他构建/race 检查重叠；稳定期存在轻量隔离恢复检查。资源限制是容器合计上限，并非独占物理主机。
+最低活跃 Run 为 10，心跳失败 2230 次，未出现重复活跃 Run。基线镜像没有后续增加的独立工具调用回执验证，因此不能用它证明副作用安全通过。早先两次基线因 Docker 引擎重启中断，均不计入完整运行。此次预热与其他构建/race 检查重叠；稳定期存在轻量隔离恢复检查。后续核验发现 Docker Compose 2.12.2 未落实 `cpus` 字段，内存上限生效但 CPU quota 为 -1。报告中的 resources 是配置声明，**该轮不计作 8 vCPU 验收证据**。
 
 基线采用旧定时器驱动，实际到达数也在报告中；优化工具改为固定到达时间调度，并把调度等待计入响应耗时。两者的差异限制了直接速度倍数比较。最终门槛必须由优化版本自身的完整负载和安全不变量结果证明。
 
-## 首次优化完整运行与判定修正
+## 首次优化诊断与判定修正
 
 [首次优化原始报告](reports/capacity-optimized-r1-2026-09-17.json) 保留 `passed=false`。稳定阶段读/写 p95 为 66.821/88.720 ms、事件 p95 345.525 ms，32 次调度丢弃计入错误率后为 0.0533%；突发阶段读/写 p95 为 72.079/96.861 ms、事件 p95 1640.871 ms，53 次调度丢弃计入错误率后为 0.1767%。工具额外使用了未约定的“调度丢弃必须为零”条件，故失败；不改写已有报告。
 
-修正后的判定仍将所有调度丢弃计入非预期错误分子和总到达数分母，按已经确认的 <0.5% 错误预算验收，延迟与权限/副作用门槛保持不变。将使用修正后的工具和新隔离数据再运行完整 30 分钟，不能把此次判定修正代替重新实测。
+修正后的判定仍将所有调度丢弃计入非预期错误分子和总到达数分母，按已经确认的 <0.5% 错误预算验收，延迟与权限/副作用门槛保持不变。上述优化轮同样没有生效的 CPU 配额，不计作目标环境验收。第二轮在资源核验发现问题后主动停止，只保留未完成报告。显式 CPU 配额和启动门禁修复后，以新数据重新完整运行基线和优化版本；不得重写前述记录来替代实测。

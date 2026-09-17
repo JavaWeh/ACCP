@@ -2,7 +2,8 @@ name: accp-capacity
 services:
   postgres:
     image: postgres:17@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
-    cpus: 3
+    cpu_period: 100000
+    cpu_quota: 300000
     mem_limit: 10g
     environment:
       POSTGRES_DB: accp_capacity
@@ -17,12 +18,14 @@ services:
   nats:
     image: nats:2.11.9-alpine@sha256:777787bbb4c7c4083ec2213b0b8b14151617610a3e0d85776bd995cd46599c73
     command: [-js, -sd, /data]
-    cpus: 1
+    cpu_period: 100000
+    cpu_quota: 100000
     mem_limit: 2g
     volumes: [events:/data]
   bench:
     image: ${ACCP_BENCH_IMAGE:?Build benchmark image}
-    cpus: 4
+    cpu_period: 100000
+    cpu_quota: 400000
     mem_limit: 4g
     environment:
       ACCP_BENCH_ISOLATED: '1'
