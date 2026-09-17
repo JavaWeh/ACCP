@@ -71,5 +71,12 @@ func NewValidator() (Validator, error) {
 		}
 		result["M3"+name] = s
 	}
+	for _, name := range managementSchemas {
+		s, err := compiler.Compile("https://accp.example/schemas/v0.4/management.schema.json#/$defs/" + name)
+		if err != nil {
+			return nil, err
+		}
+		result["Management"+name] = s
+	}
 	return result, nil
 }

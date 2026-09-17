@@ -52,7 +52,7 @@ func TestOIDCVerification(t *testing.T) {
 		{"missing subject", issuer, "", "accp-api", time.Now().Add(time.Hour), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			token, err := jwt.Signed(signer).Claims(jwt.Claims{Issuer: tc.iss, Subject: tc.sub, Audience: jwt.Audience{tc.aud}, Expiry: jwt.NewNumericDate(tc.expiry)}).Serialize()
+			token, err := jwt.Signed(signer).Claims(jwt.Claims{Issuer: tc.iss, Subject: tc.sub, Audience: jwt.Audience{tc.aud}, Expiry: jwt.NewNumericDate(tc.expiry)}).Claims(map[string]any{"typ": "Bearer"}).Serialize()
 			if err != nil {
 				t.Fatal(err)
 			}

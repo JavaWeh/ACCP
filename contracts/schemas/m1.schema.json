@@ -114,6 +114,16 @@
           },
           "minItems": 1,
           "uniqueItems": true
+        },
+        "status": {
+          "enum": [
+            "ACTIVE",
+            "ARCHIVED"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
         }
       },
       "required": [

@@ -1,0 +1,166 @@
+name: accp-production
+
+x-app: &app
+  image: ${ACCP_IMAGE:-accp:production}
+  build:
+    context: ../..
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  volumes:
+    - ${ACCP_DEPLOY_DIR:?Generate production configuration}/tools.json:/etc/accp/tools.json:ro
+  networks: [private]
+
+x-runtime: &runtime
+  ACCP_ENV: production
+  ACCP_AUTH_MODE: oidc
+  ACCP_PUBLIC_URL: ${ACCP_PUBLIC_URL:?Set public HTTPS origin}
+  ACCP_OIDC_ISSUER: ${ACCP_OIDC_ISSUER:?Set identity issuer}
+  ACCP_OIDC_CLIENT_ID: ${ACCP_OIDC_CLIENT_ID:?Set SPA client ID}
+  ACCP_OIDC_AUDIENCE: ${ACCP_OIDC_AUDIENCE:?Set API audience}
+  ACCP_SESSION_KEYS_FILE: /run/secrets/session_keys
+  ACCP_NATS_URL: nats://nats:4222
+  ACCP_NATS_TOKEN_FILE: /run/secrets/nats_token
+  ACCP_TOOLS_FILE: /etc/accp/tools.json
+  ACCP_GITHUB_TOKEN_FILE: /run/secrets/github_token
+
+services:
+  postgres:
+    image: postgres:17@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
+    environment:
+      POSTGRES_DB: accp
+      POSTGRES_USER: accp_operator
+      POSTGRES_PASSWORD_FILE: /run/secrets/operator_password
+    secrets: [operator_password, migrator_password, bootstrap_password, api_password, worker_password]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./initialize.sh:/docker-entrypoint-initdb.d/10-accp.sh:ro
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U accp_operator -d accp]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [private]
+  migrate:
+    <<: *app
+    command: [migrate]
+    environment:
+      DATABASE_URL_FILE: /run/secrets/migrator_url
+    secrets: [migrator_url]
+    depends_on:
+      postgres: {condition: service_healthy}
+  grants:
+    image: postgres:17@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
+    entrypoint: [/bin/sh, -ec]
+    command: ['psql "$$(cat /run/secrets/migrator_url)" -v ON_ERROR_STOP=1 -f /grants.sql']
+    secrets: [migrator_url]
+    volumes: [./grants.sql:/grants.sql:ro]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    networks: [private]
+  bootstrap:
+    <<: *app
+    profiles: [tools]
+    command: [bootstrap, -file, /etc/accp/bootstrap.json]
+    environment:
+      ACCP_ENV: production
+      ACCP_AUTH_MODE: oidc
+      DATABASE_URL_FILE: /run/secrets/bootstrap_url
+    volumes:
+      - ${ACCP_DEPLOY_DIR}/bootstrap.json:/etc/accp/bootstrap.json:ro
+    secrets: [bootstrap_url]
+    depends_on:
+      grants: {condition: service_completed_successfully}
+  api:
+    <<: *app
+    command: [serve]
+    environment:
+      <<: *runtime
+      DATABASE_URL_FILE: /run/secrets/api_url
+      ACCP_LISTEN_ADDR: 0.0.0.0:8080
+    secrets: [api_url, session_keys, nats_token, github_token]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, /accp, healthcheck, api]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+    depends_on:
+      grants: {condition: service_completed_successfully}
+  worker:
+    <<: *app
+    command: [worker]
+    environment:
+      <<: *runtime
+      DATABASE_URL_FILE: /run/secrets/worker_url
+    secrets: [worker_url, session_keys, nats_token, github_token]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, /accp, healthcheck, worker]
+      interval: 15s
+      timeout: 6s
+      start_period: 45s
+      retries: 4
+    depends_on:
+      grants: {condition: service_completed_successfully}
+      nats: {condition: service_healthy}
+  doctor:
+    <<: *app
+    profiles: [tools]
+    command: [doctor, --json]
+    environment:
+      <<: *runtime
+      DATABASE_URL_FILE: /run/secrets/api_url
+    secrets: [api_url, session_keys, nats_token, github_token]
+  nats:
+    image: nats:2.11.9-alpine@sha256:777787bbb4c7c4083ec2213b0b8b14151617610a3e0d85776bd995cd46599c73
+    entrypoint: [/bin/sh, -ec]
+    command: ['export ACCP_NATS_TOKEN="$$(cat /run/secrets/nats_token)"; exec nats-server -c /etc/nats/accp.conf']
+    secrets: [nats_token]
+    volumes:
+      - ../../configs/nats.conf:/etc/nats/accp.conf:ro
+      - nats-data:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8222/healthz]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [private]
+  caddy:
+    image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    environment:
+      ACCP_PUBLIC_URL: ${ACCP_PUBLIC_URL}
+    ports: ['${ACCP_BIND_ADDR:-0.0.0.0}:${ACCP_HTTP_PORT:-80}:80', '${ACCP_BIND_ADDR:-0.0.0.0}:${ACCP_HTTPS_PORT:-443}:${ACCP_TLS_LISTEN_PORT:-443}']
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${ACCP_DEPLOY_DIR}/tls:/etc/accp/tls:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    networks: [private]
+
+networks:
+  private: {}
+volumes:
+  postgres-data: {}
+  nats-data: {}
+  caddy-data: {}
+  caddy-config: {}
+secrets:
+  operator_password: {file: '${ACCP_DEPLOY_DIR}/secrets/operator_password'}
+  migrator_password: {file: '${ACCP_DEPLOY_DIR}/secrets/migrator_password'}
+  bootstrap_password: {file: '${ACCP_DEPLOY_DIR}/secrets/bootstrap_password'}
+  api_password: {file: '${ACCP_DEPLOY_DIR}/secrets/api_password'}
+  worker_password: {file: '${ACCP_DEPLOY_DIR}/secrets/worker_password'}
+  migrator_url: {file: '${ACCP_DEPLOY_DIR}/secrets/migrator_url'}
+  bootstrap_url: {file: '${ACCP_DEPLOY_DIR}/secrets/bootstrap_url'}
+  api_url: {file: '${ACCP_DEPLOY_DIR}/secrets/api_url'}
+  worker_url: {file: '${ACCP_DEPLOY_DIR}/secrets/worker_url'}
+  session_keys: {file: '${ACCP_DEPLOY_DIR}/secrets/session_keys'}
+  nats_token: {file: '${ACCP_DEPLOY_DIR}/secrets/nats_token'}
+  github_token: {file: '${ACCP_DEPLOY_DIR}/secrets/github_token'}

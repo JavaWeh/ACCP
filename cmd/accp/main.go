@@ -32,11 +32,20 @@ func main() {
 }
 
 func run() error {
+	if err := config.LoadSecretFiles(); err != nil {
+		return err
+	}
 	command := "serve"
 	if len(os.Args) > 1 {
 		command = os.Args[1]
 	}
-	if command != "serve" && command != "migrate" && command != "bootstrap" && command != "worker" {
+	if command == "doctor" {
+		return doctor(os.Args[2:])
+	}
+	if command == "healthcheck" {
+		return healthcheck(os.Args[2:])
+	}
+	if command != "serve" && command != "migrate" && command != "bootstrap" && command != "worker" && command != "human-status" {
 		return fmt.Errorf("usage: accp serve | worker | migrate | bootstrap [-development -output FILE | -file FILE]")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -57,6 +66,8 @@ func run() error {
 		return nil
 	case "bootstrap":
 		return provision(startup, pool, os.Args[2:])
+	case "human-status":
+		return humanStatus(startup, pool, os.Args[2:])
 	}
 	execution, err := config.LoadExecution()
 	if err != nil {
@@ -88,7 +99,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	handler, err := controlplane.New(pool, verifier, controlplane.Options{SessionKey: execution.SessionKey, PublicURL: execution.PublicURL, GitProvider: &gitprovider.GitHub{Token: os.Getenv("ACCP_GITHUB_TOKEN")}, Tools: tools, WebDirectory: os.Getenv("ACCP_WEB_DIR"), AuthMode: cfg.AuthMode, OIDCIssuer: cfg.Issuer, OIDCClientID: cfg.Audience})
+	handler, err := controlplane.New(pool, verifier, controlplane.Options{SessionKey: execution.SessionKey, SessionKeys: execution.SessionKeys, ActiveKeyID: execution.ActiveKeyID, PublicURL: execution.PublicURL, GitProvider: &gitprovider.GitHub{Token: os.Getenv("ACCP_GITHUB_TOKEN")}, Tools: tools, WebDirectory: os.Getenv("ACCP_WEB_DIR"), AuthMode: cfg.AuthMode, OIDCIssuer: cfg.Issuer, OIDCClientID: cfg.ClientID})
 	if err != nil {
 		return fmt.Errorf("contract initialization failed: %w", err)
 	}

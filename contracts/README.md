@@ -9,6 +9,7 @@
 - [M3 Schema](schemas/m3.schema.json)：人工验收、工具策略、操作回执、审批和 Gateway 授权。
 - [M2 Schema](schemas/m2.schema.json)：0.2 能力协商、领取必需代码版本、新增事件和分页输出。
 - [M1 Schema](schemas/m1.schema.json)：人类/项目查询、角色变更与不可变内容上传。
+- [Management Schema](schemas/management.schema.json)：产品化 D01 的项目、企业成员、仓库登记与企业管理审计。
 - [Event Schema](schemas/event.schema.json)：CloudEvents 信封与十类领域事件。
 - [Adapter Schema](schemas/adapter.schema.json)：manifest 与协议能力协商。
 - [示例清单](examples/manifest.json)：每个正例与预期失败反例的 Schema 引用。

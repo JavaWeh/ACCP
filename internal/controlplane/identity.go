@@ -16,7 +16,7 @@ func projects(q *request) (reply, error) {
 	if err != nil {
 		return reply{}, err
 	}
-	rows, err := q.tx.Query(q.http.Context(), `SELECT p.id,p.name,m.roles FROM projects p JOIN memberships m ON m.project_id=p.id WHERE p.organization_id=$1 AND m.user_id=$2 AND m.active AND p.id>$3 ORDER BY p.id LIMIT $4`, q.org, q.user, cursor, limit+1)
+	rows, err := q.tx.Query(q.http.Context(), `SELECT p.id,p.name,m.roles,p.status,p.version FROM projects p JOIN memberships m ON m.project_id=p.id WHERE p.organization_id=$1 AND m.user_id=$2 AND m.active AND p.id>$3 ORDER BY p.id LIMIT $4`, q.org, q.user, cursor, limit+1)
 	if err != nil {
 		return reply{}, err
 	}
@@ -25,10 +25,12 @@ func projects(q *request) (reply, error) {
 	for rows.Next() {
 		var id, name string
 		var roles []string
-		if err = rows.Scan(&id, &name, &roles); err != nil {
+		var status string
+		var version int64
+		if err = rows.Scan(&id, &name, &roles, &status, &version); err != nil {
 			return reply{}, err
 		}
-		items = append(items, Object{"id": id, "organization_id": q.org, "name": name, "roles": roles})
+		items = append(items, Object{"id": id, "organization_id": q.org, "name": name, "roles": roles, "status": status, "version": version})
 	}
 	return page(q.http, items, limit), rows.Err()
 }
@@ -86,6 +88,9 @@ func changeMember(q *request) (reply, error) {
 		}
 	}
 	_, err = q.tx.Exec(q.http.Context(), `UPDATE memberships SET roles=$1,active=$2,version=version+1 WHERE project_id=$3 AND user_id=$4`, roles, q.body["active"], q.project, target)
+	if err == nil && q.body["active"] == false {
+		err = revokeManagedSessions(q, target)
+	}
 	return entity(200, Object{"id": target, "organization_id": q.org, "project_id": q.project, "display_name": name, "roles": roles, "active": q.body["active"], "version": version + 1}), err
 }
 func listAudit(q *request) (reply, error) { return executionAudit(q) }

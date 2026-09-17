@@ -4,6 +4,8 @@
 
 > **当前阶段：M3 受控交付与 M4 Web 控制台已实现。** 可通过浏览器管理任务、上下文、成果、人工验收、工具审批和审计；Agent 使用通用 Bridge 与 MCP Gateway。已完成 Claude Desktop 与 Codex 的单人双客户端样例验收；心跳时序、真实多成员、企业 IdP、实际下游系统及生产运维仍需联调。
 
+产品化 D01–D03 增加企业持续管理、独立 API access-token 契约与单机生产配置。参见 [产品交付计划及验证边界](docs/product-delivery-plan.md)、[部署与运维手册](docs/production-deployment.md)。这些工作不替代后续备份恢复、容量、发布和目标企业接入验收。
+
 ## 核心原则
 
 | 优先关系 | 平台约束 |

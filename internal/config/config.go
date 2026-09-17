@@ -6,10 +6,11 @@ import (
 	"os"
 )
 
-type Config struct{ DatabaseURL, ListenAddress, Environment, AuthMode, Issuer, Audience string }
+type Config struct{ DatabaseURL, ListenAddress, Environment, AuthMode, Issuer, Audience, ClientID string }
 
 func Load() (Config, error) {
 	c := Config{DatabaseURL: os.Getenv("DATABASE_URL"), ListenAddress: os.Getenv("ACCP_LISTEN_ADDR"), Environment: os.Getenv("ACCP_ENV"), AuthMode: os.Getenv("ACCP_AUTH_MODE"), Issuer: os.Getenv("ACCP_OIDC_ISSUER"), Audience: os.Getenv("ACCP_OIDC_AUDIENCE")}
+	c.ClientID = os.Getenv("ACCP_OIDC_CLIENT_ID")
 	if c.ListenAddress == "" {
 		c.ListenAddress = "127.0.0.1:8080"
 	}
@@ -31,6 +32,9 @@ func Load() (Config, error) {
 			return c, fmt.Errorf("development authentication requires ACCP_ENV=development")
 		}
 	case "oidc":
+		if c.ClientID == "" || c.ClientID == c.Audience {
+			return c, fmt.Errorf("OIDC requires a separate ACCP_OIDC_CLIENT_ID and ACCP_OIDC_AUDIENCE")
+		}
 		u, err := url.Parse(c.Issuer)
 		if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || c.Audience == "" {
 			return c, fmt.Errorf("OIDC requires an HTTPS issuer and dedicated API audience")

@@ -53,6 +53,13 @@ func (s *Server) recordDenial(r *http.Request, op operation, trace string, cause
 	if e != nil || user == "" {
 		return
 	}
+	if op.organization {
+		_, e = tx.Exec(ctx, `INSERT INTO organization_audit(id,organization_id,actor_id,action,resource_id,result,reason,trace_id) VALUES($1,$2,$3,$4,'request','DENIED',$5,$6)`, newID("audit"), org, user, r.Pattern, p.code, trace)
+		if e == nil {
+			_ = tx.Commit(ctx)
+		}
+		return
+	}
 	if project == "" && op.table != "" {
 		// Table names come from registered handlers; never from the request.
 		var target string

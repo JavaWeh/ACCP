@@ -123,6 +123,7 @@ export function Input({
   disabled,
   readOnly,
   className,
+  defaultValue,
   ...props
 }: Omit<ComponentProps<typeof HeroInput>, "className"> & {
   className?: string;
@@ -133,6 +134,9 @@ export function Input({
       isRequired={required}
       isDisabled={disabled}
       isReadOnly={readOnly}
+      defaultValue={
+        defaultValue === undefined ? undefined : String(defaultValue)
+      }
       aria-label={props["aria-label"]}
     >
       <FieldLabel />

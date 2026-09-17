@@ -17,7 +17,7 @@ docker compose --env-file .accp-local/compose.env up -d --no-build
 
 浏览器打开 `ACCP_PUBLIC_URL` 的根路径即可进入平台。`/healthz` 只检查 HTTP，`/readyz` 检查数据库与迁移；完整链路需要 smoke、Worker/NATS 和浏览器验证。
 
-开发环境从忽略目录 `.accp-local/dev-users.json` 读取个人凭证，在登录页输入。凭证不在 URL、公共文件或浏览器持久存储中保存。生产需要真实 OIDC issuer、与 API audience 一致的公共 SPA client ID，并登记 `<ACCP_PUBLIC_URL>/auth/callback` 重定向地址。
+开发环境从忽略目录 `.accp-local/dev-users.json` 读取个人凭证，在登录页输入。凭证不在 URL、公共文件或浏览器持久存储中保存。生产需要真实 OIDC issuer，分别配置公共 SPA client ID（`ACCP_OIDC_CLIENT_ID`）和不同的 API audience（`ACCP_OIDC_AUDIENCE`），并登记 `<ACCP_PUBLIC_URL>/auth/callback` 重定向地址。Web 使用 Authorization Code + PKCE S256，以 access token 调用 API；token 仅存内存，过期或重载后重新认证。退出清除本地登录状态并进入 IdP 注销流程，已签发 access token 的服务端失效受其有效期及 ACCP 成员状态约束。见 [生产接入决策](adr/0008-product-foundation.md) 与 [部署手册](production-deployment.md)。
 
 ## 界面验收路径
 

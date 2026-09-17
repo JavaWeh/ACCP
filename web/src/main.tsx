@@ -8,7 +8,12 @@ import { Icon } from "./icons";
 import { Avatar, Card, Spinner } from "@heroui/react";
 import { createRoot } from "react-dom/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { UserManager, WebStorageStateStore } from "oidc-client-ts";
+import {
+  UserManager,
+  WebStorageStateStore,
+  InMemoryWebStorage,
+} from "oidc-client-ts";
+import { Management } from "./management";
 import { API } from "./api";
 import type { Doc, Membership } from "./api";
 import {
@@ -67,6 +72,7 @@ function App() {
     { id: "tools", title: translate("工具网关") },
     { id: "members", title: translate("项目成员") },
     { id: "audit", title: translate("审计记录") },
+    { id: "management", title: translate("项目管理") },
   ];
 
   const [config, setConfig] = useState<AuthConfig>();
@@ -114,8 +120,12 @@ function App() {
             response_type: "code",
             scope: "openid profile",
             automaticSilentRenew: false,
-            userStore: new WebStorageStateStore({
+            disablePKCE: false,
+            stateStore: new WebStorageStateStore({
               store: window.sessionStorage,
+            }),
+            userStore: new WebStorageStateStore({
+              store: new InMemoryWebStorage(),
             }),
           })
         : undefined,
@@ -139,10 +149,11 @@ function App() {
           location.pathname === "/auth/callback"
             ? await manager.signinRedirectCallback()
             : await manager.getUser();
-        if (active && user && !user.expired && user.id_token) {
-          setToken(user.id_token);
+        if (active && user && !user.expired && user.access_token) {
+          setToken(user.access_token);
           history.replaceState(null, "", "/");
         }
+        await manager.clearStaleState();
       } catch (e) {
         if (active) setAuthError(e);
       }
@@ -151,6 +162,23 @@ function App() {
       active = false;
     };
   }, [manager]);
+  useEffect(() => {
+    if (!manager) return;
+    const expired = () => {
+      setToken("");
+      setMe(undefined);
+      setAuthError(new LocalizedError("登录已过期，请重新登录。"));
+      void manager.removeUser();
+    };
+    manager.events.addAccessTokenExpired(expired);
+    return () => manager.events.removeAccessTokenExpired(expired);
+  }, [manager]);
+  async function reloadProjects(id?: string) {
+    const list = await api.all("/projects");
+    setProjects(list);
+    if (id) setProjectID(id);
+    await refresh();
+  }
   useEffect(() => {
     if (!token) return;
     let active = true;
@@ -212,7 +240,13 @@ function App() {
       approvals: [],
       tools: [],
     });
-    if (manager) await manager.removeUser();
+    if (manager) {
+      const user = await manager.getUser();
+      await manager.removeUser();
+      await manager
+        .signoutRedirect({ id_token_hint: user?.id_token })
+        .catch(setAuthError);
+    }
   }
   if (!token || !me)
     return (
@@ -361,7 +395,7 @@ function App() {
               className={`h-11 shrink-0 justify-start gap-3 rounded-lg px-3 text-sm lg:w-full ${page === item.id ? "bg-indigo-50 font-semibold text-indigo-700" : "text-slate-600"}`}
               onClick={() => setPage(item.id)}
             >
-              <Icon name={item.id} />
+              <Icon name={item.id === "management" ? "members" : item.id} />
               <span>{item.title}</span>
               {item.id === "approvals" &&
                 data.approvals.some((a) => a.status === "PENDING") && (
@@ -443,7 +477,14 @@ function App() {
             </div>
           </div>
           {error !== undefined && <Message error={error} />}{" "}
-          {!projects.length ? (
+          {page === "management" ? (
+            <Management
+              api={api}
+              projects={projects}
+              projectID={projectID}
+              reload={reloadProjects}
+            />
+          ) : !projects.length ? (
             <Empty title={translate("尚无可访问项目")}>
               {translate("请联系管理员配置项目成员关系。")}
             </Empty>
@@ -458,6 +499,11 @@ function App() {
           ) : (
             workspace && (
               <>
+                {project?.status === "ARCHIVED" && (
+                  <div className="notice">
+                    {translate("项目已归档，历史记录只读。")}
+                  </div>
+                )}
                 {page === "overview" && (
                   <Overview w={workspace} navigate={setPage} />
                 )}{" "}

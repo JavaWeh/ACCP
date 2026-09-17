@@ -1,5 +1,7 @@
 # ACCP Collaboration Protocol v0.1
 
+D01 管理增量沿用 `/api/v1`：`POST /projects`，企业成员与审计 `/organization/*`，项目下的 `/changes`、`/commands`、`/members`、`/repositories`。所有写入要求 Idempotency-Key；项目改名、归档和恢复还要求 If-Match。企业 ID 和 actor 由认证派生，不接受客户端注入。归档后普通项目写入返回 `409 PROJECT_ARCHIVED`；未结工作拒绝归档。具体请求与响应以 [Management Schema](../contracts/schemas/management.schema.json) 和 [OpenAPI](../contracts/openapi.yaml) 为准，不新增 Agent 管理权限或替代 Adapter 能力协商。
+
 > 当前实现包含 M1–M3 控制面与 M4 Web 功能。运行、升级与验收见 [M3/M4 平台](m3-m4-platform.md)；边界与代价见 [ADR 0006](adr/0006-controlled-delivery-console.md)。单人双客户端样例已验收，范围与限制见 [实际记录](acceptance-2026-09-16.md)。
 
 ## 状态与传输

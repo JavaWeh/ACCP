@@ -1,0 +1,6 @@
+{$ACCP_PUBLIC_URL} {
+  tls /etc/accp/tls/certificate.pem /etc/accp/tls/private.key
+  encode gzip
+  header Strict-Transport-Security "max-age=31536000"
+  reverse_proxy api:8080
+}

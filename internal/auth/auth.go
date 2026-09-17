@@ -3,9 +3,12 @@ package auth
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -35,6 +38,23 @@ func (a *OIDC) Authenticate(ctx context.Context, token string) (Identity, error)
 	claims, err := a.verifier.Verify(oidc.ClientContext(ctx, a.client), token)
 	if err != nil || claims.Subject == "" {
 		return Identity{}, errors.New("invalid bearer token")
+	}
+	var access struct {
+		Type string `json:"typ"`
+	}
+	if claims.Claims(&access) != nil {
+		return Identity{}, errors.New("invalid access token")
+	}
+	var header struct {
+		Type string `json:"typ"`
+	}
+	encoded := strings.Split(token, ".")
+	if len(encoded) != 3 {
+		return Identity{}, errors.New("invalid access token")
+	}
+	data, err := base64.RawURLEncoding.DecodeString(encoded[0])
+	if err != nil || json.Unmarshal(data, &header) != nil || (header.Type != "at+jwt" && access.Type != "Bearer") {
+		return Identity{}, errors.New("an API access token is required; ID tokens are not accepted")
 	}
 	return Identity{Issuer: claims.Issuer, Subject: claims.Subject}, nil
 }
