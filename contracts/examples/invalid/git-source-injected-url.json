@@ -1,0 +1,9 @@
+{
+  "name": "API contract",
+  "type": "API",
+  "repository_id": "repo_demo",
+  "path": "docs/api.md",
+  "ref": "main",
+  "reason": "Sync",
+  "url": "https://evil.example"
+}

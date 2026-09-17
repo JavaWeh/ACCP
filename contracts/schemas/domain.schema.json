@@ -1375,6 +1375,9 @@
         "version": {
           "type": "integer",
           "minimum": 1
+        },
+        "git_provenance": {
+          "$ref": "https://accp.example/schemas/v0.5/git-context.schema.json#/$defs/Provenance"
         }
       },
       "required": [

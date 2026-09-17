@@ -18,6 +18,7 @@ GRANT UPDATE ON projects,memberships,organization_idempotency,contexts,context_v
  outbox_events,agent_sessions,assignments,task_dependencies,task_runs,artifacts,tool_policies,tool_invocations,approvals TO accp_api;
 GRANT DELETE ON task_dependencies,task_contexts TO accp_api;
 GRANT INSERT ON task_changes TO accp_api;
+GRANT INSERT ON context_git_sources,context_git_versions TO accp_api;
 GRANT INSERT ON audit_records,outbox_events,event_inbox,event_feed,event_failures,worker_health TO accp_worker;
 GRANT UPDATE ON tasks,task_runs,task_dependencies,tool_invocations,approvals,outbox_events,event_failures,worker_health TO accp_worker;
 GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA accp TO accp_api,accp_worker,accp_bootstrap;

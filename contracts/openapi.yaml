@@ -5082,6 +5082,160 @@ paths:
           $ref: "#/components/responses/Problem"
       x-accp-milestone: M1
       x-accp-required-scope: context:read
+  /projects/{id}/git-contexts:
+    post:
+      operationId: createGitContext
+      summary: createGitContext
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/git-context.schema.json#/$defs/Create
+      responses:
+        "201":
+          description: Success; sync returns an existing version when content is unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Context
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-milestone: D09
+  /contexts/{id}/source-sync:
+    post:
+      operationId: syncGitContext
+      summary: syncGitContext
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/git-context.schema.json#/$defs/Sync
+      responses:
+        "201":
+          description: Success; sync returns an existing version when content is unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ContextVersion
+        "200":
+          description: Same content already exists; provider permission was rechecked.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/ContextVersion
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-milestone: D09
+  /contexts/{id}/source:
+    get:
+      operationId: getGitSource
+      summary: getGitSource
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Success; sync returns an existing version when content is unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/git-context.schema.json#/$defs/Source
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-milestone: D09
+  /contexts/{id}/versions/{version}/diff:
+    get:
+      operationId: contextVersionDiff
+      summary: contextVersionDiff
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: version
+          in: path
+          required: true
+          schema: {type: string}
+        - name: base
+          in: query
+          description: Base version in the same Context; defaults to current published version.
+          schema: {type: string}
+      responses:
+        "200":
+          description: Success; sync returns an existing version when content is unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/git-context.schema.json#/$defs/Diff
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-milestone: D09
+  /contexts/{id}/versions/{version}/impact:
+    get:
+      operationId: contextVersionImpact
+      summary: contextVersionImpact
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: version
+          in: path
+          required: true
+          schema: {type: string}
+        - name: limit
+          in: query
+          schema: {type: integer, default: 50, minimum: 1, maximum: 100}
+        - name: cursor
+          in: query
+          schema: {type: string}
+      responses:
+        "200":
+          description: Success; sync returns an existing version when content is unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/TaskPage
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+      x-accp-milestone: D09
 components:
   securitySchemes:
     HumanBearer:
