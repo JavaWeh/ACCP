@@ -71,6 +71,7 @@ func (p problem) Error() string                  { return p.code }
 func fail(status int, code, detail string) error { return problem{status, code, detail} }
 
 type operation struct {
+	maintenanceWrite    bool
 	organization        bool
 	archivedWrite       bool
 	table, schema, role string
@@ -136,6 +137,7 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Option
 	s.extendRoutes(routes)
 	s.deliveryRoutes(routes)
 	s.managementRoutes(routes)
+	s.operationsRoutes(routes)
 	for pattern, op := range routes {
 		s.mux.HandleFunc(pattern, s.handle(op))
 	}
@@ -188,6 +190,13 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 	}
 	write := r.Method == http.MethodPost
 	if write {
+		allowed, e := database.RuntimeAllowed(r.Context(), tx)
+		if e != nil {
+			return empty, e
+		}
+		if !allowed && !op.maintenanceWrite {
+			return empty, fail(503, "MAINTENANCE", "The installation is under maintenance; retain this request and its idempotency key.")
+		}
 		q.body, err = decode(w, r, op.schema != "")
 		if err != nil {
 			return empty, err

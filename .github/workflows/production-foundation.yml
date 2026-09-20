@@ -56,6 +56,19 @@ jobs:
           "${compose[@]}" start worker
           sleep 15
           "${compose[@]}" --profile tools run --rm doctor
+      - name: Production secret rotation
+        run: |
+          for kind in session nats database; do
+            operation=$(node scripts/rotate-production.mjs --directory .accp-local/product-deploy --env-file .accp-local/product-deploy/compose.env --project accp-product --overlay deploy/acceptance/compose.yaml --actor user_initial_admin --reason 'CI isolated rotation' --kind "$kind" --phase prepare | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).operation')
+            node scripts/rotate-production.mjs --directory .accp-local/product-deploy --env-file .accp-local/product-deploy/compose.env --project accp-product --overlay deploy/acceptance/compose.yaml --actor user_initial_admin --reason 'CI isolated rotation' --kind "$kind" --phase apply --operation "$operation"
+          done
+      - name: Real signing-key rotation, expiry and reauthentication
+        run: |
+          root="$PWD/.accp-local/product-deploy"
+          lifecycle=(docker run --rm --network accp-product_private --mount "type=bind,source=$root/secrets/keycloak_admin,target=/run/acceptance-admin,readonly" --mount "type=bind,source=$PWD/scripts/oidc-lifecycle-fixture.mjs,target=/lifecycle.mjs,readonly" node:22.22.3-bookworm-slim node /lifecycle.mjs)
+          trap '"${lifecycle[@]}" restore-token-lifetime' EXIT
+          kid=$("${lifecycle[@]}" rotate-short-tokens | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).active_kid')
+          docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml --profile tests run --rm -e ACCP_OIDC_LIFECYCLE=1 -e "ACCP_EXPECTED_SIGNING_KID=$kid" browser
       - name: Stop isolated services
         if: always() && hashFiles('.accp-local/product-deploy/compose.env') != ''
         run: docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml down

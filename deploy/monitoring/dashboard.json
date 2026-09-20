@@ -1,0 +1,145 @@
+{
+  "uid": "accp-operations",
+  "title": "ACCP Operations",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Request p95 seconds",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "accp"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95,sum by(le)(rate(accp_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Server error ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "accp"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(accp_http_request_duration_seconds_count{status_class=\"5xx\"}[5m])) / clamp_min(sum(rate(accp_http_request_duration_seconds_count[5m])),0.001)",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Outbox and failures",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "accp"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{__name__=~\"accp_outbox_pending|accp_event_failures\"}",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Worker progress age",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "accp"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{__name__=~\"accp_worker_.*_lag_seconds\"}",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Human action required",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "accp"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{__name__=~\"accp_operations_unknown|accp_approvals_pending|accp_recovery_pending\"}",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Leases and maintenance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "accp"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{__name__=~\"accp_runs_lease_expired|accp_maintenance\"}",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    }
+  ]
+}

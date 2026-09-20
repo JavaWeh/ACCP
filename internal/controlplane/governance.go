@@ -20,7 +20,7 @@ func (s *Server) governanceRoutes(routes map[string]operation) {
 		"POST /api/v1/task-runs/{id}/tool-invocations":  {table: "task_runs", scope: "tools:invoke", agentOnly: true, schema: "M3InvocationRequest", conditional: true, fenced: true, run: requestInvocation},
 		"GET /api/v1/tool-invocations/{id}":             {table: "tool_invocations", scope: "tools:invoke", run: getInvocation},
 		"GET /api/v1/projects/{id}/tool-invocations":    {table: "projects", role: "REVIEWER", run: listResources("tool_invocations", "")},
-		"POST /api/v1/tool-invocations/{id}/reconcile":  {table: "tool_invocations", role: "ADMIN", schema: "M3Reason", conditional: true, run: reconcileInvocation},
+		"POST /api/v1/tool-invocations/{id}/reconcile":  {maintenanceWrite: true, table: "tool_invocations", role: "ADMIN", schema: "M3Reason", conditional: true, run: reconcileInvocation},
 		"GET /api/v1/projects/{id}/approvals":           {table: "projects", role: "REVIEWER", run: listResources("approvals", "")},
 		"GET /api/v1/approvals/{id}":                    {table: "approvals", role: "REVIEWER", run: getResource("approvals")},
 		"POST /api/v1/approvals/{id}/decisions":         {table: "approvals", role: "REVIEWER", schema: "M3ApprovalDecision", conditional: true, run: decideApproval},

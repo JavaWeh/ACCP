@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: ACCP
+    type: file
+    disableDeletion: true
+    editable: false
+    options: {path: /etc/grafana/dashboards}

@@ -1,0 +1,11 @@
+{
+  "project_id": "project_example",
+  "maintenance": false,
+  "outbox_pending": 0,
+  "event_failures": 0,
+  "unknown_operations": 0,
+  "pending_approvals": 0,
+  "expired_leases": 0,
+  "recovery_pending": 0,
+  "checked_at": "2026-09-17T00:00:00Z"
+}

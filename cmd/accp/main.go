@@ -21,6 +21,7 @@ import (
 	"github.com/JavaWeh/ACCP/internal/database"
 	"github.com/JavaWeh/ACCP/internal/gateway"
 	"github.com/JavaWeh/ACCP/internal/gitprovider"
+	"github.com/JavaWeh/ACCP/internal/observability"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -45,7 +46,7 @@ func run() error {
 	if command == "healthcheck" {
 		return healthcheck(os.Args[2:])
 	}
-	if command != "serve" && command != "migrate" && command != "bootstrap" && command != "worker" && command != "human-status" {
+	if command != "serve" && command != "migrate" && command != "bootstrap" && command != "worker" && command != "human-status" && command != "maintenance" {
 		return fmt.Errorf("usage: accp serve | worker | migrate | bootstrap [-development -output FILE | -file FILE]")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -68,6 +69,8 @@ func run() error {
 		return provision(startup, pool, os.Args[2:])
 	case "human-status":
 		return humanStatus(startup, pool, os.Args[2:])
+	case "maintenance":
+		return maintenance(startup, pool, os.Args[2:])
 	}
 	execution, err := config.LoadExecution()
 	if err != nil {
@@ -103,8 +106,18 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("contract initialization failed: %w", err)
 	}
-	server := &http.Server{Addr: cfg.ListenAddress, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32768}
+	metrics := observability.New(pool)
+	server := &http.Server{Addr: cfg.ListenAddress, Handler: metrics.Middleware(handler), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32768}
 	stopped := make(chan error, 1)
+	if address := os.Getenv("ACCP_METRICS_ADDR"); address != "" {
+		internal := &http.Server{Addr: address, Handler: metrics, ReadHeaderTimeout: 3 * time.Second, WriteTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second}
+		defer internal.Close()
+		go func() {
+			if e := internal.ListenAndServe(); e != nil && !errors.Is(e, http.ErrServerClosed) {
+				stopped <- e
+			}
+		}()
+	}
 	go func() { stopped <- server.ListenAndServe() }()
 	slog.Info("ACCP control plane listening", "address", cfg.ListenAddress, "auth_mode", cfg.AuthMode)
 	select {

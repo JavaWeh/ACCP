@@ -14,6 +14,7 @@ import {
   InMemoryWebStorage,
 } from "oidc-client-ts";
 import { Management } from "./management";
+import { Operations } from "./operations";
 import { API } from "./api";
 import type { Doc, Membership } from "./api";
 import {
@@ -73,6 +74,7 @@ function App() {
     { id: "members", title: translate("项目成员") },
     { id: "audit", title: translate("审计记录") },
     { id: "management", title: translate("项目管理") },
+    { id: "operations", title: "项目运维" },
   ];
 
   const [config, setConfig] = useState<AuthConfig>();
@@ -395,7 +397,13 @@ function App() {
               className={`h-11 shrink-0 justify-start gap-3 rounded-lg px-3 text-sm lg:w-full ${page === item.id ? "bg-indigo-50 font-semibold text-indigo-700" : "text-slate-600"}`}
               onClick={() => setPage(item.id)}
             >
-              <Icon name={item.id === "management" ? "members" : item.id} />
+              <Icon
+                name={
+                  item.id === "management" || item.id === "operations"
+                    ? "members"
+                    : item.id
+                }
+              />
               <span>{item.title}</span>
               {item.id === "approvals" &&
                 data.approvals.some((a) => a.status === "PENDING") && (
@@ -515,6 +523,7 @@ function App() {
                 {page === "members" && <Members w={workspace} />}{" "}
                 {page === "audit" && <Audit w={workspace} />}{" "}
                 {page === "tools" && <Tools w={workspace} />}
+                {page === "operations" && <Operations w={workspace} />}
               </>
             )
           )}

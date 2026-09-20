@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://accp.example/schemas/v0.5/operations.schema.json",
+  "title": "Project operations",
+  "$defs": {
+    "Diagnostics": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "maintenance": {
+          "type": "boolean"
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "outbox_pending": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "event_failures": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unknown_operations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending_approvals": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expired_leases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recovery_pending": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "project_id",
+        "maintenance",
+        "checked_at",
+        "outbox_pending",
+        "event_failures",
+        "unknown_operations",
+        "pending_approvals",
+        "expired_leases",
+        "recovery_pending"
+      ],
+      "additionalProperties": false
+    },
+    "Failure": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "event_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "publish_attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "publish_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "consume_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "consume_attempts": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "failed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "event_type",
+        "publish_attempts",
+        "publish_error",
+        "consume_error",
+        "consume_attempts",
+        "failed_at"
+      ]
+    },
+    "RecoveryItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "RUN",
+            "TOOL"
+          ]
+        },
+        "resource_id": {
+          "type": "string"
+        },
+        "resolved_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "resolved_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "project_id",
+        "kind",
+        "resource_id",
+        "resolved_at",
+        "resolved_by",
+        "evidence"
+      ]
+    },
+    "FailurePage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Failure"
+          },
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "RecoveryItemPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecoveryItem"
+          },
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

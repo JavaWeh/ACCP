@@ -1,0 +1,10 @@
+[Unit]
+Description=ACCP encrypted database backup
+After=docker.service
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/accp
+EnvironmentFile=/etc/accp/backup.env
+ExecStart=/usr/bin/node scripts/hourly-backup.mjs --directory ${BACKUP_DIRECTORY} --database-url-file ${BACKUP_DATABASE_URL_FILE} --recipient-file ${BACKUP_RECIPIENT_FILE} --config-manifest ${BACKUP_CONFIG_MANIFEST} --image ${ACCP_IMAGE} --ops-image ${ACCP_OPS_IMAGE} --network ${ACCP_NETWORK}
+TimeoutStartSec=56min
+UMask=0077

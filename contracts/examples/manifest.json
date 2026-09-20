@@ -597,6 +597,19 @@
         "keyword": "required",
         "missingProperty": "reason"
       }
+    },
+    {
+      "file": "valid/operations-diagnostics.json",
+      "schema": "https://accp.example/schemas/v0.5/operations.schema.json#/$defs/Diagnostics",
+      "valid": true
+    },
+    {
+      "file": "invalid/operations-negative-counter.json",
+      "schema": "https://accp.example/schemas/v0.5/operations.schema.json#/$defs/Diagnostics",
+      "valid": false,
+      "expected_error": {
+        "keyword": "minimum"
+      }
     }
   ]
 }

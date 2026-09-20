@@ -3,6 +3,7 @@ package controlplane
 import (
 	"context"
 	"encoding/json"
+	"github.com/JavaWeh/ACCP/internal/database"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
@@ -42,6 +43,10 @@ func (s *Server) reconcileProject(ctx context.Context, project, org string) erro
 		return err
 	}
 	defer tx.Rollback(ctx)
+	allowed, err := database.RuntimeAllowed(ctx, tx)
+	if err != nil || !allowed {
+		return err
+	}
 	var id string
 	err = tx.QueryRow(ctx, `SELECT id FROM projects WHERE id=$1 FOR UPDATE SKIP LOCKED`, project).Scan(&id)
 	if err == pgx.ErrNoRows {

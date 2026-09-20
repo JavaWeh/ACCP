@@ -5,5 +5,6 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY web/playwright.oidc.config.ts ./
 COPY web/tests/oidc.spec.ts ./tests/oidc.spec.ts
+COPY web/tests/oidc-lifecycle.spec.ts ./tests/oidc-lifecycle.spec.ts
 # Trust only inside this disposable test container, never in the host certificate store.
 CMD ["/bin/sh", "-ec", "mkdir -p /root/.pki/nssdb; certutil -N --empty-password -d sql:/root/.pki/nssdb; certutil -A -d sql:/root/.pki/nssdb -n accp-acceptance -t C,, -i /fixture/tls/ca.pem; npx playwright test --config playwright.oidc.config.ts"]
