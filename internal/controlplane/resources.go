@@ -171,6 +171,9 @@ func createVersion(q *request) (reply, error) {
 	if err = match(q, number(parent, "version")); err != nil {
 		return reply{}, err
 	}
+	if source, ok := parent["source"].(map[string]any); ok && source["kind"] == "GIT" {
+		return reply{}, fail(409, "GIT_SOURCE_REQUIRED", "Synchronize the registered Git source to create a candidate.")
+	}
 	uri := textValue(q.body, "content_uri")
 	if !strings.HasPrefix(uri, "urn:accp:content:") {
 		return reply{}, fail(422, "UNSUPPORTED_CONTENT_URI", "Upload content before registering its version; M1 does not fetch remote URLs.")

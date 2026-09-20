@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { Workspace } from "./main";
 import type { Doc, Membership } from "./api";
 import { usePage } from "./use-page";
+import { GitContextCreate, GitContextSync, GitCandidate } from "./git-context";
 import { navigate, useLocationQuery } from "./navigation";
 import { short } from "./api";
 import {
@@ -31,6 +32,7 @@ export function Contexts({ w }: { w: Workspace }) {
 
   const [selected, setSelected] = useState<Doc>();
   const [creating, setCreating] = useState(false);
+  const [creatingGit, setCreatingGit] = useState(false);
   const versionsPage = usePage(
     w,
     `/contexts/${selected?.id}/versions`,
@@ -109,6 +111,7 @@ export function Contexts({ w }: { w: Workspace }) {
         <Button variant="primary" onClick={() => setCreating(true)}>
           {translate("＋ 新建上下文")}
         </Button>
+        <Button onPress={() => setCreatingGit(true)}>登记 Git 来源</Button>
       </div>
       {error !== undefined && <Message error={error} />}{" "}
       {!w.contexts.length ? (
@@ -145,6 +148,9 @@ export function Contexts({ w }: { w: Workspace }) {
             </Button>
           ))}
         </div>
+      )}
+      {creatingGit && (
+        <GitContextCreate w={w} close={() => setCreatingGit(false)} />
       )}
       {creating && (
         <Modal
@@ -199,6 +205,9 @@ export function Contexts({ w }: { w: Workspace }) {
                 <small>{v.change_summary}</small>
               </span>
               <Badge value={v.status} />
+              {v.git_provenance && (
+                <GitCandidate w={w} context={selected} version={v} />
+              )}
               <Action
                 run={async () => {
                   const content = await w.api.call(
@@ -231,15 +240,26 @@ export function Contexts({ w }: { w: Workspace }) {
               {body}
             </pre>
           )}
-          <details>
-            <summary>{translate("新增候选版本")}</summary>
-            <Form
-              submit={translate("保存新版本")}
-              action={(data) => save(data, selected)}
-            >
-              {fields}
-            </Form>
-          </details>
+          {selected.source.kind === "GIT" ? (
+            <GitContextSync
+              w={w}
+              context={selected}
+              onDone={async () => {
+                await w.refresh();
+                await versionsPage.load();
+              }}
+            />
+          ) : (
+            <details>
+              <summary>{translate("新增候选版本")}</summary>
+              <Form
+                submit={translate("保存新版本")}
+                action={(data) => save(data, selected)}
+              >
+                {fields}
+              </Form>
+            </details>
+          )}
         </Modal>
       )}
     </>

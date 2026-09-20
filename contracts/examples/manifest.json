@@ -643,6 +643,34 @@
       "file": "valid/event-task-changed.json",
       "schema": "https://accp.example/schemas/v0.1/event.schema.json",
       "valid": true
+    },
+    {
+      "file": "valid/git-source.json",
+      "schema": "https://accp.example/schemas/v0.5/git-context.schema.json#/$defs/Create",
+      "valid": true
+    },
+    {
+      "file": "valid/git-sync.json",
+      "schema": "https://accp.example/schemas/v0.5/git-context.schema.json#/$defs/Sync",
+      "valid": true
+    },
+    {
+      "file": "invalid/git-source-injected-url.json",
+      "schema": "https://accp.example/schemas/v0.5/git-context.schema.json#/$defs/Create",
+      "valid": false,
+      "expected_error": {
+        "keyword": "additionalProperties",
+        "additionalProperty": "url"
+      }
+    },
+    {
+      "file": "invalid/git-sync-no-reason.json",
+      "schema": "https://accp.example/schemas/v0.5/git-context.schema.json#/$defs/Sync",
+      "valid": false,
+      "expected_error": {
+        "keyword": "required",
+        "missingProperty": "reason"
+      }
     }
   ]
 }

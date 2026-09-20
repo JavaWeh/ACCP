@@ -49,6 +49,8 @@ jobs:
         run: docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml --profile tests run --build --rm browser
       - name: Real task collaboration acceptance
         run: docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml --profile tests run --rm -e ACCP_OIDC_COLLABORATION=1 browser
+      - name: Real Git Context acceptance
+        run: docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml --profile tests run --rm -e ACCP_OIDC_GIT_CONTEXT=1 browser
       - name: Worker failure detection and recovery
         run: |
           compose=(docker compose -p accp-product --env-file .accp-local/product-deploy/compose.env -f deploy/production/compose.yaml -f deploy/acceptance/compose.yaml)

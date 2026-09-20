@@ -85,5 +85,12 @@ func NewValidator() (Validator, error) {
 		}
 		result["Lifecycle"+name] = s
 	}
+	for _, name := range []string{"Create", "Sync", "Source", "Diff"} {
+		s, err := compiler.Compile("https://accp.example/schemas/v0.5/git-context.schema.json#/$defs/" + name)
+		if err != nil {
+			return nil, err
+		}
+		result["GitContext"+name] = s
+	}
 	return result, nil
 }
