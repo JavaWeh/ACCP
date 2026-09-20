@@ -33,6 +33,11 @@ func getResource(table string) func(*request) (reply, error) {
 }
 func listResources(table, filter string) func(*request) (reply, error) {
 	return func(q *request) (reply, error) {
+		for _, key := range []string{"search", "status", "owner", "archived", "sort"} {
+			if q.http.URL.Query().Has(key) {
+				return filteredResources(q, table, filter)
+			}
+		}
 		limit, cursor, err := pageParams(q.http)
 		if err != nil {
 			return reply{}, err

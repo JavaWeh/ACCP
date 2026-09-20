@@ -27,7 +27,8 @@
         "io.accp.APPROVAL_REQUESTED.v1",
         "io.accp.APPROVAL_DECIDED.v1",
         "io.accp.TASK_COMPLETED.v1",
-        "io.accp.TASK_FAILED.v1"
+        "io.accp.TASK_FAILED.v1",
+        "io.accp.TASK_CHANGED.v1"
       ]
     },
     "subject": {
@@ -813,6 +814,70 @@
             "context_snapshot_id",
             "error_code",
             "run_status"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ]
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "io.accp.TASK_CHANGED.v1"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "organization_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            },
+            "project_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            },
+            "aggregate_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            },
+            "aggregate_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "correlation_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            },
+            "causation_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            },
+            "task_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            },
+            "owner_user_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            },
+            "change_id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+            }
+          },
+          "required": [
+            "organization_id",
+            "project_id",
+            "aggregate_id",
+            "aggregate_version",
+            "correlation_id",
+            "causation_id",
+            "task_id",
+            "owner_user_id",
+            "change_id"
           ],
           "additionalProperties": false
         }

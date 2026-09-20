@@ -3,7 +3,9 @@ export default defineConfig({
   testDir: "./tests",
   testMatch: process.env.ACCP_OIDC_LIFECYCLE
     ? "oidc-lifecycle.spec.ts"
-    : "oidc.spec.ts",
+    : process.env.ACCP_OIDC_COLLABORATION
+      ? "oidc-collaboration.spec.ts"
+      : "oidc.spec.ts",
   workers: 1,
   timeout: 60000,
   use: {

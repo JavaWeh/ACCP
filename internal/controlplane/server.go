@@ -138,6 +138,7 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Option
 	s.deliveryRoutes(routes)
 	s.managementRoutes(routes)
 	s.operationsRoutes(routes)
+	s.lifecycleRoutes(routes)
 	for pattern, op := range routes {
 		s.mux.HandleFunc(pattern, s.handle(op))
 	}

@@ -20,6 +20,9 @@ func ownedTask(q *request) (Object, error) {
 	if err != nil {
 		return nil, err
 	}
+	if doc["archived"] == true {
+		return nil, fail(409, "TASK_ARCHIVED", "Restore this task before changing it.")
+	}
 	if doc["owner_user_id"] != q.user && !hasRole(q.roles, "ADMIN") {
 		return nil, fail(403, "OWNER_REQUIRED", "Only the human Owner or administrator may change task execution.")
 	}

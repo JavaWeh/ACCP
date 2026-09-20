@@ -4,6 +4,8 @@ import { Card, Table, ToggleButton, ToggleButtonGroup } from "@heroui/react";
 import { useEffect, useState } from "react";
 import type { Workspace } from "./main";
 import type { Doc, Membership } from "./api";
+import { usePage } from "./use-page";
+import { navigate, useLocationQuery } from "./navigation";
 import { short } from "./api";
 import {
   Button,
@@ -29,14 +31,20 @@ export function Contexts({ w }: { w: Workspace }) {
 
   const [selected, setSelected] = useState<Doc>();
   const [creating, setCreating] = useState(false);
-  const [versions, setVersions] = useState<Doc[]>([]);
+  const versionsPage = usePage(
+    w,
+    `/contexts/${selected?.id}/versions`,
+    "version_cursor",
+    !!selected,
+  );
+  const versions = versionsPage.items;
   const [body, setBody] = useState("");
   const [error, setError] = useState<unknown>();
   async function open(c: Doc) {
     setSelected(c);
     setBody("");
     try {
-      setVersions(await w.api.all(`/contexts/${c.id}/versions`));
+      if (selected?.id === c.id) await versionsPage.load();
     } catch (e) {
       setError(e);
     }
@@ -183,6 +191,7 @@ export function Contexts({ w }: { w: Workspace }) {
               source: selected.source.kind,
             })}
           </p>
+          {versionsPage.controls}
           {versions.map((v) => (
             <div className="record-row" key={v.id}>
               <span>
@@ -241,18 +250,27 @@ export function Artifacts({ w }: { w: Workspace }) {
 
   const [selected, setSelected] = useState<Doc>();
   const [content, setContent] = useState("");
-  const [history, setHistory] = useState<Doc[]>([]);
+  const reviewsPage = usePage(
+    w,
+    `/artifacts/${selected?.id}/reviews`,
+    "artifact_review_cursor",
+    !!selected,
+  );
+  const checksPage = usePage(
+    w,
+    `/artifacts/${selected?.id}/verifications`,
+    "verification_cursor",
+    !!selected,
+  );
+  const history = [...reviewsPage.items, ...checksPage.items];
   const [error, setError] = useState<unknown>();
   async function open(a: Doc) {
     try {
       const current = await w.api.call(`/artifacts/${a.id}`);
       setSelected(current);
       setContent("");
-      const [reviews, checks] = await Promise.all([
-        w.api.all(`/artifacts/${a.id}/reviews`),
-        w.api.all(`/artifacts/${a.id}/verifications`),
-      ]);
-      setHistory([...reviews, ...checks]);
+      if (selected?.id === a.id)
+        await Promise.all([reviewsPage.load(), checksPage.load()]);
       if (current.uri.startsWith("urn:accp:artifact-content:")) {
         const text = await w.api.call(
           `/artifact-contents/${current.uri.split(":").at(-1)}`,
@@ -417,6 +435,8 @@ export function Artifacts({ w }: { w: Workspace }) {
           <h3>{translate("来源追踪")}</h3>
           <Json data={selected.provenance} />
           <h3>{translate("核验与人工审核记录")}</h3>
+          {reviewsPage.controls}
+          {checksPage.controls}
           {history.length ? (
             history.map((r) => (
               <div className="timeline-item" key={r.id}>
@@ -636,26 +656,29 @@ export function Approvals({ w }: { w: Workspace }) {
 export function Agents({ w }: { w: Workspace }) {
   const { translate, stamp } = useI18n();
 
-  const [agents, setAgents] = useState<Doc[]>([]);
-  const [sessions, setSessions] = useState<Doc[]>([]);
+  const agentPage = usePage(
+    w,
+    `/projects/${w.project.id}/agents`,
+    "agent_cursor",
+  );
+  const sessionPage = usePage(
+    w,
+    `/projects/${w.project.id}/agent-sessions`,
+    "session_cursor",
+  );
+  const agents = agentPage.items,
+    sessions = sessionPage.items;
   const [creating, setCreating] = useState(false);
   const [granting, setGranting] = useState<Doc>();
   const [grant, setGrant] = useState<Doc>();
   const [error, setError] = useState<unknown>();
   async function load() {
-    const [a, s] = await Promise.all([
-      w.api.all(`/projects/${w.project.id}/agents`),
-      w.api.all(`/projects/${w.project.id}/agent-sessions`),
-    ]);
-    setAgents(a);
-    setSessions(s);
+    await Promise.all([agentPage.load(), sessionPage.load()]);
   }
-  useEffect(() => {
-    load().catch(setError);
-  }, [w.api, w.project.id]);
   return (
     <>
       {error !== undefined && <Message error={error} />}
+      <div aria-label="Session 分页">{sessionPage.controls}</div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
         <p className="text-sm leading-6 text-slate-600">
           {translate("注册客户端，为执行代理委托有限的权限。")}
@@ -664,6 +687,7 @@ export function Agents({ w }: { w: Workspace }) {
           {translate("＋ 注册执行代理")}
         </Button>
       </div>
+      {agentPage.controls}
       {!agents.length ? (
         <Empty title={translate("连接你的执行客户端")}>
           {translate("注册客户端信息，再创建短期 Session 授权。")}
@@ -998,23 +1022,19 @@ export function Members({ w }: { w: Workspace }) {
 export function Audit({ w }: { w: Workspace }) {
   const { translate, stamp } = useI18n();
 
-  const [rows, setRows] = useState<Doc[]>([]);
-  const [error, setError] = useState<unknown>();
   const [selected, setSelected] = useState<Doc>();
-  const [search, setSearch] = useState("");
-  useEffect(() => {
-    if (reviewer(w))
-      w.api
-        .all(`/projects/${w.project.id}/audit-records`)
-        .then((a) =>
-          setRows(
-            a.sort((a, b) =>
-              String(b.occurred_at).localeCompare(String(a.occurred_at)),
-            ),
-          ),
-        )
-        .catch(setError);
-  }, [w.api, w.project.id]);
+  const query = useLocationQuery(),
+    search = query.get("audit_search") || "";
+  const setSearch = (value: string) =>
+    navigate({ audit_search: value, audit_cursor: undefined });
+  const rowsPage = usePage(
+    w,
+    `/projects/${w.project.id}/audit-records`,
+    "audit_cursor",
+    reviewer(w),
+    "sort=-updated&search=" + encodeURIComponent(search),
+  );
+  const rows = rowsPage.items;
   if (!reviewer(w))
     return (
       <Empty title={translate("审计记录需要审核权限")}>
@@ -1023,7 +1043,7 @@ export function Audit({ w }: { w: Workspace }) {
     );
   return (
     <>
-      {error !== undefined && <Message error={error} />}
+      {rowsPage.controls}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
         <p className="text-sm leading-6 text-slate-600">
           {translate("查看操作者、责任人、执行依据和审核结果。")}
@@ -1048,39 +1068,33 @@ export function Audit({ w }: { w: Workspace }) {
                 <Table.Column>{translate("操作")}</Table.Column>
               </Table.Header>
               <Table.Body>
-                {rows
-                  .filter((r) =>
-                    JSON.stringify(r)
-                      .toLowerCase()
-                      .includes(search.toLowerCase()),
-                  )
-                  .map((r) => (
-                    <Table.Row key={r.id} id={r.id}>
-                      <Table.Cell className="whitespace-nowrap">
-                        {stamp(r.occurred_at)}
-                      </Table.Cell>
-                      <Table.Cell>
-                        <strong>{r.action}</strong>
-                        <small>{short(r.resource_id)}</small>
-                      </Table.Cell>
-                      <Table.Cell>
-                        {r.accountable_user_id}
-                        <small>{r.actor.kind}</small>
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Badge value={r.result} />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Button
-                          variant="ghost"
-                          className="shrink-0 text-sm"
-                          onClick={() => setSelected(r)}
-                        >
-                          {translate("追踪 →")}
-                        </Button>
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
+                {rows.map((r) => (
+                  <Table.Row key={r.id} id={r.id}>
+                    <Table.Cell className="whitespace-nowrap">
+                      {stamp(r.occurred_at)}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <strong>{r.action}</strong>
+                      <small>{short(r.resource_id)}</small>
+                    </Table.Cell>
+                    <Table.Cell>
+                      {r.accountable_user_id}
+                      <small>{r.actor.kind}</small>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Badge value={r.result} />
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Button
+                        variant="ghost"
+                        className="shrink-0 text-sm"
+                        onClick={() => setSelected(r)}
+                      >
+                        {translate("追踪 →")}
+                      </Button>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
               </Table.Body>
             </Table.Content>
           </Table.ScrollContainer>
@@ -1121,17 +1135,20 @@ export function Tools({ w }: { w: Workspace }) {
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Doc>();
   const [backends, setBackends] = useState<Doc[]>([]);
-  const [invocations, setInvocations] = useState<Doc[]>([]);
+  const invocationPage = usePage(
+    w,
+    `/projects/${w.project.id}/tool-invocations`,
+    "invocation_cursor",
+    reviewer(w),
+  );
+  const invocations = invocationPage.items;
   const [error, setError] = useState<unknown>();
   async function load() {
     if (w.roles.includes("ADMIN"))
       setBackends(
         (await w.api.call(`/projects/${w.project.id}/tool-backends`)).items,
       );
-    if (reviewer(w))
-      setInvocations(
-        await w.api.all(`/projects/${w.project.id}/tool-invocations`),
-      );
+    await invocationPage.load();
   }
   useEffect(() => {
     load().catch(setError);
@@ -1179,6 +1196,7 @@ export function Tools({ w }: { w: Workspace }) {
   return (
     <>
       {error !== undefined && <Message error={error} />}
+      {invocationPage.controls}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
         <p className="text-sm leading-6 text-slate-600">
           {translate("工具风险由受信配置决定，调用经过权限检查与审批。")}

@@ -1,0 +1,20 @@
+{
+  "specversion": "1.0",
+  "id": "event_task_assigned",
+  "source": "urn:accp:control-plane",
+  "type": "io.accp.TASK_CHANGED.v1",
+  "subject": "projects/project_orders/tasks/task_backend",
+  "time": "2026-09-15T04:00:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "organization_id": "org_demo",
+    "project_id": "project_orders",
+    "aggregate_id": "task_backend",
+    "aggregate_version": 1,
+    "correlation_id": "correlation_orders",
+    "causation_id": "command_orders_1",
+    "task_id": "task_backend",
+    "owner_user_id": "human_a",
+    "change_id": "change_example"
+  }
+}

@@ -16,7 +16,8 @@ GRANT INSERT ON human_users,projects,memberships,repositories,organization_idemp
  artifact_contents,artifacts,run_reports,artifact_reviews,task_reviews,artifact_verifications,tool_policies,tool_invocations,approvals TO accp_api;
 GRANT UPDATE ON projects,memberships,organization_idempotency,contexts,context_versions,tasks,idempotency_records,
  outbox_events,agent_sessions,assignments,task_dependencies,task_runs,artifacts,tool_policies,tool_invocations,approvals TO accp_api;
-GRANT DELETE ON task_dependencies TO accp_api;
+GRANT DELETE ON task_dependencies,task_contexts TO accp_api;
+GRANT INSERT ON task_changes TO accp_api;
 GRANT INSERT ON audit_records,outbox_events,event_inbox,event_feed,event_failures,worker_health TO accp_worker;
 GRANT UPDATE ON tasks,task_runs,task_dependencies,tool_invocations,approvals,outbox_events,event_failures,worker_health TO accp_worker;
 GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA accp TO accp_api,accp_worker,accp_bootstrap;

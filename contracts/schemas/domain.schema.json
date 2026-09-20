@@ -602,6 +602,13 @@
         "updated_at": {
           "type": "string",
           "format": "date-time"
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "input_revision": {
+          "type": "integer",
+          "minimum": 1
         }
       },
       "required": [
