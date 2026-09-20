@@ -1,0 +1,49 @@
+name: accp-capacity
+services:
+  postgres:
+    image: postgres:17@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
+    cpu_period: 100000
+    cpu_quota: 300000
+    mem_limit: 10g
+    environment:
+      POSTGRES_DB: accp_capacity
+      POSTGRES_USER: capacity
+      POSTGRES_PASSWORD_FILE: /run/secrets/password
+    secrets: [password]
+    volumes: [data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD, pg_isready, -U, capacity, -d, accp_capacity]
+      interval: 2s
+      retries: 30
+  nats:
+    image: nats:2.11.9-alpine@sha256:777787bbb4c7c4083ec2213b0b8b14151617610a3e0d85776bd995cd46599c73
+    command: [-js, -sd, /data]
+    cpu_period: 100000
+    cpu_quota: 100000
+    mem_limit: 2g
+    volumes: [events:/data]
+  bench:
+    image: ${ACCP_BENCH_IMAGE:?Build benchmark image}
+    cpu_period: 100000
+    cpu_quota: 400000
+    mem_limit: 4g
+    environment:
+      ACCP_BENCH_ISOLATED: '1'
+      ACCP_NATS_URL: nats://nats:4222
+      GOMAXPROCS: '4'
+      ACCP_DB_MAX_CONNS: ${ACCP_DB_MAX_CONNS:-10}
+    secrets: [database_url]
+    volumes:
+      - ${ACCP_CAPACITY_DIR:?Set isolated results directory}:/results
+    command: [-mode, run]
+    depends_on:
+      postgres: {condition: service_healthy}
+      nats: {condition: service_started}
+secrets:
+  password:
+    file: ${ACCP_CAPACITY_DIR}/password
+  database_url:
+    file: ${ACCP_CAPACITY_DIR}/database-url
+volumes:
+  data:
+  events:

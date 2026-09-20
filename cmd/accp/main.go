@@ -16,6 +16,7 @@ import (
 
 	"github.com/JavaWeh/ACCP/internal/auth"
 	"github.com/JavaWeh/ACCP/internal/bootstrap"
+	"github.com/JavaWeh/ACCP/internal/buildinfo"
 	"github.com/JavaWeh/ACCP/internal/config"
 	"github.com/JavaWeh/ACCP/internal/controlplane"
 	"github.com/JavaWeh/ACCP/internal/database"
@@ -33,6 +34,9 @@ func main() {
 }
 
 func run() error {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		return buildinfo.Write(os.Stdout)
+	}
 	if err := config.LoadSecretFiles(); err != nil {
 		return err
 	}

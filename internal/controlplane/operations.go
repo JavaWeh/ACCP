@@ -4,6 +4,7 @@ import "encoding/json"
 
 func (s *Server) operationsRoutes(routes map[string]operation) {
 	for path, op := range map[string]operation{
+		"GET /api/v1/projects/{id}/audit-export":   {table: "projects", role: "ADMIN", run: executionAudit},
 		"GET /api/v1/projects/{id}/event-failures": {table: "projects", role: "ADMIN", run: listEventFailures},
 		"GET /api/v1/projects/{id}/diagnostics":    {table: "projects", role: "ADMIN", run: projectDiagnostics},
 		"GET /api/v1/projects/{id}/recovery-items": {table: "projects", role: "ADMIN", run: listRecoveryItems},

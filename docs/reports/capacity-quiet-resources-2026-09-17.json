@@ -1,0 +1,41 @@
+{
+  "checked_at": "2026-09-17T08:14:09.773Z",
+  "host_exclusive": false,
+  "concurrent_isolated_runs": false,
+  "runs": [
+    {
+      "label": "quiet-final",
+      "services": [
+        {
+          "service": "postgres",
+          "image": "sha256:7296f210ae81031ec955dbad9a67a84fe958572a2153b8d0826a647522904dc1",
+          "quota": 300000,
+          "period": 100000,
+          "cpus": 3,
+          "memory_bytes": 10737418240,
+          "enforced": true
+        },
+        {
+          "service": "nats",
+          "image": "sha256:e317eb6ac10bc33a158896aec219c58122b17191d82ad8059edfdd348687beca",
+          "quota": 100000,
+          "period": 100000,
+          "cpus": 1,
+          "memory_bytes": 2147483648,
+          "enforced": true
+        },
+        {
+          "service": "bench",
+          "image": "sha256:99b336b7cdc663d4382daf018c7e2e523ce08e5e01e255b4e7a2aaa4e04c4161",
+          "quota": 400000,
+          "period": 100000,
+          "cpus": 4,
+          "memory_bytes": 4294967296,
+          "enforced": true
+        }
+      ],
+      "total_cpus": 8,
+      "total_memory_gib": 16
+    }
+  ]
+}

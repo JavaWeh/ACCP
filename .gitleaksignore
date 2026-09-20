@@ -1,0 +1,3 @@
+# Reviewed false positive: SQL reads a synthetic migration-test idempotency key.
+# Exact historical fingerprint only; no rule or path is globally excluded.
+14a2b9d5a57590b79bd5fe95ebb2a60814ca190b:internal/database/upgrade_integration_test.go:generic-api-key:84

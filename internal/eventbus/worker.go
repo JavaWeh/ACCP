@@ -70,17 +70,13 @@ func (w *Worker) Run(ctx context.Context) error {
 			return nil
 		case <-ticker.C:
 		}
-		step, cancel := context.WithTimeout(ctx, 5*time.Second)
+		step, cancel := context.WithTimeout(ctx, time.Second)
 		healthy := w.nc.IsConnected()
-		if err := w.RelayOne(step); err != nil && ctx.Err() == nil {
+		if err := w.Drain(step, 64); err != nil && ctx.Err() == nil {
 			healthy = false
-			slog.Warn("event relay deferred", "error_type", fmt.Sprintf("%T", err))
+			slog.Warn("event delivery deferred", "error_type", fmt.Sprintf("%T", err))
 		}
 		cancel()
-		if err := w.ConsumeOne(ctx); err != nil && ctx.Err() == nil {
-			healthy = false
-			slog.Warn("event consume deferred", "error_type", fmt.Sprintf("%T", err))
-		}
 		if healthy && time.Since(lastHealth) > 5*time.Second {
 			healthCtx, done := context.WithTimeout(ctx, 2*time.Second)
 			_, err := w.pool.Exec(healthCtx, `INSERT INTO worker_health(id,event_at) VALUES('default',now()) ON CONFLICT(id) DO UPDATE SET event_at=now()`)
@@ -90,6 +86,37 @@ func (w *Worker) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// Drain bounds both work count and duration through the caller's deadline. Existing
+// per-message ordering, publish IDs, inbox dedupe and acknowledgement remain intact.
+func (w *Worker) Drain(ctx context.Context, limit int) error {
+	if limit < 1 || limit > 64 {
+		return errors.New("event drain limit must be 1 through 64")
+	}
+	var pending int
+	if err := w.pool.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM outbox_events WHERE delivered_at IS NULL AND next_attempt_at<=now() LIMIT $1) p`, limit).Scan(&pending); err != nil {
+		return err
+	}
+	info, err := w.consumer.Info(ctx)
+	if err != nil {
+		return err
+	}
+	// A delayed NAK or an unconfirmed ACK remains in NumAckPending even when
+	// no new messages exist. Keep polling it so recovery cannot stall forever.
+	count := min(limit, pending+int(min(info.NumPending, uint64(limit)))+min(info.NumAckPending, limit))
+	for i := 0; i < count; i++ {
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		if err = w.RelayOne(ctx); err != nil {
+			return err
+		}
+		if err = w.ConsumeOne(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 func (w *Worker) RelayOne(ctx context.Context) error {
 	tx, err := w.pool.Begin(ctx)
@@ -136,6 +163,7 @@ func (w *Worker) ConsumeOne(ctx context.Context) error {
 	}
 	for msg := range batch.Messages() {
 		if ctx.Err() != nil {
+			_ = msg.NakWithDelay(100 * time.Millisecond)
 			return ctx.Err()
 		}
 		step, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -143,6 +171,9 @@ func (w *Worker) ConsumeOne(ctx context.Context) error {
 		cancel()
 		if err == nil {
 			if err = msg.DoubleAck(ctx); err != nil {
+				// The feed is durable and deduplicated. Do not leave a lost ACK
+				// occupying the sole consumer slot for the full AckWait interval.
+				_ = msg.NakWithDelay(100 * time.Millisecond)
 				return err
 			}
 			continue

@@ -129,7 +129,7 @@ func (s *Server) ProcessTools(ctx context.Context) error {
 	}
 	return nil
 }
-func (s *Server) invocationTransaction(ctx context.Context, project, org string) (*request, error) {
+func (s *Server) invocationTransaction(ctx context.Context, project, org string, waitForAuthority ...bool) (*request, error) {
 	tx, e := s.pool.Begin(ctx)
 	if e != nil {
 		return nil, e
@@ -143,7 +143,11 @@ func (s *Server) invocationTransaction(ctx context.Context, project, org string)
 		return nil, pgx.ErrNoRows
 	}
 	var id string
-	e = tx.QueryRow(ctx, `SELECT id FROM projects WHERE id=$1 AND organization_id=$2 FOR UPDATE SKIP LOCKED`, project, org).Scan(&id)
+	lock := " FOR UPDATE SKIP LOCKED"
+	if len(waitForAuthority) > 0 && waitForAuthority[0] {
+		lock = " FOR UPDATE"
+	}
+	e = tx.QueryRow(ctx, `SELECT id FROM projects WHERE id=$1 AND organization_id=$2`+lock, project, org).Scan(&id)
 	if e != nil {
 		_ = tx.Rollback(ctx)
 		return nil, e
@@ -218,7 +222,9 @@ func (s *Server) processInvocation(ctx context.Context, id, project, org string)
 		return e
 	}
 	// Hold the project authorization lock through the bounded effect. Revocation serializes with this boundary.
-	next, e := s.invocationTransaction(ctx, project, org)
+	// Once intent is committed, ordinary contention must not abandon execution.
+	// Wait within the caller's deadline, then revalidate authority under the lock.
+	next, e := s.invocationTransaction(ctx, project, org, true)
 	if e == pgx.ErrNoRows {
 		return nil
 	}

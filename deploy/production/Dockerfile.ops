@@ -4,7 +4,11 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd/accp-ops ./cmd/accp-ops
 COPY internal/recovery ./internal/recovery
-RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /accp-ops ./cmd/accp-ops
+COPY internal/buildinfo ./internal/buildinfo
+ARG VERSION=development
+ARG REVISION=unknown
+ARG BUILT_AT=unknown
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/JavaWeh/ACCP/internal/buildinfo.Version=${VERSION} -X github.com/JavaWeh/ACCP/internal/buildinfo.Revision=${REVISION} -X github.com/JavaWeh/ACCP/internal/buildinfo.BuiltAt=${BUILT_AT}" -o /accp-ops ./cmd/accp-ops
 FROM postgres:17@sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
 COPY --from=build /accp-ops /usr/local/bin/accp-ops
 USER 65532:65532

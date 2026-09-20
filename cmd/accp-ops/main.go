@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"filippo.io/age"
+	"github.com/JavaWeh/ACCP/internal/buildinfo"
 	"github.com/JavaWeh/ACCP/internal/recovery"
 )
 
@@ -24,6 +25,9 @@ func main() {
 	}
 }
 func run() error {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		return buildinfo.Write(os.Stdout)
+	}
 	if len(os.Args) < 2 {
 		return errors.New("usage: accp-ops keygen|backup|verify-backup|restore")
 	}
@@ -41,6 +45,8 @@ func run() error {
 	incident := f.String("incident-at", "", "RFC3339 incident time for measured RPO")
 	isolated := f.Bool("isolated", false, "target is a new isolated database with no runtime access")
 	item := f.String("item", "", "recovery item id")
+	project := f.String("project", "", "project for handoff or cleanup")
+	execute := f.Bool("execute", false, "execute expired-key cleanup; default is preview")
 	if err := f.Parse(os.Args[2:]); err != nil {
 		return err
 	}
@@ -85,6 +91,8 @@ func run() error {
 	}
 	url := strings.TrimSpace(string(raw))
 	switch action {
+	case "diagnostics", "audit-export", "cleanup":
+		return recovery.Handoff(ctx, url, action, *output, *actor, *project, *reason, *execute)
 	case "resolve-recovery":
 		return recovery.Resolve(ctx, url, *item, *actor, *reason)
 	case "finish-recovery":
