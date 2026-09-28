@@ -1,5 +1,7 @@
 # ACCP
 
+[简体中文](README.md) | [English](README.en.md)
+
 ![ACCP 标志](web/public/brand/accp-logo-horizontal.svg)
 
 [![Go 1.27.1](https://img.shields.io/badge/Go-1.27.1-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
