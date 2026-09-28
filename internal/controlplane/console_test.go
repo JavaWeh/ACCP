@@ -26,3 +26,22 @@ func TestConsoleCSPAllowsIssuerOriginWithoutPathRestriction(t *testing.T) {
 		t.Fatal("unrelated restrictions changed")
 	}
 }
+
+func TestProductionConsoleRejectsDevelopmentLoginButServesDeepLinks(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html>console</html>"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{mux: http.NewServeMux(), options: Options{WebDirectory: dir, AuthMode: "oidc"}}
+	s.mountConsole()
+	for path, want := range map[string]int{
+		"/dev-login":                             404,
+		"/projects/project_demo/tasks/task_demo": 200,
+	} {
+		record := httptest.NewRecorder()
+		s.mux.ServeHTTP(record, httptest.NewRequest("GET", path, nil))
+		if record.Code != want {
+			t.Fatalf("%s: got %d, want %d", path, record.Code, want)
+		}
+	}
+}

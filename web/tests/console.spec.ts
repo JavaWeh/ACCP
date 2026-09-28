@@ -17,7 +17,7 @@ test("human console creates and publishes context, creates a task, and reads aud
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
+  await page.goto("/dev-login");
   await expect(
     page.getByRole("heading", { name: "进入协作工作空间" }),
   ).toBeVisible();
@@ -28,7 +28,7 @@ test("human console creates and publishes context, creates a task, and reads aud
   ).toBeVisible();
   await page.screenshot({ path: "test-results/overview.png", fullPage: true });
   await page
-    .getByRole("button", { name: "共享上下文", exact: false })
+    .getByRole("button", { name: "项目资料", exact: false })
     .first()
     .click();
   await page.getByRole("button", { name: "新建上下文", exact: false }).click();
@@ -67,24 +67,24 @@ test("human console creates and publishes context, creates a task, and reads aud
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: new RegExp(taskName) }).click();
   await expect(
-    page.getByRole("dialog").getByText("草稿", { exact: true }),
+    page
+      .getByRole("region", { name: "任务详情" })
+      .getByText("草稿", { exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "分配并提交执行", exact: true })
     .click();
   await expect(
-    page.getByRole("dialog").getByText("可执行", { exact: true }),
+    page
+      .getByRole("region", { name: "任务详情" })
+      .getByText("可执行", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "任务协作", exact: true })
+    .click();
   await page.screenshot({ path: "test-results/tasks.png", fullPage: true });
-  for (const name of [
-    "交付成果",
-    "审批中心",
-    "执行代理",
-    "工具网关",
-    "项目成员",
-    "审计记录",
-  ]) {
+  for (const name of ["交付成果", "待审批", "执行客户端", "项目成员"]) {
     await page
       .getByRole("navigation")
       .getByRole("button", { name, exact: false })
@@ -94,8 +94,14 @@ test("human console creates and publishes context, creates a task, and reads aud
     ).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
   }
+  await page.getByTestId("area-management").click();
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "审计记录" })
+    .click();
+  await expect(page.getByRole("heading", { name: "审计记录" })).toBeVisible();
   await page.getByRole("button", { name: "退出", exact: true }).click();
-  await expect(page.getByLabel("个人开发凭证")).toBeVisible();
+  await expect(page.getByText("此环境使用本地开发认证。")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -103,7 +109,7 @@ test("mobile console remains navigable and credentials are never persisted", asy
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/dev-login");
   await page.getByLabel("个人开发凭证").fill(bob);
   await page.getByRole("button", { name: "登录工作空间", exact: true }).click();
   await expect(
@@ -118,7 +124,7 @@ test("mobile console remains navigable and credentials are never persisted", asy
   ).toBe(false);
   await page.screenshot({ path: "test-results/mobile.png", fullPage: true });
   await page.reload();
-  await expect(page.getByLabel("个人开发凭证")).toBeVisible();
+  await expect(page.getByText("此环境使用本地开发认证。")).toBeVisible();
 });
 
 test("Owner reviews actual protocol evidence and completes the task from Web", async ({
@@ -141,7 +147,7 @@ test("Owner reviews actual protocol evidence and completes the task from Web", a
     ),
   );
   expect(report.task_status).toBe("IN_REVIEW");
-  await page.goto("/");
+  await page.goto("/dev-login");
   await page.getByLabel("个人开发凭证").fill(bob);
   await page.getByRole("button", { name: "登录工作空间", exact: true }).click();
   await page
@@ -149,9 +155,10 @@ test("Owner reviews actual protocol evidence and completes the task from Web", a
     .getByRole("button", { name: "任务协作", exact: false })
     .click();
   await page.getByLabel("搜索任务").fill("M2 protocol acceptance");
-  const visibleTaskID =
-    report.task_id.slice(0, 8) + "…" + report.task_id.slice(-6);
-  await page.getByRole("button", { name: new RegExp(visibleTaskID) }).click();
+  await page
+    .getByRole("button", { name: /M2 protocol acceptance/ })
+    .first()
+    .click();
   await page.getByRole("tab", { name: "成果与验收", exact: true }).click();
   await page.getByRole("heading", { name: "Owner 最终验收" }).waitFor();
   await page
@@ -166,17 +173,22 @@ test("Owner reviews actual protocol evidence and completes the task from Web", a
     );
   await page.getByRole("button", { name: "提交验收决定", exact: true }).click();
   await expect(
-    page.getByRole("dialog").getByText("已完成", { exact: true }),
+    page
+      .getByRole("region", { name: "任务详情" })
+      .getByText("已完成", { exact: true }),
   ).toBeVisible();
   await page.getByRole("tab", { name: "报告与记录", exact: true }).click();
   await expect(
-    page.getByRole("dialog").getByText(/接受 · user_bob/),
+    page.getByRole("region", { name: "任务详情" }).getByText(/接受 · user_bob/),
   ).toBeVisible();
   await page.screenshot({
     path: "test-results/owner-review.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "任务协作", exact: true })
+    .click();
   await page
     .getByRole("navigation")
     .getByRole("button", { name: "交付成果", exact: false })
@@ -184,7 +196,7 @@ test("Owner reviews actual protocol evidence and completes the task from Web", a
   await expect(page.getByText("已接受", { exact: true }).first()).toBeVisible();
   await page
     .getByRole("navigation")
-    .getByRole("button", { name: "执行代理", exact: false })
+    .getByRole("button", { name: "执行客户端", exact: false })
     .click();
   const client = `Browser adapter ${Date.now()}`;
   await page

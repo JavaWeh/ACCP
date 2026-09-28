@@ -20,6 +20,7 @@ export class ApiError extends Error {
   }
 }
 export class API {
+  private uncertainWrites = new Map<string, string>();
   constructor(
     public token: string,
     private onExpired: () => void,
@@ -29,12 +30,18 @@ export class API {
     body?: unknown,
     version?: number,
   ): Promise<T> {
+    const operation =
+      body === undefined
+        ? ""
+        : `${path}\n${version ?? ""}\n${JSON.stringify(body)}`;
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.token}`,
     };
     if (body !== undefined) {
       headers["Content-Type"] = "application/json";
-      headers["Idempotency-Key"] = crypto.randomUUID();
+      const key = this.uncertainWrites.get(operation) || crypto.randomUUID();
+      this.uncertainWrites.set(operation, key);
+      headers["Idempotency-Key"] = key;
     }
     if (version !== undefined) headers["If-Match"] = `"${version}"`;
     const res = await fetch(`/api/v1${path}`, {
@@ -45,6 +52,8 @@ export class API {
       signal: AbortSignal.timeout(20000),
     });
     const data = await res.json();
+    if (body !== undefined && res.status < 500)
+      this.uncertainWrites.delete(operation);
     if (!res.ok) {
       if (res.status === 401) this.onExpired();
       throw new ApiError(res.status, data.code, data.detail, data.trace_id);

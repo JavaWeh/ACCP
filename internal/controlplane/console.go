@@ -17,7 +17,7 @@ func (s *Server) mountConsole() {
 		respond(w, reply{status: 200, body: Object{"mode": s.options.AuthMode, "issuer": s.options.OIDCIssuer, "client_id": s.options.OIDCClientID, "public_url": s.options.PublicURL}})
 	})
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" || s.options.WebDirectory == "" || strings.HasPrefix(r.URL.Path, "/api/") {
+		if r.Method != "GET" || s.options.WebDirectory == "" || strings.HasPrefix(r.URL.Path, "/api/") || (r.URL.Path == "/dev-login" && s.options.AuthMode != "development") {
 			writeProblem(w, newID("trace"), fail(404, "NOT_FOUND", "Route not found."))
 			return
 		}
