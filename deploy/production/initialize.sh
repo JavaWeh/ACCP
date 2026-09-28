@@ -14,6 +14,7 @@ REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 REVOKE ALL ON DATABASE accp FROM PUBLIC;
 GRANT CONNECT ON DATABASE accp TO accp_migrator,accp_bootstrap,accp_api,accp_worker;
 CREATE SCHEMA accp AUTHORIZATION accp_migrator;
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA accp;
 ALTER ROLE accp_migrator IN DATABASE accp SET search_path=accp;
 ALTER ROLE accp_bootstrap IN DATABASE accp SET search_path=accp;
 ALTER ROLE accp_api IN DATABASE accp SET search_path=accp;
