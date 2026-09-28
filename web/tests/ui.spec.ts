@@ -7,14 +7,22 @@ import { enUS } from "../src/locales/en-US";
 import { ruRU } from "../src/locales/ru-RU";
 
 // Synthetic data only: these tests never contact an ACCP deployment.
-async function consoleFixture(page: Page) {
-  const posts: { path: string; body: Record<string, any> }[] = [];
+async function consoleFixture(
+  page: Page,
+  roles = ["ADMIN", "MEMBER", "REVIEWER"],
+) {
+  const posts: {
+    path: string;
+    body: Record<string, any>;
+    key: string | undefined;
+  }[] = [];
+  const gets: string[] = [];
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const member = {
     id: "user_demo",
     display_name: "演示用户",
-    roles: ["ADMIN", "MEMBER", "REVIEWER"],
+    roles,
     active: true,
     version: 1,
   };
@@ -57,6 +65,7 @@ async function consoleFixture(page: Page) {
   };
   const tasks = [task];
   let failTask = false;
+  let failNetworkTask = false;
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace("/api/v1", "");
@@ -64,8 +73,12 @@ async function consoleFixture(page: Page) {
       route.fulfill({ status, json: body });
     if (request.method() === "POST") {
       const body = request.postDataJSON();
-      posts.push({ path, body });
+      posts.push({ path, body, key: request.headers()["idempotency-key"] });
       if (path === "/projects/project_demo/tasks") {
+        if (failNetworkTask) {
+          failNetworkTask = false;
+          return route.abort("failed");
+        }
         if (failTask) {
           failTask = false;
           return send(
@@ -94,6 +107,10 @@ async function consoleFixture(page: Page) {
         media_type: "text/markdown",
       });
     }
+    gets.push(
+      new URL(request.url()).pathname.replace("/api/v1", "") +
+        new URL(request.url()).search,
+    );
     if (path === "/auth/config") return send({ mode: "development" });
     if (path === "/me") return send(member);
     if (path === "/projects")
@@ -105,7 +122,33 @@ async function consoleFixture(page: Page) {
       });
     if (/\/projects\/[^/]+\/members$/.test(path))
       return send({ items: [member] });
-    if (/\/projects\/[^/]+\/tasks$/.test(path)) return send({ items: tasks });
+    if (/\/projects\/[^/]+\/workbench$/.test(path))
+      return send({
+        mine: tasks.filter((item) => item.owner_user_id === member.id).length,
+        review: tasks.filter((item) => item.status === "IN_REVIEW").length,
+        attention: tasks.filter((item) =>
+          ["BLOCKED", "FAILED"].includes(item.status),
+        ).length,
+        checked_at: new Date().toISOString(),
+        approvals: roles.includes("REVIEWER") ? 1 : 0,
+        action_tasks: tasks.filter((item) => item.status === "IN_REVIEW"),
+        recent_tasks: tasks,
+      });
+    if (/\/projects\/[^/]+\/tasks$/.test(path)) {
+      const query = new URL(request.url()).searchParams;
+      return send({
+        items: tasks.filter(
+          (item) =>
+            (!query.get("owner") ||
+              item.owner_user_id === query.get("owner")) &&
+            (!query.get("status") || item.status === query.get("status")) &&
+            (!query.get("q") ||
+              `${item.title} ${item.objective}`
+                .toLowerCase()
+                .includes(query.get("q")!.toLowerCase())),
+        ),
+      });
+    }
     if (/\/projects\/[^/]+\/contexts$/.test(path))
       return send({ items: contexts });
     if (path === "/contexts/context_api/versions")
@@ -169,14 +212,18 @@ async function consoleFixture(page: Page) {
   });
   return {
     posts,
+    gets,
     errors,
     failNextTask: () => {
       failTask = true;
     },
+    failNextTaskNetwork: () => {
+      failNetworkTask = true;
+    },
   };
 }
 async function login(page: Page) {
-  await page.goto("/");
+  await page.goto("/dev-login");
   await page.getByLabel("个人开发凭证").fill("synthetic-ui-test-value");
   await page.getByRole("button", { name: "登录工作空间", exact: true }).click();
   await expect(
@@ -187,10 +234,34 @@ async function login(page: Page) {
   ).toBeVisible();
 }
 async function navigate(page: Page, name: string) {
-  await page
+  const adminNames = new Set([
+    "项目设置",
+    "工具与集成",
+    "系统运行",
+    "审计记录",
+    "Project settings",
+    "Tools & integrations",
+    "System status",
+    "Audit log",
+    "Настройки проекта",
+    "Инструменты и интеграции",
+    "Состояние системы",
+    "Журнал аудита",
+  ]);
+  const management = page.getByTestId("area-management");
+  if (adminNames.has(name)) {
+    if ((await management.getAttribute("aria-current")) !== "page")
+      await management.click();
+  } else if (
+    (await management.count()) &&
+    (await management.getAttribute("aria-current")) === "page"
+  ) {
+    await page.getByTestId("area-workspace").click();
+  }
+  const destination = page
     .getByRole("navigation")
-    .getByRole("button", { name, exact: true })
-    .click();
+    .getByRole("button", { name, exact: true });
+  await destination.click();
 }
 async function createTask(page: Page) {
   await navigate(page, "任务协作");
@@ -231,12 +302,34 @@ test("required fields, multiple selection, retry and submit preserve API payload
   expect(fixture.errors).toEqual([]);
 });
 
+test("retry after an unknown network result reuses the write key", async ({
+  page,
+}) => {
+  const fixture = await consoleFixture(page);
+  await login(page);
+  await createTask(page);
+  await page.getByRole("button", { name: /执行依据/ }).click();
+  await page.getByRole("option", { name: /订单 API/ }).click();
+  await page.keyboard.press("Escape");
+  fixture.failNextTaskNetwork();
+  await page.getByRole("button", { name: "创建草稿", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page.getByRole("button", { name: "创建草稿", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const writes = fixture.posts.filter(
+    (post) => post.path === "/projects/project_demo/tasks",
+  );
+  expect(writes).toHaveLength(2);
+  expect(writes[0].key).toBeTruthy();
+  expect(writes[1].key).toBe(writes[0].key);
+});
+
 test("dialogs trap focus, Escape dismisses and returns focus to the trigger", async ({
   page,
 }) => {
   const fixture = await consoleFixture(page);
   await login(page);
-  await navigate(page, "共享上下文");
+  await navigate(page, "项目资料");
   const trigger = page.getByRole("button", { name: "＋ 新建上下文" });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "新建共享上下文" });
@@ -279,7 +372,9 @@ test("keyboard tabs and Owner checkboxes submit the selected evidence", async ({
   await page.getByLabel("审核意见").fill("已核对证据");
   await page.getByRole("button", { name: "提交验收决定" }).click();
   await expect(
-    page.getByRole("dialog").getByText("已完成", { exact: true }),
+    page
+      .getByRole("region", { name: "任务详情" })
+      .getByText("已完成", { exact: true }),
   ).toBeVisible();
   expect(fixture.posts.at(-1)!.body).toMatchObject({
     decision: "ACCEPT",
@@ -295,12 +390,116 @@ test("keyboard tabs and Owner checkboxes submit the selected evidence", async ({
   expect(fixture.errors).toEqual([]);
 });
 
+test("task links reopen after authentication and browser navigation", async ({
+  page,
+}) => {
+  await consoleFixture(page);
+  await login(page);
+  await navigate(page, "任务协作");
+  await page.getByRole("button", { name: /验证协作界面/ }).click();
+  await expect(page).toHaveURL(/\/projects\/project_demo\/tasks\/task_demo$/);
+  await expect(page.getByRole("region", { name: "任务详情" })).toBeVisible();
+  await page.reload();
+  await page.getByRole("link", { name: "前往开发登录 →" }).click();
+  await page.getByLabel("个人开发凭证").fill("synthetic-ui-test-value");
+  await page.getByRole("button", { name: "登录工作空间", exact: true }).click();
+  await expect(page).toHaveURL(/\/projects\/project_demo\/tasks\/task_demo$/);
+  await expect(
+    page
+      .getByRole("region", { name: "任务详情" })
+      .getByRole("heading", { name: "验证协作界面" }),
+  ).toBeVisible();
+  await page
+    .getByRole("region", { name: "任务详情" })
+    .getByRole("button", { name: /任务协作/ })
+    .click();
+  await expect(
+    page.getByRole("button", { name: /验证协作界面/ }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("region", { name: "任务详情" })).toBeVisible();
+});
+
+test("administrators see readable diagnostics and replay requires a reason", async ({
+  page,
+}) => {
+  const fixture = await consoleFixture(page);
+  await page.route("**/api/v1/projects/project_demo/diagnostics", (route) =>
+    route.fulfill({
+      json: {
+        maintenance: true,
+        outbox_pending: 1,
+        event_failures: 1,
+        unknown_operations: 0,
+        pending_approvals: 0,
+        expired_leases: 0,
+        recovery_pending: 0,
+        checked_at: "2026-01-01T00:00:00Z",
+      },
+    }),
+  );
+  await page.route(
+    "**/api/v1/projects/project_demo/event-failures?*",
+    (route) =>
+      route.fulfill({
+        json: {
+          items: [
+            {
+              id: "event_demo",
+              event_type: "context.published",
+              publish_attempts: 2,
+              publish_error: "DELIVERY_FAILED",
+              failed_at: "2026-01-01T00:00:00Z",
+            },
+          ],
+        },
+      }),
+  );
+  await login(page);
+  await navigate(page, "系统运行");
+  await expect(
+    page.getByText("系统处于维护模式，新的写入暂不可用。"),
+  ).toBeVisible();
+  const event = page
+    .locator("article")
+    .filter({ hasText: "context.published" });
+  await expect(
+    event.getByText("DELIVERY_FAILED", { exact: true }),
+  ).toBeVisible();
+  await event.getByText("授权重放").click();
+  await event.getByLabel("重放原因").fill("已核对下游未处理");
+  await event.getByRole("button", { name: "确认重放" }).click();
+  await expect
+    .poll(() => fixture.posts.at(-1)?.path)
+    .toBe("/projects/project_demo/events/event_demo/replay");
+});
+
+test("viewer navigation excludes actions and administrator pages", async ({
+  page,
+}) => {
+  await consoleFixture(page, ["VIEWER"]);
+  await login(page);
+  const nav = page.getByRole("navigation");
+  await expect(nav.getByRole("button", { name: "项目设置" })).toHaveCount(0);
+  await expect(nav.getByRole("button", { name: "系统运行" })).toHaveCount(0);
+  await expect(nav.getByRole("button", { name: "待审批" })).toHaveCount(0);
+  await navigate(page, "任务协作");
+  await expect(page.getByRole("button", { name: "＋ 创建任务" })).toHaveCount(
+    0,
+  );
+  await page.evaluate(() => {
+    history.pushState(null, "", "/projects/project_demo/operations");
+    dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await expect(page.getByText("此页面需要更高权限")).toBeVisible();
+});
+
 test("delegation defaults and member permissions preserve checked values", async ({
   page,
 }) => {
   const fixture = await consoleFixture(page);
   await login(page);
-  await navigate(page, "执行代理");
+  await navigate(page, "执行客户端");
   await page.getByRole("button", { name: "授权执行 →" }).click();
   await expect(
     page.getByRole("checkbox", { name: "通过网关请求工具操作" }),
@@ -334,6 +533,62 @@ test("delegation defaults and member permissions preserve checked values", async
   expect(fixture.errors).toEqual([]);
 });
 
+test("task search, help and sanitized diagnostic export are reachable", async ({
+  page,
+}) => {
+  const fixture = await consoleFixture(page);
+  await login(page);
+  await navigate(page, "任务协作");
+  await page.getByRole("textbox", { name: "搜索任务" }).fill("验证");
+  await expect
+    .poll(() =>
+      fixture.gets.some(
+        (path) =>
+          path.includes("/tasks?") && path.includes("q=%E9%AA%8C%E8%AF%81"),
+      ),
+    )
+    .toBe(true);
+  await navigate(page, "使用帮助");
+  await expect(
+    page.getByRole("heading", { name: "从任务到交付" }),
+  ).toBeVisible();
+  await navigate(page, "系统运行");
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "导出诊断" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(
+    /^accp-diagnostics-project_demo-/,
+  );
+  expect(fixture.errors).toEqual([]);
+});
+
+test("acceptance requires every criterion and verified evidence", async ({
+  page,
+}) => {
+  const fixture = await consoleFixture(page);
+  await login(page);
+  await navigate(page, "任务协作");
+  await page.getByRole("button", { name: /验证协作界面/ }).click();
+  await page.getByRole("tab", { name: "成果与验收" }).click();
+  await page.getByLabel("审核意见").fill("核对后确认");
+  await page.getByRole("button", { name: "提交验收决定" }).click();
+  await expect(
+    page.getByText("请先确认全部验收条件，或选择退回修改。"),
+  ).toBeVisible();
+  expect(
+    fixture.posts.filter((item) => item.path.endsWith("/reviews")),
+  ).toHaveLength(0);
+  await page.getByRole("checkbox", { name: "核对测试证据" }).press("Space");
+  await page.getByRole("button", { name: "提交验收决定" }).click();
+  await expect
+    .poll(
+      () =>
+        fixture.posts.filter((item) => item.path.endsWith("/reviews")).length,
+    )
+    .toBe(1);
+});
+
 test("all pages render and mobile navigation stays accessible", async ({
   page,
 }) => {
@@ -348,11 +603,11 @@ test("all pages render and mobile navigation stays accessible", async ({
   ).toBe(true);
   for (const name of [
     "任务协作",
-    "共享上下文",
+    "项目资料",
     "交付成果",
-    "审批中心",
-    "执行代理",
-    "工具网关",
+    "待审批",
+    "执行客户端",
+    "工具与集成",
     "项目成员",
     "审计记录",
   ]) {
@@ -393,12 +648,12 @@ test("login, workspace, dialog and table pass automated accessibility checks", a
       })),
     ).toEqual([]);
   }
-  await page.goto("/");
+  await page.goto("/dev-login");
   await expect(page.getByLabel("个人开发凭证")).toBeVisible();
   await page.screenshot({ path: "test-results/ui/login.png", fullPage: true });
   await check();
   await login(page);
-  await expect(page.getByText("把目标变成可追溯的交付。")).toBeVisible();
+  await expect(page.getByText("跟进任务，确认交付。")).toBeVisible();
   await page.screenshot({
     path: "test-results/ui/overview.png",
     fullPage: true,
@@ -503,7 +758,7 @@ test.describe("Russian workspace", () => {
     page,
   }) => {
     const fixture = await consoleFixture(page);
-    await page.goto("/");
+    await page.goto("/dev-login");
     await expect(
       page.getByRole("combobox", { name: "Язык", exact: true }),
     ).toHaveValue("ru-RU");
@@ -529,11 +784,11 @@ test.describe("Russian workspace", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const name of [
       "Задачи",
-      "Общий контекст",
+      "Материалы проекта",
       "Артефакты",
-      "Согласования",
-      "Агенты",
-      "Шлюз инструментов",
+      "На согласовании",
+      "Клиенты выполнения",
+      "Инструменты и интеграции",
       "Участники",
       "Журнал аудита",
       "Обзор",
@@ -607,7 +862,7 @@ test("switching language preserves login input, page and filters and persists af
   page,
 }) => {
   const fixture = await consoleFixture(page);
-  await page.goto("/");
+  await page.goto("/dev-login");
   await page.getByLabel("个人开发凭证").fill("synthetic-ui-test-value");
   await page
     .getByRole("combobox", { name: "语言", exact: true })
@@ -667,7 +922,7 @@ test.describe("English workspace", () => {
     page,
   }) => {
     const fixture = await consoleFixture(page);
-    await page.goto("/");
+    await page.goto("/dev-login");
     await expect(
       page.getByRole("combobox", { name: "Language", exact: true }),
     ).toHaveValue("en-US");
@@ -700,11 +955,11 @@ test.describe("English workspace", () => {
     });
     for (const name of [
       "Tasks",
-      "Shared context",
+      "Project materials",
       "Artifacts",
-      "Approvals",
-      "Agents",
-      "Tool gateway",
+      "To review",
+      "Execution clients",
+      "Tools & integrations",
       "Members",
       "Audit log",
     ]) {
@@ -744,13 +999,15 @@ test.describe("English workspace", () => {
       .getByRole("button", { name: "Submit acceptance decision", exact: true })
       .click();
     await expect(
-      page.getByRole("dialog").getByText("Done", { exact: true }),
+      page
+        .getByRole("region", { name: "Task details" })
+        .getByText("Done", { exact: true }),
     ).toBeVisible();
     expect(fixture.posts.at(-1)!.body).toMatchObject({
       decision: "ACCEPT",
       acceptance_checks: [true],
     });
-    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await navigate(page, "Tasks");
     await page.setViewportSize({ width: 390, height: 844 });
     await navigate(page, "Overview");
     await expect(
@@ -779,7 +1036,7 @@ test.describe("locale fallbacks", () => {
     await page.addInitScript(() =>
       localStorage.setItem("accp.locale", "invalid"),
     );
-    await page.goto("/");
+    await page.goto("/dev-login");
     await expect(
       page.getByRole("combobox", { name: "语言", exact: true }),
     ).toHaveValue("zh-CN");
@@ -818,7 +1075,7 @@ test.describe("locale fallbacks", () => {
         throw new DOMException("Blocked", "SecurityError");
       };
     });
-    await page.goto("/");
+    await page.goto("/dev-login");
     await page
       .getByRole("combobox", { name: "语言", exact: true })
       .selectOption("en-US");

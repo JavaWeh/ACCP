@@ -27,9 +27,10 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
         ).length,
     ),
   ).toBe(0);
+  await page.getByTestId("area-management").click();
   await page
     .getByRole("navigation")
-    .getByRole("button", { name: "项目管理", exact: true })
+    .getByRole("button", { name: "项目设置", exact: true })
     .click();
   const create = page.locator("section").filter({
     has: page.getByRole("heading", { name: "创建项目", exact: true }),

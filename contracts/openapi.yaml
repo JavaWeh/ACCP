@@ -318,6 +318,26 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - name: q
+          in: query
+          required: false
+          description: Case-insensitive title or objective substring; up to 200 bytes.
+          schema: {type: string, maxLength: 200}
+        - name: owner
+          in: query
+          required: false
+          description: Filter by the responsible user ID.
+          schema: {type: string, maxLength: 128}
+        - name: status
+          in: query
+          required: false
+          description: Filter by current task status.
+          schema: {type: string, maxLength: 32}
+        - name: updated_after
+          in: query
+          required: false
+          description: RFC3339 timestamp for incremental task reads.
+          schema: {type: string, format: date-time}
       responses:
         "200":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
@@ -344,6 +364,46 @@ paths:
           $ref: "#/components/responses/Problem"
       x-accp-milestone: M1
       x-accp-required-scope: tasks:read
+  /projects/{id}/workbench:
+    get:
+      operationId: projectWorkbench
+      tags: [Tasks]
+      summary: Read the current member's task summary and recent work
+      description: Counts and short task lists are scoped to the current project; approval counts are visible only to REVIEWER or ADMIN.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Current workbench snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [mine, review, attention, approvals, action_tasks, recent_tasks, checked_at]
+                properties:
+                  mine: {type: integer, minimum: 0}
+                  review: {type: integer, minimum: 0}
+                  attention: {type: integer, minimum: 0}
+                  approvals: {type: integer, minimum: 0}
+                  action_tasks:
+                    type: array
+                    maxItems: 6
+                    items: {$ref: ./schemas/domain.schema.json#/$defs/Task}
+                  recent_tasks:
+                    type: array
+                    maxItems: 6
+                    items: {$ref: ./schemas/domain.schema.json#/$defs/Task}
+                  checked_at: {type: string, format: date-time}
+        '401': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
   /tasks/{id}:
     get:
       operationId: getTask

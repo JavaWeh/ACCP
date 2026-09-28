@@ -12,6 +12,14 @@ npm run dev
 
 Vite 将 `/api` 代理至 `http://127.0.0.1:18080`。登录与业务数据来自 ACCP API。
 
+正式环境使用 OIDC 企业登录。本地开发认证由服务端的 `development` 模式启用，
+凭证表单仅位于 `/dev-login`；普通入口不会直接展示凭证输入框。
+正式环境的 `/dev-login` 返回 404。使用与售后流程见
+[Web 使用与支持指南](../docs/web-console-guide.md)。
+任务详情采用 `/projects/{projectId}/tasks/{taskId}`，刷新后可重新登录并返回该任务。
+项目页面也使用稳定 URL，浏览器前进、后退可恢复页面与项目选择。
+工作台使用服务端汇总和增量任务更新；任务列表在服务端分页、筛选与搜索。
+
 ## UI 约定
 
 - `src/ui.tsx` 组合 HeroUI 的表单、输入、选择、复选框、弹窗和状态反馈。
