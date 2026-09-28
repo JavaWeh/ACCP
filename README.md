@@ -2,11 +2,21 @@
 
 ![ACCP 标志](web/public/brand/accp-logo-horizontal.svg)
 
+[![Go 1.27.1](https://img.shields.io/badge/Go-1.27.1-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
+[![React 19.3.0](https://img.shields.io/badge/React-19.3.0-61DAFB?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript 7.0.2](https://img.shields.io/badge/TypeScript-7.0.2-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite 8.3.0](https://img.shields.io/badge/Vite-8.3.0-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
+[![HeroUI 3.2.5](https://img.shields.io/badge/HeroUI-3.2.5-18181B?style=flat-square)](https://www.heroui.com/)
+[![Tailwind CSS 4.3.3](https://img.shields.io/badge/Tailwind_CSS-4.3.3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![NATS 2.11.9](https://img.shields.io/badge/NATS-2.11.9-27AAE1?style=flat-square&logo=natsdotio&logoColor=white)](https://nats.io/)
+[![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-green?style=flat-square)](LICENSE)
+
 **让团队与 AI Coding Agent 围绕同一个任务，交付可验收、可追溯的成果。**
 
 ACCP（Agent Collaboration Control Plane）是面向研发团队的 AI 协作管理平台。团队在浏览器中管理任务、共享项目资料、审核成果与审批工具操作；Agent 通过 Bridge 接入，领取任务、获取上下文并提交成果。每项任务由人类负责人最终验收。
 
-[快速开始](#快速开始) · [使用指南](docs/web-console-guide.md) · [私有部署](docs/production-deployment.md) · [接入 Agent](docs/m2-execution.md#使用-local-bridge-和-go-sdk) · [参与贡献](CONTRIBUTING.md)
+[快速开始](#快速开始) · [技术栈](#技术栈) · [使用指南](docs/web-console-guide.md) · [私有部署](docs/production-deployment.md) · [接入 Agent](docs/m2-execution.md#使用-local-bridge-和-go-sdk) · [参与贡献](CONTRIBUTING.md) · [开源致谢](#开源致谢)
 
 ## 为什么使用 ACCP
 
@@ -47,6 +57,21 @@ flowchart LR
 例如交付一个订单查询 API：团队先发布接口约定，为实现和测试分别创建任务，并设置依赖。执行 Agent 读取对应快照，提交代码或测试报告；负责人根据已核验成果确认验收条件。需要通过网关执行高风险工具操作时，由另一位审核人审批。任务、执行、资料版本、成果和审核记录共同保留为交付依据。
 
 详细操作见 [Web 使用指南](docs/web-console-guide.md)；完整场景见 [订单查询 API 协作示例](docs/collaboration-flow.md)。
+
+## 技术栈
+
+| 层次 | 技术 | 在 ACCP 中的用途 |
+| --- | --- | --- |
+| 后端服务 | Go、标准库 `net/http` | API、任务协作逻辑、工具网关、Worker 与运维命令 |
+| Web 控制台 | React、TypeScript、Vite | 控制台界面、类型检查、开发与生产构建 |
+| 界面与样式 | HeroUI、Tailwind CSS | 交互组件、主题与响应式布局 |
+| 数据与事件 | PostgreSQL、pgx、NATS JetStream | 业务数据持久化、数据库访问与事件持久投递 |
+| 身份与安全 | OpenID Connect、go-oidc、oidc-client-ts、go-jose、age | 企业身份登录、令牌验证与备份加密 |
+| Agent 接入与契约 | MCP Go SDK、JSON Schema、OpenAPI | Agent 和工具接入、数据结构与 API 契约校验 |
+| 部署与开发工具 | Docker Compose、Node.js、npm | 单机私有部署、Web 构建与项目验证脚本 |
+| 质量保障 | Go testing、Playwright、axe-core、Redocly CLI、Ajv、markdownlint | 后端测试、浏览器验收、无障碍检查与契约、文档校验 |
+
+徽章版本对应当前仓库配置；依赖与构建版本见 [go.mod](go.mod)、[Web package.json](web/package.json)、[工具 package.json](package.json)、[Dockerfile](Dockerfile) 和 [compose.yaml](compose.yaml)。
 
 ## 快速开始
 
@@ -112,6 +137,20 @@ ACCP 提供单企业、单机 Linux Docker Compose 部署方案，使用企业 O
 - **贡献文档或代码**：先查看已有 Issue 和 PR，再阅读 [贡献指南](CONTRIBUTING.md)，准备开发环境、完成相关验证并提交 PR。
 
 每项贡献由人类负责人确认范围与验收结果，欢迎使用 AI Agent 辅助完成。公开提交的日志、配置和截图请先脱敏。
+
+## 开源致谢
+
+ACCP 建立在开源社区的工作之上。感谢以下项目的作者、维护者和贡献者，为本项目提供语言、框架、基础设施与开发工具：
+
+- **语言与构建**：[Go](https://go.dev/)、[TypeScript](https://www.typescriptlang.org/)、[Node.js](https://nodejs.org/)、[npm](https://github.com/npm/cli) 和 [Vite](https://vite.dev/)。
+- **界面与交互**：[React](https://react.dev/)、[HeroUI](https://www.heroui.com/) 和 [Tailwind CSS](https://tailwindcss.com/)。
+- **数据与消息**：[PostgreSQL](https://www.postgresql.org/)、[pgx](https://github.com/jackc/pgx)、[NATS Server](https://github.com/nats-io/nats-server) 和 [NATS Go Client](https://github.com/nats-io/nats.go)。
+- **身份与加密**：[go-oidc](https://github.com/coreos/go-oidc)、[oidc-client-ts](https://github.com/authts/oidc-client-ts)、[go-jose](https://github.com/go-jose/go-jose) 和 [age](https://github.com/FiloSottile/age)。
+- **协议与契约**：[Model Context Protocol Go SDK](https://github.com/modelcontextprotocol/go-sdk)、[jsonschema](https://github.com/santhosh-tekuri/jsonschema)、[Ajv](https://github.com/ajv-validator/ajv)、[ajv-formats](https://github.com/ajv-validator/ajv-formats) 和 [Redocly CLI](https://github.com/Redocly/redocly-cli)。
+- **测试与文档工具**：[Playwright](https://playwright.dev/)、[axe-core](https://github.com/dequelabs/axe-core)、[Prettier](https://prettier.io/)、[markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2)、[markdown-it](https://github.com/markdown-it/markdown-it)、[github-slugger](https://github.com/Flet/github-slugger)、[yaml](https://github.com/eemeli/yaml) 和 [Shields.io](https://shields.io/)。
+- **容器与部署**：[Docker / Moby](https://github.com/moby/moby) 和 [Docker Compose](https://github.com/docker/compose)。
+
+也感谢这些项目所依赖的其他开源组件。完整依赖及锁定版本见 [go.mod](go.mod)、[go.sum](go.sum)、[根目录 package-lock.json](package-lock.json) 和 [Web package-lock.json](web/package-lock.json)；各第三方项目的许可证与版权声明以其上游仓库及分发内容为准。
 
 ## 许可证
 
