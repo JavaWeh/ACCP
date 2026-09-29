@@ -32,7 +32,7 @@ func NewValidator() (Validator, error) {
 	}
 	result := Validator{}
 	for file, names := range map[string][]string{
-		"domain": {"CreateTask", "TaskCommand", "CreateContext", "CreateContextVersion", "Task", "Context", "ContextVersion", "Repository", "Problem", "TaskPage", "ContextPage", "RepositoryPage", "AuditRecord", "AuditPage"},
+		"domain": {"CreateTask", "TaskCommand", "EditTask", "TransferTask", "CreateContext", "CreateContextVersion", "SyncGitContext", "PublishContext", "Task", "Context", "ContextVersion", "Repository", "Problem", "TaskPage", "ContextPage", "RepositoryPage", "AuditRecord", "AuditPage"},
 		"m1":     {"UploadContent", "MembershipChange", "Human", "ProjectPage", "Membership", "MembershipPage", "ContentMetadata", "Content", "ContextVersionPage"},
 	} {
 		for _, name := range names {

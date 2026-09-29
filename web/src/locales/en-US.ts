@@ -534,4 +534,38 @@ export const enUS = {
   需人工审批: "Human approval required",
   语言: "Language",
   "ACCP · 协作控制台": "ACCP · Collaboration console",
+  编辑任务输入: "Edit task inputs",
+  保存并返回草稿: "Save as draft",
+  "请填写验收条件并选择执行依据。":
+    "Enter acceptance criteria and select source versions.",
+  "验收条件（每行一项）": "Acceptance criteria (one per line)",
+  修改原因: "Reason for edit",
+  "修改后须由负责人重新提交；历史执行快照不会改变。":
+    "The owner must resubmit after editing. Earlier run snapshots remain unchanged.",
+  移交负责人: "Transfer owner",
+  确认移交: "Confirm transfer",
+  新负责人: "New owner",
+  移交原因: "Reason for transfer",
+  恢复任务: "Restore task",
+  归档任务: "Archive task",
+  资料来源: "Source",
+  "创建 Git 来源": "Create Git source",
+  "已登记的 GitHub 仓库": "Registered GitHub repository",
+  仓库内文档路径: "Document path in repository",
+  "创建来源后，按完整 Commit SHA 同步候选版本。":
+    "After creating the source, import a candidate using a full commit SHA.",
+  查看差异与影响: "Review changes and impact",
+  版本差异与任务影响: "Version changes and task impact",
+  "仍使用旧版本的进行中任务：{count}":
+    "Open tasks still using the old version: {count}",
+  "发布不会改变已有任务或执行快照；负责人需显式更新任务输入。":
+    "Publishing does not change existing tasks or run snapshots. Owners must update task inputs explicitly.",
+  当前发布内容: "Current published content",
+  候选内容: "Candidate content",
+  确认差异并发布版本: "Confirm changes and publish",
+  发布审核理由: "Reason for publication",
+  "从 Git Commit 同步候选版本": "Import a candidate from a Git commit",
+  "同步 Git 文件": "Import Git file",
+  "完整 Commit SHA": "Full commit SHA",
+  "查看 Git 原文": "View Git source",
 } satisfies Record<MessageKey, MessageValue>;

@@ -125,8 +125,12 @@ func createTask(q *request) (reply, error) {
 func commandTask(q *request) (reply, error) { return commandExecution(q) }
 func createContext(q *request) (reply, error) {
 	source := q.body["source"].(map[string]any)
-	if source["kind"] != "ACCP" {
-		return reply{}, fail(422, "UNSUPPORTED_SOURCE", "M1 supports ACCP-managed content; external source verification is deferred.")
+	if source["kind"] == "GIT" {
+		if _, _, err := registeredGitSource(q, textValue(source, "canonical_uri")); err != nil {
+			return reply{}, err
+		}
+	} else if source["kind"] != "ACCP" {
+		return reply{}, fail(422, "UNSUPPORTED_SOURCE", "Only ACCP and registered Git sources are supported.")
 	}
 	doc := q.body
 	doc["id"] = newID("ctx")
@@ -165,6 +169,9 @@ func createVersion(q *request) (reply, error) {
 	}
 	if err = match(q, number(parent, "version")); err != nil {
 		return reply{}, err
+	}
+	if source, ok := parent["source"].(map[string]any); ok && source["kind"] != "ACCP" {
+		return reply{}, fail(409, "SOURCE_MANAGED", "Use Git sync for this Context's authoritative source.")
 	}
 	uri := textValue(q.body, "content_uri")
 	if !strings.HasPrefix(uri, "urn:accp:content:") {
@@ -234,6 +241,13 @@ func publishVersion(q *request) (reply, error) {
 	if doc["status"] != "CANDIDATE" {
 		return reply{}, fail(409, "ALREADY_PUBLISHED", "Published versions cannot be published again.")
 	}
+	parent, err := readDocument(q, "contexts", q.http.PathValue("id"))
+	if err != nil {
+		return reply{}, err
+	}
+	if source, ok := parent["source"].(map[string]any); ok && source["kind"] == "GIT" && textValue(q.body, "reason") == "" {
+		return reply{}, fail(409, "REVIEW_REQUIRED", "Review the Git comparison and provide a publication reason.")
+	}
 	doc["status"] = "PUBLISHED"
 	doc["version"] = number(doc, "version") + 1
 	doc["published_by_user_id"] = q.user
@@ -243,10 +257,6 @@ func publishVersion(q *request) (reply, error) {
 		return reply{}, err
 	}
 	_, err = q.tx.Exec(q.http.Context(), `UPDATE context_versions SET document=$1,status='PUBLISHED',version=$2 WHERE id=$3`, data, doc["version"], doc["id"])
-	if err != nil {
-		return reply{}, err
-	}
-	parent, err := readDocument(q, "contexts", q.http.PathValue("id"))
 	if err != nil {
 		return reply{}, err
 	}

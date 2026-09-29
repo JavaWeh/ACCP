@@ -19,7 +19,11 @@ func listTasks(q *request) (reply, error) {
 	term := strings.TrimSpace(params.Get("q"))
 	owner := params.Get("owner")
 	status := params.Get("status")
+	archived := params.Get("archived")
 	since := params.Get("updated_after")
+	if archived != "" && archived != "true" && archived != "false" {
+		return reply{}, fail(400, "INVALID_FILTER", "archived must be true or false.")
+	}
 	if len(term) > 200 || len(owner) > 128 || len(status) > 32 || len(since) > 64 {
 		return reply{}, fail(400, "INVALID_FILTER", "Task filters are too long.")
 	}
@@ -42,6 +46,11 @@ func listTasks(q *request) (reply, error) {
 		}
 	}
 	query := `SELECT document FROM tasks WHERE project_id=$1 AND organization_id=$2 AND id>$3`
+	if archived == "true" {
+		query += ` AND document->>'archived'='true'`
+	} else {
+		query += ` AND coalesce(document->>'archived','false')='false'`
+	}
 	args := []any{q.project, q.org, cursor}
 	if owner != "" {
 		args = append(args, owner)
@@ -95,7 +104,7 @@ func projectWorkbench(q *request) (reply, error) {
 	err := q.tx.QueryRow(q.http.Context(), `SELECT count(*),
 		count(*) FILTER (WHERE document->>'status'='IN_REVIEW'),
 		count(*) FILTER (WHERE document->>'status' IN ('BLOCKED','FAILED'))
-		FROM tasks WHERE project_id=$1 AND organization_id=$2 AND owner_user_id=$3`, q.project, q.org, q.user).Scan(&mine, &review, &attention)
+		FROM tasks WHERE project_id=$1 AND organization_id=$2 AND owner_user_id=$3 AND coalesce(document->>'archived','false')='false'`, q.project, q.org, q.user).Scan(&mine, &review, &attention)
 	if err != nil {
 		return reply{}, err
 	}
@@ -121,7 +130,7 @@ func projectWorkbench(q *request) (reply, error) {
 }
 
 func workbenchTasks(q *request, actions bool) ([]Object, error) {
-	sql := `SELECT document FROM tasks WHERE project_id=$1 AND organization_id=$2`
+	sql := `SELECT document FROM tasks WHERE project_id=$1 AND organization_id=$2 AND coalesce(document->>'archived','false')='false'`
 	args := []any{q.project, q.org}
 	if actions {
 		sql += ` AND owner_user_id=$3 AND document->>'status' IN ('IN_REVIEW','BLOCKED','FAILED')`

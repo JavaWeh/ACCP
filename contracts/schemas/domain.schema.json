@@ -602,6 +602,17 @@
         "updated_at": {
           "type": "string",
           "format": "date-time"
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "archived_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "archived_by_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
         }
       },
       "required": [
@@ -629,7 +640,9 @@
           "enum": [
             "SUBMIT",
             "RETRY",
-            "CANCEL"
+            "CANCEL",
+            "ARCHIVE",
+            "RESTORE"
           ]
         },
         "reason": {
@@ -641,6 +654,28 @@
         "command",
         "reason"
       ],
+      "additionalProperties": false
+    },
+    "EditTask": {
+      "type": "object",
+      "properties": {
+        "title": {"type": "string", "minLength": 1, "maxLength": 200},
+        "objective": {"type": "string", "minLength": 1},
+        "repository_id": {"type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"},
+        "acceptance_criteria": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+        "context_version_ids": {"type": "array", "items": {"type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"}, "minItems": 1, "uniqueItems": true},
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "required": ["title", "objective", "repository_id", "acceptance_criteria", "context_version_ids", "reason"],
+      "additionalProperties": false
+    },
+    "TransferTask": {
+      "type": "object",
+      "properties": {
+        "owner_user_id": {"type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"},
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "required": ["owner_user_id", "reason"],
       "additionalProperties": false
     },
     "DependencyCondition": {
@@ -1308,6 +1343,15 @@
       ],
       "additionalProperties": false
     },
+    "SyncGitContext": {
+      "type": "object",
+      "properties": {
+        "source_revision": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "change_summary": {"type": "string", "minLength": 1}
+      },
+      "required": ["source_revision", "change_summary"],
+      "additionalProperties": false
+    },
     "ContextVersion": {
       "type": "object",
       "properties": {
@@ -1330,6 +1374,14 @@
         "source_revision": {
           "type": "string",
           "minLength": 1
+        },
+        "source_permalink": {
+          "type": "string",
+          "format": "uri"
+        },
+        "source_verified_at": {
+          "type": "string",
+          "format": "date-time"
         },
         "content_uri": {
           "type": "string",

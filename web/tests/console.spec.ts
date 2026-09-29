@@ -42,7 +42,12 @@ test("human console creates and publishes context, creates a task, and reads aud
   await page.getByRole("button", { name: "创建候选版本", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: new RegExp(contextName) }).click();
-  await page.getByRole("button", { name: "发布版本", exact: true }).click();
+  await page.getByRole("button", { name: "查看差异与影响" }).click();
+  await expect(page.getByText("# Orders API\nGET /orders")).toBeVisible();
+  await page.getByLabel("发布审核理由").fill("浏览器端验收");
+  await page
+    .getByRole("button", { name: "确认差异并发布版本", exact: true })
+    .click();
   await expect(
     page.getByRole("dialog").getByText("已发布", { exact: true }),
   ).toBeVisible();

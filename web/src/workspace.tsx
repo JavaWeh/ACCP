@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { Workspace } from "./main";
 import type { Doc, Membership } from "./api";
 import { short } from "./api";
+import { lineDiff } from "./diff";
 import {
   Button,
   Input,
@@ -29,12 +30,24 @@ export function Contexts({ w }: { w: Workspace }) {
 
   const [selected, setSelected] = useState<Doc>();
   const [creating, setCreating] = useState(false);
+  const [sourceMode, setSourceMode] = useState("ACCP");
+  const [gitRepositories, setGitRepositories] = useState<Doc[]>([]);
   const [versions, setVersions] = useState<Doc[]>([]);
   const [body, setBody] = useState("");
+  const [comparison, setComparison] = useState<Doc>();
+  const [reviewedVersion, setReviewedVersion] = useState("");
   const [error, setError] = useState<unknown>();
+  useEffect(() => {
+    w.api
+      .all(`/projects/${w.project.id}/repositories`)
+      .then(setGitRepositories)
+      .catch(setError);
+  }, [w.api, w.project.id]);
   async function open(c: Doc) {
     setSelected(c);
     setBody("");
+    setComparison(undefined);
+    setReviewedVersion("");
     try {
       setVersions(await w.api.all(`/contexts/${c.id}/versions`));
     } catch (e) {
@@ -70,6 +83,32 @@ export function Contexts({ w }: { w: Workspace }) {
     await w.refresh();
     if (context) await open(c);
   }
+  async function createGit(data: FormData) {
+    const repository = gitRepositories.find(
+      (repo) => repo.id === text(data, "repository"),
+    );
+    const path = text(data, "path").trim();
+    if (
+      !repository ||
+      !path ||
+      path.startsWith("/") ||
+      path.split("/").some((part) => !part || part === "." || part === "..")
+    ) {
+      throw new Error(
+        "Select a registered repository and a relative document path.",
+      );
+    }
+    const context = await w.api.call(`/projects/${w.project.id}/contexts`, {
+      name: text(data, "name"),
+      type: text(data, "type"),
+      source: {
+        kind: "GIT",
+        canonical_uri: `${repository.url}/blob/${repository.default_branch}/${path}`,
+      },
+    });
+    await w.refresh();
+    await open(context);
+  }
   const fields = (
     <>
       <Field label={translate("来源版本")}>
@@ -92,6 +131,9 @@ export function Contexts({ w }: { w: Workspace }) {
       </Field>
     </>
   );
+  const diff = comparison
+    ? lineDiff(comparison.before_content, comparison.after_content)
+    : undefined;
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 [&>p]:text-sm [&>p]:text-slate-600">
@@ -143,10 +185,22 @@ export function Contexts({ w }: { w: Workspace }) {
           title={translate("新建共享上下文")}
           close={() => setCreating(false)}
         >
+          <Field label={translate("资料来源")}>
+            <Select value={sourceMode} onChange={setSourceMode}>
+              <option value="ACCP">ACCP</option>
+              <option value="GIT">GitHub</option>
+            </Select>
+          </Field>
           <Form
-            submit={translate("创建候选版本")}
+            submit={
+              sourceMode === "GIT"
+                ? translate("创建 Git 来源")
+                : translate("创建候选版本")
+            }
             onDone={() => setCreating(false)}
-            action={(data) => save(data)}
+            action={(data) =>
+              sourceMode === "GIT" ? createGit(data) : save(data)
+            }
           >
             <Field label={translate("名称")}>
               <Input
@@ -172,7 +226,27 @@ export function Contexts({ w }: { w: Workspace }) {
                 ))}
               </Select>
             </Field>
-            {fields}
+            {sourceMode === "GIT" ? (
+              <>
+                <Field label={translate("已登记的 GitHub 仓库")}>
+                  <Select name="repository" required>
+                    {gitRepositories.map((repo) => (
+                      <option key={repo.id} value={repo.id}>
+                        {repo.url}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={translate("仓库内文档路径")}>
+                  <Input name="path" required placeholder="docs/api.md" />
+                </Field>
+                <p className="text-sm text-slate-600">
+                  {translate("创建来源后，按完整 Commit SHA 同步候选版本。")}
+                </p>
+              </>
+            ) : (
+              fields
+            )}
           </Form>
         </Modal>
       )}
@@ -188,6 +262,17 @@ export function Contexts({ w }: { w: Workspace }) {
               <span>
                 <strong>{v.source_revision}</strong>
                 <small>{v.change_summary}</small>
+                {v.source_permalink && (
+                  <small>
+                    <a
+                      href={v.source_permalink}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {translate("查看 Git 原文")}
+                    </a>
+                  </small>
+                )}
               </span>
               <Badge value={v.status} />
               <Action
@@ -200,19 +285,18 @@ export function Contexts({ w }: { w: Workspace }) {
               >
                 {translate("查看正文")}
               </Action>
-              {v.status === "CANDIDATE" && reviewer(w) && (
+              {v.status === "CANDIDATE" && (
                 <Action
                   run={async () => {
-                    await w.api.call(
-                      `/contexts/${selected.id}/versions/${v.id}/publish`,
-                      {},
-                      v.version,
+                    setComparison(
+                      await w.api.call(
+                        `/contexts/${selected.id}/versions/${v.id}/comparison`,
+                      ),
                     );
-                    await w.refresh();
-                    await open(selected);
+                    setReviewedVersion(v.id);
                   }}
                 >
-                  {translate("发布版本")}
+                  {translate("查看差异与影响")}
                 </Action>
               )}
             </div>
@@ -222,15 +306,134 @@ export function Contexts({ w }: { w: Workspace }) {
               {body}
             </pre>
           )}
-          <details>
-            <summary>{translate("新增候选版本")}</summary>
-            <Form
-              submit={translate("保存新版本")}
-              action={(data) => save(data, selected)}
-            >
-              {fields}
-            </Form>
-          </details>
+          {comparison && (
+            <section className="my-4 rounded-lg border border-slate-200 p-4">
+              <h3>{translate("版本差异与任务影响")}</h3>
+              <p className="text-sm text-slate-600">
+                {translate("仍使用旧版本的进行中任务：{count}", {
+                  count: comparison.affected_task_count,
+                })}
+                。
+                {translate(
+                  "发布不会改变已有任务或执行快照；负责人需显式更新任务输入。",
+                )}
+              </p>
+              {comparison.affected_tasks.map((task: Doc) => (
+                <p key={task.id} className="text-sm">
+                  {task.title} · {task.status}
+                </p>
+              ))}
+              {diff && (
+                <pre className="my-4 max-h-72 overflow-auto rounded border border-slate-200 bg-white p-3 text-xs leading-5">
+                  {diff.map((line, index) => (
+                    <span
+                      key={index}
+                      className={
+                        line.kind === "add"
+                          ? "block bg-emerald-50 text-emerald-800"
+                          : line.kind === "remove"
+                            ? "block bg-rose-50 text-rose-800"
+                            : "block text-slate-500"
+                      }
+                    >
+                      {line.kind === "add"
+                        ? "+ "
+                        : line.kind === "remove"
+                          ? "− "
+                          : "  "}
+                      {line.text}
+                    </span>
+                  ))}
+                </pre>
+              )}
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <strong>{translate("当前发布内容")}</strong>
+                  <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs">
+                    {comparison.before_content || "—"}
+                  </pre>
+                </div>
+                <div>
+                  <strong>{translate("候选内容")}</strong>
+                  <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs">
+                    {comparison.after_content}
+                  </pre>
+                </div>
+              </div>
+              {reviewer(w) &&
+                versions.some(
+                  (version) =>
+                    version.id === reviewedVersion &&
+                    version.status === "CANDIDATE",
+                ) && (
+                  <Form
+                    submit={translate("确认差异并发布版本")}
+                    action={async (data) => {
+                      const version = versions.find(
+                        (item) => item.id === reviewedVersion,
+                      )!;
+                      await w.api.call(
+                        `/contexts/${selected.id}/versions/${version.id}/publish-reviewed`,
+                        { reason: text(data, "reason") },
+                        version.version,
+                      );
+                      await w.refresh();
+                      await open(await w.api.call(`/contexts/${selected.id}`));
+                    }}
+                  >
+                    <Field label={translate("发布审核理由")}>
+                      <Input name="reason" required />
+                    </Field>
+                  </Form>
+                )}
+            </section>
+          )}
+          {selected.source.kind === "GIT" ? (
+            <details>
+              <summary>{translate("从 Git Commit 同步候选版本")}</summary>
+              <Form
+                submit={translate("同步 Git 文件")}
+                action={async (data) => {
+                  const current = await w.api.call(`/contexts/${selected.id}`);
+                  await w.api.call(
+                    `/contexts/${selected.id}/sync-git`,
+                    {
+                      source_revision: text(data, "revision"),
+                      change_summary: text(data, "summary"),
+                    },
+                    current.version,
+                  );
+                  await w.refresh();
+                  await open(await w.api.call(`/contexts/${selected.id}`));
+                }}
+              >
+                <p className="break-all text-xs text-slate-600">
+                  {selected.source.canonical_uri}
+                </p>
+                <Field label={translate("完整 Commit SHA")}>
+                  <Input
+                    name="revision"
+                    required
+                    minLength={40}
+                    maxLength={40}
+                  />
+                </Field>
+                <Field label={translate("变更说明")}>
+                  <Input name="summary" required />
+                </Field>
+              </Form>
+            </details>
+          ) : (
+            <details>
+              <summary>{translate("新增候选版本")}</summary>
+              <Form
+                submit={translate("保存新版本")}
+                action={(data) => save(data, selected)}
+              >
+                {fields}
+              </Form>
+            </details>
+          )}
         </Modal>
       )}
     </>
