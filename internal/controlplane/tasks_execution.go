@@ -154,6 +154,9 @@ func commandExecution(q *request) (reply, error) {
 		return reply{}, err
 	}
 	state := textValue(doc, "status")
+	if doc["archived"] == true && q.body["command"] != "RESTORE" {
+		return reply{}, fail(409, "TASK_ARCHIVED", "Restore the task before changing it.")
+	}
 	switch q.body["command"] {
 	case "SUBMIT", "RETRY":
 		if state != "DRAFT" && state != "BLOCKED" {
@@ -201,6 +204,27 @@ func commandExecution(q *request) (reply, error) {
 			return reply{}, err
 		}
 		doc["status"] = "CANCELED"
+	case "ARCHIVE":
+		if state != "DONE" && state != "CANCELED" {
+			return reply{}, fail(409, "INVALID_TRANSITION", "Only completed or canceled tasks can be archived.")
+		}
+		var unsettled bool
+		if err = q.tx.QueryRow(q.http.Context(), `SELECT EXISTS(SELECT 1 FROM tool_invocations i JOIN task_runs r ON r.id=i.run_id WHERE r.task_id=$1 AND i.status IN ('AWAITING_APPROVAL','READY','RUNNING','UNKNOWN'))`, doc["id"]).Scan(&unsettled); err != nil {
+			return reply{}, err
+		}
+		if unsettled {
+			return reply{}, fail(409, "UNRESOLVED_TOOL_OPERATION", "Resolve tool operations before archiving.")
+		}
+		doc["archived"] = true
+		doc["archived_at"] = now()
+		doc["archived_by_user_id"] = q.user
+	case "RESTORE":
+		if doc["archived"] != true {
+			return reply{}, fail(409, "INVALID_TRANSITION", "Task is not archived.")
+		}
+		delete(doc, "archived")
+		delete(doc, "archived_at")
+		delete(doc, "archived_by_user_id")
 	default:
 		return reply{}, fail(400, "INVALID_COMMAND", "Unsupported command.")
 	}
