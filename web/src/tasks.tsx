@@ -61,7 +61,8 @@ export function Tasks({
         const params = new URLSearchParams({ limit: "25" });
         if (search.trim()) params.set("q", search.trim());
         if (filter === "mine") params.set("owner", w.me.id);
-        if (status !== "all") params.set("status", status);
+        if (status === "archived") params.set("archived", "true");
+        else if (status !== "all") params.set("status", status);
         if (cursor) params.set("cursor", cursor);
         w.api
           .call<Page>(`/projects/${w.project.id}/tasks?${params}`)
@@ -124,6 +125,7 @@ export function Tasks({
           }}
         >
           <option value="all">{translate("全部状态")}</option>
+          <option value="archived">{translate("已归档")}</option>
           {columns.map((item) => (
             <option key={item} value={item}>
               {label(item)}
@@ -374,6 +376,8 @@ export function TaskDetail({
   const [dependencies, setDependencies] = useState<Doc[]>([]);
   const [dependencySearch, setDependencySearch] = useState("");
   const [dependencyCandidates, setDependencyCandidates] = useState<Doc[]>([]);
+  const [editVersions, setEditVersions] = useState<Doc[]>([]);
+  const [editRepos, setEditRepos] = useState<Doc[]>([]);
   const [error, setError] = useState<unknown>();
   const [tab, setTab] = useState("overview");
   const [reviewDecision, setReviewDecision] = useState("ACCEPT");
@@ -411,6 +415,38 @@ export function TaskDetail({
   const run = runs[0];
   const canChange =
     task?.owner_user_id === w.me.id || w.roles.includes("ADMIN");
+  useEffect(() => {
+    if (
+      !task ||
+      !canChange ||
+      task.archived ||
+      !["DRAFT", "READY", "BLOCKED"].includes(task.status)
+    )
+      return;
+    Promise.all([
+      Promise.all(
+        w.contexts.map(async (context) =>
+          w.api.all(`/contexts/${context.id}/versions`),
+        ),
+      ),
+      w.api.all(`/projects/${w.project.id}/repositories`),
+    ])
+      .then(([versions, repositories]) => {
+        setEditVersions(
+          versions.flat().filter((version) => version.status === "PUBLISHED"),
+        );
+        setEditRepos(repositories);
+      })
+      .catch(setError);
+  }, [
+    task?.id,
+    task?.status,
+    task?.archived,
+    canChange,
+    w.api,
+    w.contexts,
+    w.project.id,
+  ]);
   useEffect(() => {
     if (!canChange || !task) return;
     let live = true;
@@ -463,6 +499,7 @@ export function TaskDetail({
           <>
             <div className="mb-5 flex flex-wrap items-center gap-3 text-sm text-slate-600">
               <Badge value={task.status} />
+              {task.archived && <span>{translate("已归档")}</span>}
               <span>
                 {translate("负责人：")}
                 {w.members.find((m) => m.id === task.owner_user_id)
@@ -492,6 +529,139 @@ export function TaskDetail({
                 ))}
               </Tabs.List>
               <Tabs.Panel id="overview">
+                {canChange &&
+                  !task.archived &&
+                  ["DRAFT", "READY", "BLOCKED"].includes(task.status) && (
+                    <div className="mb-5 space-y-3">
+                      <details>
+                        <summary>{translate("编辑任务输入")}</summary>
+                        <Form
+                          submit={translate("保存并返回草稿")}
+                          action={async (data) => {
+                            const criteria = text(data, "criteria")
+                              .split("\n")
+                              .map((value) => value.trim())
+                              .filter(Boolean);
+                            const contextIDs = data.getAll("contexts");
+                            if (!criteria.length || !contextIDs.length)
+                              throw new LocalizedError(
+                                "请填写验收条件并选择执行依据。",
+                              );
+                            await w.api.call(
+                              `/tasks/${id}/edit`,
+                              {
+                                title: text(data, "title"),
+                                objective: text(data, "objective"),
+                                repository_id: text(data, "repo"),
+                                acceptance_criteria: criteria,
+                                context_version_ids: contextIDs,
+                                reason: text(data, "reason"),
+                              },
+                              task.version,
+                            );
+                            await refreshed();
+                          }}
+                        >
+                          <Field label={translate("任务标题")}>
+                            <Input
+                              name="title"
+                              required
+                              maxLength={200}
+                              defaultValue={task.title}
+                            />
+                          </Field>
+                          <Field label={translate("目标与范围")}>
+                            <TextArea
+                              name="objective"
+                              required
+                              rows={4}
+                              defaultValue={task.objective}
+                            />
+                          </Field>
+                          <Field label={translate("代码仓库")}>
+                            <Select
+                              name="repo"
+                              required
+                              defaultValue={task.repository_id}
+                            >
+                              {editRepos.map((repo) => (
+                                <option key={repo.id} value={repo.id}>
+                                  {repo.url}
+                                </option>
+                              ))}
+                            </Select>
+                          </Field>
+                          <Field label={translate("验收条件（每行一项）")}>
+                            <TextArea
+                              name="criteria"
+                              required
+                              rows={4}
+                              defaultValue={task.acceptance_criteria.join("\n")}
+                            />
+                          </Field>
+                          <fieldset>
+                            <legend>{translate("执行依据")}</legend>
+                            {editVersions.map((version) => (
+                              <Checkbox
+                                key={version.id}
+                                name="contexts"
+                                value={version.id}
+                                defaultSelected={task.context_version_ids.includes(
+                                  version.id,
+                                )}
+                              >
+                                {version.source_revision} · {short(version.id)}
+                              </Checkbox>
+                            ))}
+                          </fieldset>
+                          <Field label={translate("修改原因")}>
+                            <Input name="reason" required />
+                          </Field>
+                          <p className="text-sm text-slate-600">
+                            {translate(
+                              "修改后须由负责人重新提交；历史执行快照不会改变。",
+                            )}
+                          </p>
+                        </Form>
+                      </details>
+                      <details>
+                        <summary>{translate("移交负责人")}</summary>
+                        <Form
+                          submit={translate("确认移交")}
+                          action={async (data) => {
+                            await w.api.call(
+                              `/tasks/${id}/transfer`,
+                              {
+                                owner_user_id: text(data, "owner"),
+                                reason: text(data, "reason"),
+                              },
+                              task.version,
+                            );
+                            await refreshed();
+                          }}
+                        >
+                          <Field label={translate("新负责人")}>
+                            <Select name="owner" required>
+                              {w.members
+                                .filter(
+                                  (member) =>
+                                    member.active &&
+                                    member.id !== task.owner_user_id,
+                                )
+                                .map((member) => (
+                                  <option key={member.id} value={member.id}>
+                                    {member.display_name || member.id}
+                                  </option>
+                                ))}
+                            </Select>
+                          </Field>
+                          <Field label={translate("移交原因")}>
+                            <Input name="reason" required />
+                          </Field>
+                        </Form>
+                      </details>
+                    </div>
+                  )}
                 <h3>{translate("验收条件")}</h3>
                 <ul className="criteria">
                   {task.acceptance_criteria.map((c: string, i: number) => (
@@ -602,6 +772,28 @@ export function TaskDetail({
                   )}
                 {canChange && (
                   <div className="mt-6 flex flex-wrap items-center gap-4">
+                    {(task.archived ||
+                      ["DONE", "CANCELED"].includes(task.status)) && (
+                      <Action
+                        run={async () => {
+                          await w.api.call(
+                            `/tasks/${id}/commands`,
+                            {
+                              command: task.archived ? "RESTORE" : "ARCHIVE",
+                              reason: task.archived
+                                ? "Restore task to active list"
+                                : "Archive terminal task",
+                            },
+                            task.version,
+                          );
+                          await refreshed();
+                        }}
+                      >
+                        {task.archived
+                          ? translate("恢复任务")
+                          : translate("归档任务")}
+                      </Action>
+                    )}
                     {["DRAFT", "BLOCKED"].includes(task.status) && (
                       <Action
                         run={async () => {

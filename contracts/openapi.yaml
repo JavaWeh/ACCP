@@ -338,6 +338,11 @@ paths:
           required: false
           description: RFC3339 timestamp for incremental task reads.
           schema: {type: string, format: date-time}
+        - name: archived
+          in: query
+          required: false
+          description: Include archived tasks only when true; the default shows active tasks.
+          schema: {type: string, enum: ['true', 'false']}
       responses:
         "200":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
@@ -456,8 +461,8 @@ paths:
       operationId: commandTask
       tags:
         - Tasks
-      summary: Submit, retry or cancel a task
-      description: Human Owner or ADMIN submits, retries or cancels execution with the current Task version. RETRY creates no Run until the next authorized claim. Cancellation closes the active Run; DONE is immutable.
+      summary: Submit, retry, cancel, archive or restore a task
+      description: Human Owner or ADMIN changes execution or archives a terminal task with the current Task version. Archived tasks remain readable and can be restored; Run and audit history is retained.
       x-accp-actors:
         - HUMAN
       security:
@@ -507,6 +512,66 @@ paths:
             schema:
               $ref: ./schemas/domain.schema.json#/$defs/TaskCommand
       x-accp-milestone: M1
+  /tasks/{id}/edit:
+    post:
+      operationId: editTask
+      tags: [Tasks]
+      summary: Replace editable task inputs
+      description: Owner or ADMIN edits a DRAFT, READY or BLOCKED task without an active Run. An edit returns it to DRAFT and requires explicit resubmission; previous Run snapshots remain immutable.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: ./schemas/domain.schema.json#/$defs/EditTask}
+      responses:
+        '200':
+          description: Updated task
+          content:
+            application/json:
+              schema: {$ref: ./schemas/domain.schema.json#/$defs/Task}
+        '409': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+      x-accp-milestone: M4
+  /tasks/{id}/transfer:
+    post:
+      operationId: transferTask
+      tags: [Tasks]
+      summary: Transfer task ownership to an active human member
+      description: Owner or ADMIN transfers a DRAFT, READY or BLOCKED task without an active Run. Transfer returns it to DRAFT and preserves previous Run ownership and an immutable audit record.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: ./schemas/domain.schema.json#/$defs/TransferTask}
+      responses:
+        '200':
+          description: Updated task
+          content:
+            application/json:
+              schema: {$ref: ./schemas/domain.schema.json#/$defs/Task}
+        '409': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+      x-accp-milestone: M4
   /tasks/{id}/dependencies:
     post:
       operationId: createDependency
@@ -1530,6 +1595,84 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
       x-accp-required-scope: context:read
+  /contexts/{id}/sync-git:
+    post:
+      operationId: syncGitContext
+      tags: [Contexts]
+      summary: Import a candidate from an immutable Git commit
+      description: The Context source must name a file under a registered GitHub repository's default branch. The server reads that file at the supplied 40-character commit SHA, bounds and hashes the text, then saves an immutable candidate. A reviewer must publish it separately.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: ./schemas/domain.schema.json#/$defs/SyncGitContext}
+      responses:
+        '201':
+          description: Imported candidate Context version
+          content:
+            application/json:
+              schema: {$ref: ./schemas/domain.schema.json#/$defs/ContextVersion}
+        '422': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+      x-accp-milestone: M4
+  /contexts/{id}/versions/{version}/comparison:
+    get:
+      operationId: compareContextVersion
+      tags: [Contexts]
+      summary: Compare a version to the current published content and list affected tasks
+      description: Returns stored text on both sides; existing task inputs and Run snapshots do not automatically change when a new version is published.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: version
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Stored text comparison and task impact
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [before_version_id, before_content, after_version_id, after_content, changed, affected_task_count, affected_tasks]
+                properties:
+                  before_version_id: {type: string}
+                  before_content: {type: string}
+                  after_version_id: {type: string}
+                  after_content: {type: string}
+                  changed: {type: boolean}
+                  affected_task_count: {type: integer, minimum: 0}
+                  affected_tasks:
+                    type: array
+                    maxItems: 20
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [id, title, status]
+                      properties:
+                        id: {type: string}
+                        title: {type: string}
+                        status: {type: string}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+      x-accp-milestone: M4
   /contexts/{id}/versions/{version}:
     get:
       operationId: getContextVersion
@@ -1590,7 +1733,7 @@ paths:
       tags:
         - Contexts
       summary: Publish reviewed Context content
-      description: Human REVIEWER or ADMIN; verify source revision and content digest before publication. If-Match refers to the ContextVersion resource.
+      description: Legacy empty-body publication for ACCP-managed sources. Git sources require the reviewed publication endpoint. If-Match refers to the ContextVersion resource.
       x-accp-actors:
         - HUMAN
       security:
@@ -1640,13 +1783,41 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+      x-accp-milestone: M1
+  /contexts/{id}/versions/{version}/publish-reviewed:
+    post:
+      operationId: publishReviewedContextVersion
+      tags: [Contexts]
+      summary: Publish a reviewed Context candidate with a reason
+      description: Human REVIEWER or ADMIN records a reason after comparing the candidate with the current publication. Required for Git sourced Contexts.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: version
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: ./schemas/domain.schema.json#/$defs/PublishContext
-      x-accp-milestone: M1
+            schema: {$ref: ./schemas/domain.schema.json#/$defs/PublishContext}
+      responses:
+        '200':
+          description: Published Context version
+          content:
+            application/json:
+              schema: {$ref: ./schemas/domain.schema.json#/$defs/ContextVersion}
+        '409': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+      x-accp-milestone: M4
   /context-snapshots/{id}:
     get:
       operationId: getContextSnapshot
