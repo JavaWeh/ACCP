@@ -3,6 +3,7 @@
 package controlplane
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -15,8 +16,18 @@ func TestIdempotencyReplayedHeader(t *testing.T) {
 	if _, present := first.Header()["Idempotency-Replayed"]; present {
 		t.Fatal("first response must not include Idempotency-Replayed")
 	}
+	var before, after int
+	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM idempotency_records`).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
 	replay := f.call("bob", "POST", "/agent-sessions", "session-replay-header", "", body)
 	f.expect(replay, 201, "M2SessionGrant")
+	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM idempotency_records`).Scan(&after); err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Fatalf("replay changed idempotency record count from %d to %d", before, after)
+	}
 	if replay.Header().Get("Idempotency-Replayed") != "true" {
 		t.Fatal("replayed response must include Idempotency-Replayed: true")
 	}
