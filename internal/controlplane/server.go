@@ -61,6 +61,7 @@ type reply struct {
 	etag     string
 	resource string
 	version  int64
+	replayed bool
 }
 type problem struct {
 	status       int
@@ -296,6 +297,7 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 			if err = s.authorizeReplay(q, op, cached); err != nil {
 				return empty, err
 			}
+			cached.replayed = true
 			return s.hydrateGrant(q, op, cached)
 		}
 		if err != pgx.ErrNoRows {
@@ -354,6 +356,9 @@ func decode(w http.ResponseWriter, r *http.Request, required bool) (Object, erro
 
 func respond(w http.ResponseWriter, result reply) {
 	w.Header().Set("Content-Type", "application/json")
+	if result.replayed {
+		w.Header().Set("Idempotency-Replayed", "true")
+	}
 	if result.etag != "" {
 		w.Header().Set("ETag", result.etag)
 	}

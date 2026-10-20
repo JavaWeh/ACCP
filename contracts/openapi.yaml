@@ -204,6 +204,8 @@ paths:
               schema:
                 $ref: ./schemas/domain.schema.json#/$defs/Repository
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when applicable.
               schema:
@@ -256,6 +258,8 @@ paths:
         "201":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when returning a versioned entity.
               schema:
@@ -481,6 +485,8 @@ paths:
         "200":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when returning a versioned entity.
               schema:
@@ -536,6 +542,9 @@ paths:
       responses:
         '200':
           description: Updated task
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema: {$ref: ./schemas/domain.schema.json#/$defs/Task}
@@ -566,6 +575,9 @@ paths:
       responses:
         '200':
           description: Updated task
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema: {$ref: ./schemas/domain.schema.json#/$defs/Task}
@@ -609,6 +621,9 @@ paths:
       responses:
         "201":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -736,6 +751,9 @@ paths:
       responses:
         "201":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -849,6 +867,9 @@ paths:
       responses:
         "201":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -905,6 +926,9 @@ paths:
       responses:
         "201":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -972,6 +996,9 @@ paths:
       responses:
         "200":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -1028,6 +1055,9 @@ paths:
       responses:
         "200":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -1085,6 +1115,9 @@ paths:
       responses:
         "201":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -1204,6 +1237,9 @@ paths:
       responses:
         "200":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -1273,6 +1309,9 @@ paths:
       responses:
         "200":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -1392,6 +1431,8 @@ paths:
         "201":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when returning a versioned entity.
               schema:
@@ -1505,6 +1546,8 @@ paths:
         "201":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when returning a versioned entity.
               schema:
@@ -1619,6 +1662,9 @@ paths:
       responses:
         '201':
           description: Imported candidate Context version
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema: {$ref: ./schemas/domain.schema.json#/$defs/ContextVersion}
@@ -1759,6 +1805,8 @@ paths:
         "200":
           description: Successful operation. Human ownership and resource scopes are validated by the server.
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when returning a versioned entity.
               schema:
@@ -1812,6 +1860,9 @@ paths:
       responses:
         '200':
           description: Published Context version
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema: {$ref: ./schemas/domain.schema.json#/$defs/ContextVersion}
@@ -1904,6 +1955,9 @@ paths:
       responses:
         "201":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -2086,6 +2140,9 @@ paths:
       responses:
         "200":
           description: Operation succeeded.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -2311,6 +2368,9 @@ paths:
       responses:
         "200":
           description: Operation succeeded.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -2432,6 +2492,9 @@ paths:
       responses:
         "200":
           description: Operation succeeded.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -2734,6 +2797,8 @@ paths:
               schema:
                 $ref: ./schemas/management.schema.json#/$defs/Project
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when applicable.
               schema:
@@ -2833,6 +2898,8 @@ paths:
               schema:
                 $ref: ./schemas/m1.schema.json#/$defs/Membership
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when applicable.
               schema:
@@ -2894,6 +2961,8 @@ paths:
         "200":
           description: Successful M1 operation.
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted version for versioned resources.
               schema:
@@ -2943,6 +3012,8 @@ paths:
         "201":
           description: Successful M1 operation.
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted version for versioned resources.
               schema:
@@ -3246,6 +3317,9 @@ paths:
       responses:
         "200":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -3372,6 +3446,9 @@ paths:
       responses:
         "201":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -3489,6 +3566,9 @@ paths:
       responses:
         "202":
           description: Successful operation.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -3605,6 +3685,9 @@ paths:
       responses:
         "200":
           description: Operation succeeded.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -3813,6 +3896,9 @@ paths:
       responses:
         "201":
           description: Operation succeeded.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -3883,6 +3969,9 @@ paths:
       responses:
         "200":
           description: Operation succeeded.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -3960,6 +4049,9 @@ paths:
       responses:
         "201":
           description: Operation succeeded.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -4079,6 +4171,9 @@ paths:
       responses:
         "200":
           description: Operation succeeded.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
           content:
             application/json:
               schema:
@@ -4394,6 +4489,8 @@ paths:
               schema:
                 $ref: ./schemas/management.schema.json#/$defs/Human
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when applicable.
               schema:
@@ -4554,6 +4651,8 @@ paths:
               schema:
                 $ref: ./schemas/management.schema.json#/$defs/Project
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when applicable.
               schema:
@@ -4611,6 +4710,8 @@ paths:
               schema:
                 $ref: ./schemas/management.schema.json#/$defs/Project
           headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
             ETag:
               description: Quoted resource version when applicable.
               schema:
@@ -4656,7 +4757,7 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      description: Unique per actor, route and resource; same key with different input returns 409.
+      description: Unique per actor, route and resource; same key with different input returns 409 IDEMPOTENCY_CONFLICT. Replayed responses include the Idempotency-Replayed response header with value true; first responses and IDEMPOTENCY_CONFLICT responses omit it.
       schema:
         type: string
         minLength: 8
@@ -4677,6 +4778,12 @@ components:
       schema:
         type: integer
         minimum: 1
+  headers:
+    IdempotencyReplayed:
+      description: Present with value true only when the response is replayed from the idempotency record; omitted on first execution and on errors.
+      schema:
+        type: string
+        enum: ["true"]
   responses:
     Problem:
       description: Authentication, authorization, version or domain failure; see code and trace_id.
