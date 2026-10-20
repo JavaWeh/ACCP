@@ -22,7 +22,7 @@ D01 管理增量沿用 `/api/v1`：`POST /projects`，企业成员与审计 `/or
 
 人类 OIDC 登录后可在授权范围内创建 AgentSession。Session 返回的短期 ACCP 凭证只适用于指定资源与范围；实际令牌签发/刷新依赖实现阶段的企业身份配置，本仓库不存放真实凭证。
 
-所有 POST 请求要求 `Idempotency-Key`。作用域为企业、认证主体、路由及资源；相同键与相同请求返回已记录结果，不重新执行。相同键对应不同规范化输入返回 `409 IDEMPOTENCY_CONFLICT`。默认保留响应 24 小时；有外部副作用的 invocation 去重记录独立保留到审计保留期结束。
+所有 POST 请求要求 `Idempotency-Key`。作用域为企业、认证主体、路由及资源；相同键与相同请求返回已记录结果，不重新执行，并携带响应头 `Idempotency-Replayed: true`。首次响应不携带此头；相同键对应不同规范化输入返回 `409 IDEMPOTENCY_CONFLICT`，也不携带此头。默认保留响应 24 小时；有外部副作用的 invocation 去重记录独立保留到审计保留期结束。
 
 修改已有实体要求 `If-Match: "<version>"`，服务器返回对应 `ETag`。版本不符返回 `412 VERSION_CONFLICT`，缺少前置条件返回 428。Create 和 claim 不要求已有资源版本，claim 以数据库原子领取防重入。
 

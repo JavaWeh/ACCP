@@ -4656,7 +4656,7 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      description: Unique per actor, route and resource; same key with different input returns 409.
+      description: Unique per actor, route and resource; same key with different input returns 409 IDEMPOTENCY_CONFLICT. Replayed responses include the Idempotency-Replayed response header with value true; first responses and IDEMPOTENCY_CONFLICT responses omit it.
       schema:
         type: string
         minLength: 8
