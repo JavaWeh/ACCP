@@ -17,12 +17,12 @@ func TestIdempotencyReplayedHeader(t *testing.T) {
 		t.Fatal("first response must not include Idempotency-Replayed")
 	}
 	var before, after int
-	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM idempotency_records`).Scan(&before); err != nil {
+	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM idempotency_records WHERE route = $1`, "POST /api/v1/agent-sessions").Scan(&before); err != nil {
 		t.Fatal(err)
 	}
 	replay := f.call("bob", "POST", "/agent-sessions", "session-replay-header", "", body)
 	f.expect(replay, 201, "M2SessionGrant")
-	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM idempotency_records`).Scan(&after); err != nil {
+	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM idempotency_records WHERE route = $1`, "POST /api/v1/agent-sessions").Scan(&after); err != nil {
 		t.Fatal(err)
 	}
 	if after != before {
@@ -42,5 +42,34 @@ func TestIdempotencyReplayedHeader(t *testing.T) {
 	}
 	if _, present := conflict.Header()["Idempotency-Replayed"]; present {
 		t.Fatal("conflict response must not include Idempotency-Replayed")
+	}
+}
+
+func TestOrganizationIdempotencyReplayedHeader(t *testing.T) {
+	f := setup(t)
+	f.server.options.AuthMode = "development"
+	body := Object{"name": "Replay header project"}
+	first := f.call("alice", "POST", "/projects", "project-replay-header", "", body)
+	f.expect(first, 201, "ManagementProject")
+	if _, present := first.Header()["Idempotency-Replayed"]; present {
+		t.Fatal("first response must not include Idempotency-Replayed")
+	}
+	var before, after int
+	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM organization_idempotency WHERE route = $1`, "POST /api/v1/projects").Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	replay := f.call("alice", "POST", "/projects", "project-replay-header", "", body)
+	f.expect(replay, 201, "ManagementProject")
+	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM organization_idempotency WHERE route = $1`, "POST /api/v1/projects").Scan(&after); err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Fatalf("replay changed idempotency record count from %d to %d", before, after)
+	}
+	if replay.Header().Get("Idempotency-Replayed") != "true" {
+		t.Fatal("replayed response must include Idempotency-Replayed: true")
+	}
+	if replay.Body.String() != first.Body.String() {
+		t.Fatal("replayed response differs from first response")
 	}
 }

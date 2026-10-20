@@ -63,8 +63,11 @@ func (s *Server) executeOrganization(q *request, op operation) (reply, error) {
 		if stored != digest {
 			return reply{}, fail(409, "IDEMPOTENCY_CONFLICT", "This key identifies another request.")
 		}
-		err = json.Unmarshal(data, &cached.body)
-		return cached, err
+		if err = json.Unmarshal(data, &cached.body); err != nil {
+			return reply{}, err
+		}
+		cached.replayed = true
+		return cached, nil
 	}
 	if err != pgx.ErrNoRows {
 		return reply{}, err
