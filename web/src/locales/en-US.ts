@@ -1,6 +1,18 @@
 import type { MessageKey, MessageValue } from "./zh-CN";
 
 export const enUS = {
+  "请求超时，暂不确定是否已保存":
+    "The request timed out. We can't confirm it was saved.",
+  "重试是安全的，不会重复创建。":
+    "Retrying is safe and won't create duplicates.",
+  在任务列表中查看: "Check the task list",
+  "仍在处理，请勿关闭页面": "Still working. Please keep this page open.",
+  "已成功，无需重复提交": "Already done — no need to submit again",
+  "该操作此前已成功完成。": "This action had already succeeded.",
+  打开任务: "Open task",
+  "服务暂时不可用，请稍后再试":
+    "The service is temporarily unavailable. Try again later.",
+  重试: "Retry",
   待投递事件: "Events awaiting delivery",
   失败事件: "Failed events",
   待核对操作: "Operations to verify",

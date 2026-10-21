@@ -45,6 +45,7 @@ export function Tasks({
   const { translate, label } = useI18n();
 
   const [creating, setCreating] = useState(false);
+  const [listRevision, setListRevision] = useState(0);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [status, setStatus] = useState("all");
@@ -84,7 +85,17 @@ export function Tasks({
       live = false;
       clearTimeout(timer);
     };
-  }, [w.api, w.project.id, w.me.id, w.tasks, search, filter, status, cursor]);
+  }, [
+    w.api,
+    w.project.id,
+    w.me.id,
+    w.tasks,
+    search,
+    filter,
+    status,
+    cursor,
+    listRevision,
+  ]);
   const resetPage = () => {
     setCursor("");
     setPrevious([]);
@@ -212,11 +223,32 @@ export function Tasks({
           {translate("下一页")}
         </Button>
       </div>
-      {creating && <CreateTask w={w} close={() => setCreating(false)} />}{" "}
+      {creating && (
+        <CreateTask
+          w={w}
+          close={() => setCreating(false)}
+          checkList={() => {
+            setCreating(false);
+            setSearch("");
+            setFilter("all");
+            setStatus("all");
+            resetPage();
+            setListRevision((revision) => revision + 1);
+          }}
+        />
+      )}{" "}
     </>
   );
 }
-function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
+function CreateTask({
+  w,
+  close,
+  checkList,
+}: {
+  w: Workspace;
+  close: () => void;
+  checkList: () => void;
+}) {
   const { translate } = useI18n();
 
   const [versions, setVersions] = useState<Doc[]>([]);
@@ -259,7 +291,8 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
         <Form
           submit={translate("创建草稿")}
           onDone={close}
-          action={async (data) => {
+          safeRetry={{ onCheck: checkList }}
+          action={async (data, idempotencyKey) => {
             const criteria = text(data, "criteria")
               .split("\n")
               .map((s) => s.trim())
@@ -268,15 +301,28 @@ function CreateTask({ w, close }: { w: Workspace; close: () => void }) {
               throw new LocalizedError("请至少填写一条验收条件。");
             if (!data.getAll("contexts").length)
               throw new LocalizedError("请至少选择一项项目资料。");
-            await w.api.call(`/projects/${w.project.id}/tasks`, {
-              title: text(data, "title"),
-              objective: text(data, "objective"),
-              owner_user_id: text(data, "owner"),
-              repository_id: text(data, "repo"),
-              acceptance_criteria: criteria,
-              context_version_ids: data.getAll("contexts"),
-            });
-            await w.refresh();
+            let idempotencyReplayed = false;
+            await w.api.call(
+              `/projects/${w.project.id}/tasks`,
+              {
+                title: text(data, "title"),
+                objective: text(data, "objective"),
+                owner_user_id: text(data, "owner"),
+                repository_id: text(data, "repo"),
+                acceptance_criteria: criteria,
+                context_version_ids: data.getAll("contexts"),
+              },
+              undefined,
+              {
+                idempotencyKey,
+                onResponse: (metadata) => {
+                  idempotencyReplayed = metadata.idempotencyReplayed;
+                },
+              },
+            );
+            // A refresh failure must not turn a confirmed write into another submit.
+            await w.refresh().catch(setError);
+            return { idempotencyReplayed };
           }}
         >
           <p className="text-sm leading-6 text-slate-600">
