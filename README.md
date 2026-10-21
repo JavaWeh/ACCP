@@ -157,3 +157,7 @@ ACCP 建立在开源社区的工作之上。感谢以下项目的作者、维护
 ## 许可证
 
 ACCP 使用 [Apache License 2.0](LICENSE)。
+
+## 备注
+
+本项目欢迎 LinuxDo 社区用户反馈和共建，欢迎访问[LinuxDo 社区](https://linux.do/)。
