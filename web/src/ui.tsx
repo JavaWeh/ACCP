@@ -4,6 +4,7 @@ import {
   createContext,
   isValidElement,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -26,7 +27,7 @@ import {
   TextArea as HeroTextArea,
   TextField,
 } from "@heroui/react";
-import { ApiError } from "./api";
+import { ApiError, UnknownResultError } from "./api";
 
 export { Button } from "@heroui/react";
 
@@ -294,44 +295,175 @@ export function Form({
   children,
   submit,
   onDone,
+  safeRetry,
 }: {
-  action: (data: FormData) => Promise<unknown>;
+  action: (data: FormData, idempotencyKey?: string) => Promise<unknown>;
   children: ReactNode;
   submit?: string;
   onDone?: () => void;
+  safeRetry?: { onCheck: () => void };
 }) {
   const { translate } = useI18n();
 
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const [error, setError] = useState<unknown>();
+  const [timeouts, setTimeouts] = useState(0);
+  const [waiting, setWaiting] = useState(false);
+  const [replayed, setReplayed] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const attempt = useRef<{ data: FormData; key: string } | undefined>(
+    undefined,
+  );
+  const unknown = safeRetry && timeouts > 0;
+  const retryEnabled = !!safeRetry;
+  useEffect(() => {
+    if (!busy || !retryEnabled) return;
+    const timer = setTimeout(() => setWaiting(true), 5000);
+    return () => clearTimeout(timer);
+  }, [busy, retryEnabled]);
   async function send(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (pending.current) return;
+    await run(new FormData(e.currentTarget));
+  }
+  async function run(data: FormData) {
+    if (pending.current || replayed || completed) return;
     pending.current = true;
     setBusy(true);
     setError(undefined);
-    const data = new FormData(e.currentTarget);
+    if (safeRetry && !attempt.current)
+      attempt.current = { data, key: crypto.randomUUID() };
     try {
-      await action(data);
-      onDone?.();
+      const result = await action(
+        attempt.current?.data ?? data,
+        attempt.current?.key,
+      );
+      setTimeouts(0);
+      attempt.current = undefined;
+      const keepOpen = !!(
+        result &&
+        typeof result === "object" &&
+        "keepOpen" in result &&
+        result.keepOpen === true
+      );
+      setCompleted(keepOpen);
+      if (
+        safeRetry &&
+        result &&
+        typeof result === "object" &&
+        "idempotencyReplayed" in result &&
+        result.idempotencyReplayed === true
+      )
+        setReplayed(true);
+      else if (!keepOpen) onDone?.();
     } catch (err) {
-      setError(err);
+      if (safeRetry && err instanceof UnknownResultError)
+        setTimeouts((count) => count + 1);
+      else {
+        setTimeouts(0);
+        attempt.current = undefined;
+        setError(err);
+      }
     } finally {
       pending.current = false;
       setBusy(false);
+      setWaiting(false);
     }
   }
   return (
     <HeroForm onSubmit={send} aria-busy={busy}>
-      {children}
+      {safeRetry ? (
+        <fieldset
+          disabled={busy || !!unknown || replayed || completed}
+          className="contents"
+        >
+          {children}
+        </fieldset>
+      ) : (
+        children
+      )}
+      {unknown && (
+        <Alert
+          status="warning"
+          role="status"
+          aria-live="polite"
+          className="my-4"
+        >
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>
+              {translate(
+                timeouts >= 3
+                  ? "服务暂时不可用，请稍后再试"
+                  : "请求超时，暂不确定是否已保存",
+              )}
+            </Alert.Title>
+            <Alert.Description>
+              {translate("重试是安全的，不会重复创建。")}
+            </Alert.Description>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="primary"
+                className="min-h-10"
+                isPending={busy}
+                onPress={() => {
+                  if (attempt.current) void run(attempt.current.data);
+                }}
+              >
+                {busy && <Spinner size="sm" color="current" />}
+                {busy ? translate("处理中…") : translate("重试")}
+              </Button>
+              <Button
+                type="button"
+                variant="tertiary"
+                onPress={safeRetry.onCheck}
+              >
+                {translate("在任务列表中查看")}
+              </Button>
+            </div>
+          </Alert.Content>
+        </Alert>
+      )}
+      {replayed && (
+        <Alert
+          status="success"
+          role="status"
+          aria-live="polite"
+          className="my-4"
+        >
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{translate("已成功，无需重复提交")}</Alert.Title>
+            <Alert.Description>
+              {translate("该操作此前已成功完成。")}
+            </Alert.Description>
+            <Button
+              type="button"
+              variant="tertiary"
+              onPress={safeRetry?.onCheck}
+            >
+              {translate("在任务列表中查看")}
+            </Button>
+          </Alert.Content>
+        </Alert>
+      )}
       {error !== undefined && <Message error={error} />}
       <div className="form-actions">
-        <Button type="submit" isDisabled={busy} aria-busy={busy}>
+        <Button
+          type="submit"
+          isDisabled={busy || !!unknown || replayed || completed}
+          aria-busy={busy}
+        >
           {busy && <Spinner size="sm" color="current" />}
           {busy ? translate("处理中…") : (submit ?? translate("保存"))}
         </Button>
       </div>
+      {waiting && (
+        <p role="status" aria-live="polite">
+          {translate("仍在处理，请勿关闭页面")}
+        </p>
+      )}
     </HeroForm>
   );
 }

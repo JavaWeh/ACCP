@@ -1,3 +1,5 @@
+import { LocalizedError } from "./i18n";
+
 export type Doc = { id: string; [key: string]: any };
 export type Membership = {
   id: string;
@@ -9,6 +11,19 @@ export type Membership = {
   version: number;
 };
 export type Page<T = Doc> = { items: T[]; next_cursor?: string | null };
+export type ResponseMetadata = { idempotencyReplayed: boolean };
+export type CallOptions = {
+  idempotencyKey?: string;
+  uncertainResult?: boolean;
+  onResponse?: (metadata: ResponseMetadata) => void;
+};
+export class UnknownResultError extends LocalizedError {
+  constructor(cause: unknown) {
+    super("请求结果未知，请勿重复提交。");
+    this.cause = cause;
+    this.name = "UnknownResultError";
+  }
+}
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -29,6 +44,7 @@ export class API {
     path: string,
     body?: unknown,
     version?: number,
+    options: CallOptions = {},
   ): Promise<T> {
     const operation =
       body === undefined
@@ -39,25 +55,51 @@ export class API {
     };
     if (body !== undefined) {
       headers["Content-Type"] = "application/json";
-      const key = this.uncertainWrites.get(operation) || crypto.randomUUID();
+      const key =
+        options.idempotencyKey ||
+        this.uncertainWrites.get(operation) ||
+        crypto.randomUUID();
       this.uncertainWrites.set(operation, key);
       headers["Idempotency-Key"] = key;
     }
     if (version !== undefined) headers["If-Match"] = `"${version}"`;
-    const res = await fetch(`/api/v1${path}`, {
-      method: body === undefined ? "GET" : "POST",
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      redirect: "error",
-      signal: AbortSignal.timeout(20000),
-    });
-    const data = await res.json();
+    let res: Response;
+    try {
+      res = await fetch(`/api/v1${path}`, {
+        method: body === undefined ? "GET" : "POST",
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        redirect: "error",
+        signal: AbortSignal.timeout(20000),
+      });
+    } catch (cause) {
+      if (body !== undefined && options.uncertainResult)
+        throw new UnknownResultError(cause);
+      throw cause;
+    }
     if (body !== undefined && res.status < 500)
       this.uncertainWrites.delete(operation);
+    if (res.status === 401) this.onExpired();
+    let data;
+    try {
+      data = await res.json();
+    } catch (cause) {
+      if (
+        body !== undefined &&
+        options.uncertainResult &&
+        (res.ok || res.status >= 500)
+      ) {
+        this.uncertainWrites.set(operation, headers["Idempotency-Key"]);
+        throw new UnknownResultError(cause);
+      }
+      throw cause;
+    }
     if (!res.ok) {
-      if (res.status === 401) this.onExpired();
       throw new ApiError(res.status, data.code, data.detail, data.trace_id);
     }
+    options.onResponse?.({
+      idempotencyReplayed: res.headers.get("Idempotency-Replayed") === "true",
+    });
     return data as T;
   }
   async all<T = Doc>(path: string): Promise<T[]> {

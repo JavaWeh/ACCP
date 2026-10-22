@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { Doc } from "../src/api";
-import { createTranslator } from "../src/i18n";
+import { API, ApiError, UnknownResultError } from "../src/api";
+import { createTranslator, LocalizedError } from "../src/i18n";
 import { zhCN } from "../src/locales/zh-CN";
 import { enUS } from "../src/locales/en-US";
 import { ruRU } from "../src/locales/ru-RU";
@@ -271,6 +272,67 @@ async function createTask(page: Page) {
   await page.getByLabel("验收条件", { exact: false }).fill("检查返回数据");
 }
 
+test("API unknown results require an explicit write opt-in", async () => {
+  const originalFetch = globalThis.fetch;
+  const api = new API("synthetic-ui-test-value", () => {});
+  try {
+    for (const uncertainResult of [undefined, false, true]) {
+      const options = { uncertainResult };
+      for (const cause of [
+        new TypeError("Network failure"),
+        new DOMException("Timed out", "TimeoutError"),
+      ]) {
+        globalThis.fetch = async () => {
+          throw cause;
+        };
+        const write = api.call("/tasks", { title: "test" }, undefined, options);
+        if (uncertainResult)
+          await expect(write).rejects.toMatchObject({
+            name: "UnknownResultError",
+            cause,
+          });
+        else await expect(write).rejects.toBe(cause);
+        await expect(
+          api.call("/tasks", undefined, undefined, options),
+        ).rejects.toBe(cause);
+      }
+      for (const status of [409, 503]) {
+        globalThis.fetch = async () =>
+          new Response(
+            JSON.stringify({
+              code: "WRITE_FAILED",
+              detail: "Write rejected",
+              trace_id: "write-trace",
+            }),
+            { status },
+          );
+        await expect(
+          api.call("/tasks", {}, undefined, options),
+        ).rejects.toBeInstanceOf(ApiError);
+      }
+      for (const status of [201, 400, 503]) {
+        globalThis.fetch = async () => new Response("truncated", { status });
+        await expect(
+          api.call("/tasks", {}, undefined, options),
+        ).rejects.toBeInstanceOf(
+          uncertainResult && status !== 400 ? UnknownResultError : SyntaxError,
+        );
+      }
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  const error = new UnknownResultError(new TypeError("Network failure"));
+  expect(error).toBeInstanceOf(LocalizedError);
+  for (const [locale, message] of [
+    ["zh-CN", "请求结果未知，请勿重复提交。"],
+    ["en-US", "The request result is unknown. Please do not submit again."],
+    ["ru-RU", "Результат запроса неизвестен. Не отправляйте его повторно."],
+  ] as const) {
+    expect(createTranslator(locale).translate(error.key)).toBe(message);
+  }
+});
+
 test("required fields, multiple selection, retry and submit preserve API payloads", async ({
   page,
 }) => {
@@ -313,8 +375,12 @@ test("retry after an unknown network result reuses the write key", async ({
   await page.keyboard.press("Escape");
   fixture.failNextTaskNetwork();
   await page.getByRole("button", { name: "创建草稿", exact: true }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
-  await page.getByRole("button", { name: "创建草稿", exact: true }).click();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "请求超时，暂不确定是否已保存" }),
+  ).toContainText("请求超时，暂不确定是否已保存");
+  await page.getByRole("button", { name: "重试", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const writes = fixture.posts.filter(
     (post) => post.path === "/projects/project_demo/tasks",
@@ -322,6 +388,221 @@ test("retry after an unknown network result reuses the write key", async ({
   expect(writes).toHaveLength(2);
   expect(writes[0].key).toBeTruthy();
   expect(writes[1].key).toBe(writes[0].key);
+  await createTask(page);
+  await page.getByLabel("任务标题").fill("另一项任务");
+  await page.getByRole("button", { name: /执行依据/ }).click();
+  await page.getByRole("option", { name: /订单 API/ }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "创建草稿", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(fixture.posts.at(-1)!.key).not.toBe(writes[0].key);
+});
+
+test.describe("safe task retries", () => {
+  async function ready(page: Page) {
+    const fixture = await consoleFixture(page);
+    await login(page);
+    await createTask(page);
+    await page.getByRole("button", { name: /执行依据/ }).click();
+    await page.getByRole("option", { name: /订单 API/ }).click();
+    await page.keyboard.press("Escape");
+    return fixture;
+  }
+
+  for (const header of ["true", undefined, "false"]) {
+    test(`timeout retry trusts only the replay header (${header ?? "absent"})`, async ({
+      page,
+    }) => {
+      test.setTimeout(60000);
+      const fixture = await ready(page);
+      const writes: { key: string | undefined; body: unknown }[] = [];
+      let completeRetry: (() => Promise<void>) | undefined;
+      await page.route(
+        "**/api/v1/projects/project_demo/tasks",
+        async (route) => {
+          if (route.request().method() !== "POST") return route.fallback();
+          writes.push({
+            key: route.request().headers()["idempotency-key"],
+            body: route.request().postDataJSON(),
+          });
+          // The server may have saved the first request, but its response never arrives.
+          if (writes.length === 1) return;
+          completeRetry = () =>
+            route.fulfill({
+              status: 201,
+              headers:
+                header === undefined ? {} : { "Idempotency-Replayed": header },
+              json: { id: "task_created", idempotencyReplayed: true },
+            });
+        },
+      );
+      const submit = page.getByRole("dialog").locator('button[type="submit"]');
+      await submit.click();
+      await expect(submit).toBeDisabled();
+      await expect(submit).toContainText("处理中…");
+      const hint = page
+        .getByRole("status")
+        .filter({ hasText: "仍在处理，请勿关闭页面" });
+      await expect(hint).toBeVisible({ timeout: 8000 });
+      const warning = page
+        .getByRole("status")
+        .filter({ hasText: "请求超时，暂不确定是否已保存" });
+      await expect(warning).toBeVisible({ timeout: 20000 });
+      await expect(warning).toHaveAttribute("aria-live", "polite");
+      await expect(warning).toContainText("重试是安全的，不会重复创建。");
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      await expect(page.getByLabel("任务标题")).toHaveValue("多依据任务");
+      await expect(page.getByLabel("目标与范围")).toHaveValue(
+        "验证多选和默认负责人",
+      );
+      await expect(hint).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: "在任务列表中查看", exact: true }),
+      ).toBeVisible();
+      const retry = warning.getByRole("button").first();
+      expect((await retry.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+      await retry.focus();
+      await page.keyboard.press("Enter");
+      await expect(retry).toBeFocused();
+      await expect(retry).toHaveAttribute("data-pending", "true");
+      await expect(retry).toHaveAttribute("aria-disabled", "true");
+      await expect(retry).toContainText("处理中…");
+      await expect.poll(() => writes.length).toBe(2);
+      expect(writes[0].key).toBeTruthy();
+      expect(writes[1]).toEqual(writes[0]);
+      await completeRetry!();
+      if (header === "true") {
+        const success = page
+          .getByRole("status")
+          .filter({ hasText: "已成功，无需重复提交" });
+        await expect(success).toContainText("该操作此前已成功完成。");
+        await expect(success).toHaveAttribute("aria-live", "polite");
+        await expect(page.getByRole("dialog")).toBeVisible();
+        await page.clock.install();
+        await page.clock.fastForward(10000);
+        await expect(success).toBeVisible();
+        await page
+          .getByRole("button", { name: "在任务列表中查看", exact: true })
+          .click();
+      }
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(
+        page.getByText("已成功，无需重复提交", { exact: true }),
+      ).toHaveCount(0);
+      expect(fixture.errors).toEqual([]);
+    });
+  }
+
+  test("three unknown results retain retry and the task-list recovery action", async ({
+    page,
+  }) => {
+    const fixture = await ready(page);
+    const keys: (string | undefined)[] = [];
+    await page.route("**/api/v1/projects/project_demo/tasks", (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      keys.push(route.request().headers()["idempotency-key"]);
+      // A proxy 5xx need not contain an API error JSON document.
+      return route.fulfill({
+        status: 503,
+        contentType: "text/html",
+        body: "Unavailable",
+      });
+    });
+    await page.getByRole("button", { name: "创建草稿", exact: true }).click();
+    const retry = page.getByRole("button", { name: "重试", exact: true });
+    await expect(retry).toBeVisible();
+    await retry.click();
+    await expect(retry).toHaveText("重试");
+    await retry.click();
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "服务暂时不可用，请稍后再试" }),
+    ).toContainText("服务暂时不可用，请稍后再试");
+    await expect(retry).toBeVisible();
+    expect(keys).toHaveLength(3);
+    expect(new Set(keys).size).toBe(1);
+    await expect(page.getByLabel("任务标题")).toHaveValue("多依据任务");
+    const reads = fixture.gets.filter((path) =>
+      path.includes("/tasks?"),
+    ).length;
+    await page
+      .getByRole("button", { name: "在任务列表中查看", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect
+      .poll(
+        () => fixture.gets.filter((path) => path.includes("/tasks?")).length,
+      )
+      .toBeGreaterThan(reads);
+    await expect(
+      page.getByRole("heading", { name: "任务协作", exact: true }),
+    ).toBeVisible();
+  });
+
+  for (const status of [409, 503]) {
+    test(`${status} JSON errors retain the existing Message error`, async ({
+      page,
+    }) => {
+      await ready(page);
+      await page.route("**/api/v1/projects/project_demo/tasks", (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        return route.fulfill({
+          status,
+          json: {
+            code: "IDEMPOTENCY_CONFLICT",
+            detail: "请检查任务内容后重试",
+            trace_id: "conflict-trace",
+          },
+        });
+      });
+      await page.getByRole("button", { name: "创建草稿", exact: true }).click();
+      const error = page.getByRole("alert");
+      await expect(error).toContainText("请检查任务内容后重试");
+      await expect(error).toContainText(
+        "IDEMPOTENCY_CONFLICT · conflict-trace",
+      );
+      await expect(
+        page.getByRole("button", { name: "重试", exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: "创建草稿", exact: true }),
+      ).toBeEnabled();
+      await expect(page.getByLabel("任务标题")).toHaveValue("多依据任务");
+    });
+  }
+
+  test("a refresh failure after a confirmed write keeps the modal open without resubmitting", async ({
+    page,
+  }) => {
+    const fixture = await ready(page);
+    await page.route(
+      "**/api/v1/projects/project_demo/tasks?limit=50",
+      (route) =>
+        route.fulfill({
+          status: 503,
+          json: {
+            code: "UNAVAILABLE",
+            detail: "Refresh failed",
+            trace_id: "refresh-trace",
+          },
+        }),
+    );
+    await page.getByRole("button", { name: "创建草稿", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("alert")).toContainText("Refresh failed");
+    await expect(dialog.getByRole("alert")).toContainText(
+      "UNAVAILABLE · refresh-trace",
+    );
+    await expect(
+      dialog.getByRole("button", { name: "创建草稿", exact: true }),
+    ).toBeDisabled();
+    await dialog
+      .locator("form")
+      .evaluate((form: HTMLFormElement) => form.requestSubmit());
+    expect(fixture.posts).toHaveLength(1);
+    expect(fixture.errors).toEqual([]);
+  });
 });
 
 test("dialogs trap focus, Escape dismisses and returns focus to the trigger", async ({
