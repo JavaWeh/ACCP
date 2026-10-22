@@ -375,9 +375,11 @@ test("retry after an unknown network result reuses the write key", async ({
   await page.keyboard.press("Escape");
   fixture.failNextTaskNetwork();
   await page.getByRole("button", { name: "创建草稿", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "请求超时，暂不确定是否已保存",
-  );
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "请求超时，暂不确定是否已保存" }),
+  ).toContainText("请求超时，暂不确定是否已保存");
   await page.getByRole("button", { name: "重试", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const writes = fixture.posts.filter(
@@ -512,9 +514,11 @@ test.describe("safe task retries", () => {
     await retry.click();
     await expect(retry).toHaveText("重试");
     await retry.click();
-    await expect(page.getByRole("status")).toContainText(
-      "服务暂时不可用，请稍后再试",
-    );
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "服务暂时不可用，请稍后再试" }),
+    ).toContainText("服务暂时不可用，请稍后再试");
     await expect(retry).toBeVisible();
     expect(keys).toHaveLength(3);
     expect(new Set(keys).size).toBe(1);
