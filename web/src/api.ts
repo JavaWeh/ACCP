@@ -1,3 +1,5 @@
+import { LocalizedError } from "./i18n";
+
 export type Doc = { id: string; [key: string]: any };
 export type Membership = {
   id: string;
@@ -12,11 +14,13 @@ export type Page<T = Doc> = { items: T[]; next_cursor?: string | null };
 export type ResponseMetadata = { idempotencyReplayed: boolean };
 export type CallOptions = {
   idempotencyKey?: string;
+  uncertainResult?: boolean;
   onResponse?: (metadata: ResponseMetadata) => void;
 };
-export class UnknownResultError extends Error {
+export class UnknownResultError extends LocalizedError {
   constructor(cause: unknown) {
-    super("The write result is unknown.", { cause });
+    super("请求结果未知，请勿重复提交。");
+    this.cause = cause;
     this.name = "UnknownResultError";
   }
 }
@@ -69,12 +73,10 @@ export class API {
         signal: AbortSignal.timeout(20000),
       });
     } catch (cause) {
-      if (body !== undefined) throw new UnknownResultError(cause);
+      if (body !== undefined && options.uncertainResult)
+        throw new UnknownResultError(cause);
       throw cause;
     }
-    // A failed write may already have taken effect, even with a non-JSON 5xx.
-    if (body !== undefined && res.status >= 500)
-      throw new UnknownResultError(res.status);
     if (body !== undefined && res.status < 500)
       this.uncertainWrites.delete(operation);
     if (res.status === 401) this.onExpired();
@@ -82,7 +84,11 @@ export class API {
     try {
       data = await res.json();
     } catch (cause) {
-      if (body !== undefined && res.ok) {
+      if (
+        body !== undefined &&
+        options.uncertainResult &&
+        (res.ok || res.status >= 500)
+      ) {
         this.uncertainWrites.set(operation, headers["Idempotency-Key"]);
         throw new UnknownResultError(cause);
       }

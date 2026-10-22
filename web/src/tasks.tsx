@@ -315,13 +315,19 @@ function CreateTask({
               undefined,
               {
                 idempotencyKey,
+                uncertainResult: true,
                 onResponse: (metadata) => {
                   idempotencyReplayed = metadata.idempotencyReplayed;
                 },
               },
             );
             // A refresh failure must not turn a confirmed write into another submit.
-            await w.refresh().catch(setError);
+            try {
+              await w.refresh();
+            } catch (cause) {
+              setError(cause);
+              return { idempotencyReplayed, keepOpen: true };
+            }
             return { idempotencyReplayed };
           }}
         >

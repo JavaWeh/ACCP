@@ -311,6 +311,7 @@ export function Form({
   const [timeouts, setTimeouts] = useState(0);
   const [waiting, setWaiting] = useState(false);
   const [replayed, setReplayed] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const attempt = useRef<{ data: FormData; key: string } | undefined>(
     undefined,
   );
@@ -326,7 +327,7 @@ export function Form({
     await run(new FormData(e.currentTarget));
   }
   async function run(data: FormData) {
-    if (pending.current) return;
+    if (pending.current || replayed || completed) return;
     pending.current = true;
     setBusy(true);
     setError(undefined);
@@ -339,6 +340,13 @@ export function Form({
       );
       setTimeouts(0);
       attempt.current = undefined;
+      const keepOpen = !!(
+        result &&
+        typeof result === "object" &&
+        "keepOpen" in result &&
+        result.keepOpen === true
+      );
+      setCompleted(keepOpen);
       if (
         safeRetry &&
         result &&
@@ -347,7 +355,7 @@ export function Form({
         result.idempotencyReplayed === true
       )
         setReplayed(true);
-      else onDone?.();
+      else if (!keepOpen) onDone?.();
     } catch (err) {
       if (safeRetry && err instanceof UnknownResultError)
         setTimeouts((count) => count + 1);
@@ -365,7 +373,10 @@ export function Form({
   return (
     <HeroForm onSubmit={send} aria-busy={busy}>
       {safeRetry ? (
-        <fieldset disabled={busy || !!unknown || replayed} className="contents">
+        <fieldset
+          disabled={busy || !!unknown || replayed || completed}
+          className="contents"
+        >
           {children}
         </fieldset>
       ) : (
@@ -441,7 +452,7 @@ export function Form({
       <div className="form-actions">
         <Button
           type="submit"
-          isDisabled={busy || !!unknown || replayed}
+          isDisabled={busy || !!unknown || replayed || completed}
           aria-busy={busy}
         >
           {busy && <Spinner size="sm" color="current" />}
