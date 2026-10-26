@@ -292,7 +292,11 @@ paths:
       tags:
         - Tasks
       summary: List project tasks
-      description: Read authorized project tasks. M2 also allows a scoped Agent Session in the same project.
+      description: >
+        Read authorized project tasks. M2 also allows a scoped Agent Session in the same project.
+        Without sort, page order is implementation-defined (stable id keyset only). With sort,
+        order defaults to updated_at desc or title asc; cursors are opaque and bound to filters plus resolved sort/order.
+        Invalid sort returns INVALID_SORT; invalid order or order without sort returns INVALID_ORDER.
       x-accp-actors:
         - HUMAN
         - AGENT
@@ -310,7 +314,7 @@ paths:
         - name: cursor
           in: query
           required: false
-          description: Opaque continuation cursor.
+          description: Opaque continuation cursor bound to the active filters and resolved sort/order.
           schema:
             type: string
         - name: limit
@@ -322,6 +326,20 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - name: sort
+          in: query
+          required: false
+          description: Sort field. Allowed values updated_at or title. Omit for legacy id-only paging with no order guarantee.
+          schema:
+            type: string
+            enum: [updated_at, title]
+        - name: order
+          in: query
+          required: false
+          description: Sort direction asc or desc. Requires sort. Defaults are updated_at→desc and title→asc when order is omitted.
+          schema:
+            type: string
+            enum: [asc, desc]
         - name: q
           in: query
           required: false
