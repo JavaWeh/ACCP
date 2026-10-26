@@ -112,10 +112,8 @@ export function NotFoundPage({
 export function ForbiddenPage() {
   const { translate } = useI18n();
   return (
-    <StatusCard title={translate("权限不足")}>
-      {translate(
-        "你是该项目成员，但当前角色无法执行此操作。请联系项目管理员调整角色。",
-      )}
+    <StatusCard title={translate("此页面需要更高权限")}>
+      {translate("请联系项目管理员确认你的访问权限。")}
     </StatusCard>
   );
 }

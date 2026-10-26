@@ -851,7 +851,7 @@ test("viewer navigation excludes actions and administrator pages", async ({
     history.pushState(null, "", "/projects/project_demo/operations");
     dispatchEvent(new PopStateEvent("popstate"));
   });
-  await expect(page.getByText("权限不足")).toBeVisible();
+  await expect(page.getByText("此页面需要更高权限")).toBeVisible();
 });
 
 test("delegation defaults and member permissions preserve checked values", async ({
