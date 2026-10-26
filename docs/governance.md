@@ -8,7 +8,7 @@ D01 增量：任一有效项目 ADMIN 可登记本企业成员、创建项目及
 
 Task Owner 对任务交付负责；delegated_by_user_id 表示把权限委托给 Agent 的人；AgentIdentity 表示执行客户端；AgentSession 表示一次有期限的授权关系。实际请求主体、Owner、委托人和审核人分别保存，不能把它们合并为一个 user_id。
 
-人类身份来自企业 OIDC。MVP 不实现公共注册或跨企业邀请。Agent 注册及 Session 授权由有效人类成员发起；每个 Run 绑定项目与委托范围。
+人类身份来自企业 OIDC。控制面 API 校验的是 JWT access token 的 API audience（`ACCP_OIDC_AUDIENCE`，示例 `accp-api`），与 SPA 登录客户端 ID（`ACCP_OIDC_CLIENT_ID`，示例 `accp-web`）不同。MVP 不实现公共注册或跨企业邀请。Agent 注册及 Session 授权由有效人类成员发起；每个 Run 绑定项目与委托范围。
 
 ## 默认角色与动作
 
@@ -39,7 +39,7 @@ Worker 领取已批准意图时原子标记执行，并在副作用前重新鉴�
 
 ## MCP Gateway 安全边界
 
-Gateway 校验 access token 的 audience 为当前网关资源；控制面 token 不能自动作为下游 Git、DB 或 CI 凭证。下游凭证独立获取、按工具和资源最小授权，不返回给 Agent。[MCP 授权规范](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) 明确要求 audience 校验。
+Gateway 校验 access token 的 audience 为当前网关资源（MCP 资源 audience，不同于控制面 `ACCP_OIDC_AUDIENCE`）；控制面 token 不能自动作为下游 Git、DB 或 CI 凭证。下游凭证独立获取、按工具和资源最小授权，不返回给 Agent。[MCP 授权规范](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) 明确要求 audience 校验。
 
 注册工具与下游端点需要管理员权限。URL、重定向和目标网络范围采用允许列表，阻止工具和 Context 引用诱导网关访问未授权内网资源。Context 与工具输出按不可信数据处理，不将其中的指令提升为系统策略。
 

@@ -18,9 +18,9 @@ D01 管理增量沿用 `/api/v1`：`POST /projects`，企业成员与审计 `/or
 
 ## 身份与公共请求约定
 
-所有业务请求验证 bearer token 的 issuer、audience、有效期和主体类型。`organization_id` 来自认证授权，`project_id` 需验证成员关系；请求字段不能覆盖认证事实。Session ID 只是资源标识，不是凭证。
+所有业务请求验证 JWT access token（bearer）的 issuer、**API audience**（`ACCP_OIDC_AUDIENCE`，示例 `accp-api`；与 SPA client ID `ACCP_OIDC_CLIENT_ID` / 示例 `accp-web` 不同）、有效期和主体类型。拒绝将 ID token 或 opaque token 当作 API bearer。`organization_id` 来自认证授权，`project_id` 需验证成员关系；请求字段不能覆盖认证事实。Session ID 只是资源标识，不是凭证。
 
-人类 OIDC 登录后可在授权范围内创建 AgentSession。Session 返回的短期 ACCP 凭证只适用于指定资源与范围；实际令牌签发/刷新依赖实现阶段的企业身份配置，本仓库不存放真实凭证。
+人类 OIDC（Authorization Code + PKCE S256）登录后可在授权范围内创建 AgentSession。Session 返回的短期 ACCP 凭证只适用于指定资源与范围；实际令牌签发/刷新依赖实现阶段的企业身份配置，本仓库不存放真实凭证。配置说明见 [部署手册](production-deployment.md) 与 [ADR 0008](adr/0008-product-foundation.md)。
 
 所有 POST 请求要求 `Idempotency-Key`。作用域为企业、认证主体、路由及资源；相同键与相同请求返回已记录结果，不重新执行，并携带响应头 `Idempotency-Replayed: true`。首次响应不携带此头；相同键对应不同规范化输入返回 `409 IDEMPOTENCY_CONFLICT`，也不携带此头。默认保留响应 24 小时；有外部副作用的 invocation 去重记录独立保留到审计保留期结束。
 

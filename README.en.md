@@ -105,7 +105,7 @@ Local data is stored in Docker named volumes, and randomly generated credentials
 
 ## Private deployment and integration
 
-ACCP provides a single-organization, single-machine Linux Docker Compose deployment using enterprise OIDC sign-in. The deployment includes the web console, Go API, Worker, PostgreSQL, and NATS. An administrator must configure HTTPS, the identity provider, members, and repositories.
+ACCP provides a single-organization, single-machine Linux Docker Compose deployment using enterprise OIDC sign-in. The deployment includes the web console, Go API, Worker, PostgreSQL, and NATS. An administrator must configure HTTPS, the identity provider, members, and repositories. OIDC must use a distinct SPA client ID and API audience (examples `accp-web` / `accp-api`); see the deployment guide.
 
 - [Deployment and ongoing administration (Chinese)](docs/production-deployment.md): installation, identity integration, separation of runtime accounts, and installation checks; candidate images are on [GitHub Releases](https://github.com/JavaWeh/ACCP/releases) and GHCR (`ghcr.io/javaweh/accp` / `accp-ops`, pin by digest).
 - [Operations, backup, and recovery (Chinese)](docs/operations.md): maintenance windows, key rotation, encrypted backups, isolated recovery, and incident handling.

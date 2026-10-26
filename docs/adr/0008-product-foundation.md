@@ -12,7 +12,7 @@
 
 项目有 ACTIVE/ARCHIVED 状态和版本。归档与执行写入共用项目行锁；所有任务须为 DONE/CANCELED，且不存在 RUNNING Run 或 AWAITING_APPROVAL/READY/RUNNING/UNKNOWN 工具调用。归档拒绝后续项目写入并撤销已有 Session。恢复不复活旧 Session。成员停用同样撤销其对应授权，最后一个有效 ADMIN 不可移除。管理写入沿用幂等键、原因与审计，修改项目使用 If-Match；企业级写入有独立幂等和不可变审计表。
 
-生产采用 Authorization Code + PKCE S256。SPA client ID 与 API audience 分开配置且必须不同。API 只接受 RS256 签名、issuer/audience/expiry/subject 正确的 JWT access token，并要求受签名保护的 `typ=Bearer` payload（Keycloak）或 `typ=at+jwt` JOSE header。不接受 ID token、opaque token，也不从 IdP claims 自动创建用户或赋予项目角色。其他 IdP 接入需提供兼容 access-token 标识或另立契约。
+生产采用 Authorization Code + PKCE S256。SPA client ID（环境变量 `ACCP_OIDC_CLIENT_ID`，示例 `accp-web`）与 API audience（`ACCP_OIDC_AUDIENCE`，示例 `accp-api`）分开配置且必须不同；redirect URI 为 `{ACCP_PUBLIC_URL}/auth/callback`。API 只接受 RS256 签名、issuer/audience/expiry/subject 正确的 JWT access token，并要求受签名保护的 `typ=Bearer` payload（Keycloak）或 `typ=at+jwt` JOSE header。不接受 ID token、opaque token，也不从 IdP claims 自动创建用户或赋予项目角色。其他 IdP 接入需提供兼容 access-token 标识或另立契约。
 
 Web token 仅驻留内存；sessionStorage 只保存短期 OIDC 回调状态。过期后清除登录并重新认证，不进行后台 refresh。注销清除本地状态并调用 IdP end-session；已经签发的 access token 不因浏览器注销立即失效，其剩余有效期由 IdP 控制。ACCP 每次请求读取人类和成员状态，离岗须同步停用 ACCP 成员；IdP 单方面撤销的即时回调不在本次范围。
 

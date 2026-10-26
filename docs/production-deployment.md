@@ -4,7 +4,7 @@
 
 ## 新安装
 
-需要 Docker Compose v2、生成配置所用 Node.js、受信任 HTTPS 域名和证书、支持 RS256 JWT access token 的 OIDC 服务。IdP 创建公共 SPA 客户端，启用 Authorization Code 与 PKCE S256，禁止 password grant；redirect URI 为 `https://accp.example.com/auth/callback`，logout redirect URI 为 `https://accp.example.com`。给 access token 配置 `accp-api` audience，与客户端 `accp-web` 不同。Keycloak 使用签名 payload `typ=Bearer`；其他服务可使用签名 JOSE header `typ=at+jwt`。
+需要 Docker Compose v2、生成配置所用 Node.js、受信任 HTTPS 域名和证书、支持 RS256 JWT access token 的 OIDC 服务。IdP 创建公共 SPA 客户端（client ID 示例 `accp-web` → `ACCP_OIDC_CLIENT_ID`），启用 Authorization Code 与 PKCE S256，禁止 password grant；redirect URI 为 `{public_url}/auth/callback`（示例 `https://accp.example.com/auth/callback`），logout redirect URI 为公共根 URL（示例 `https://accp.example.com`）。给 access token 配置独立的 API audience（示例 `accp-api` → `ACCP_OIDC_AUDIENCE`），**必须与 SPA client ID 不同**；Gateway/API 只接受该 audience 的签名 JWT access token，拒绝 ID token 与 opaque token 作 API bearer。Keycloak 使用签名 payload `typ=Bearer`；其他服务可使用签名 JOSE header `typ=at+jwt`。
 
 以下命令在仓库根目录执行，示例 subject 须替换为 IdP 的稳定 subject，不能填写邮件地址代替。命令不打印生成的秘密。
 

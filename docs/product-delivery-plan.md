@@ -75,7 +75,7 @@ P0 为限制明确的正式交付阻塞项；P1 为本版成品的日常使用�
 | 编号 | 优先级 | 差距与代码证据 | 用户或交付影响 | 完成标准 |
 | --- | --- | --- | --- | --- |
 | D01 | P0 | [bootstrap](../internal/bootstrap/bootstrap.go) 仅支持空库；[成员接口](../internal/controlplane/identity.go) 修改已预置成员；现有路由未提供项目、仓库及新成员的持续创建管理 | 上线后新增团队、项目和仓库缺少受支持流程 | 管理员可在已有数据上新增/停用成员、创建/归档项目、登记仓库；权限、最后管理员保护和审计完整 |
-| D02 | P0 | [Web](../web/src/main.tsx) 使用 `id_token`；[启动代码](../cmd/accp/main.go) 复用 audience 为 SPA client ID；[M1 文档](m1-control-plane.md) 与 [M3/M4 文档](m3-m4-platform.md) 对 audience 配置要求不一致 | 企业接入契约含糊，开发登录不能证明生产登录可靠 | ADR 明确 API token、SPA client ID、API audience、注销/过期与撤销语义；真实 IdP 完成登录、刷新或重新认证、密钥轮换和拒绝用例 |
+| D02 | P0 | 代码与 [ADR 0008](adr/0008-product-foundation.md) 已落实：Web 以 JWT access token 调 API；`ACCP_OIDC_CLIENT_ID`（SPA，示例 `accp-web`）与 `ACCP_OIDC_AUDIENCE`（API，示例 `accp-api`）分别配置且必须不同。历史差距曾包括 Web 使用 `id_token`、启动代码复用 audience 为 SPA client ID、以及 M1 与 M3/M4 文档措辞不一；运维文档统一见 US-17。目标企业 IdP 密钥轮换与真实时间过期演练仍待做（本期不做专项 IdP 演练，见 Q8） | 文档若仍混用 client ID 与 audience，会误导真实 IdP 配置；隔离 Keycloak 不能替代目标 IdP 验收 | 部署/运维文档对 SPA client ID 与 API audience 说明一致；目标 IdP 登录/轮换/拒绝用例有演练记录或明确延期 |
 | D03 | P0 | [Compose](../compose.yaml) 为本地方案，API/Worker/迁移共用数据库凭证；API 就绪检查只覆盖数据库和迁移 | 操作者缺生产安装基线，API 可用不能说明异步执行正常 | 提供生产配置、TLS 入口、运行与迁移账号分权、密钥注入/轮换、持久卷与进程恢复策略，以及完整安装自检 |
 | D04 | P0 | [可靠性文档](reliability.md) 有备份原则；已有进程故障和迁移测试，但没有完整交付级备份/异机恢复演练材料 | 无法证明数据丢失或升级失败后可恢复业务 | 自动备份、校验、恢复脚本与实测 RPO/RTO；恢复后快照、成果、审计及副作用账本一致；明确迁移失败时恢复或前向修复方案 |
 | D05 | P0 | [Worker](../internal/eventbus/worker.go) 有失败记录与日志；未发现完整指标导出、告警规则和运维面板 | 事件积压、失租、待审批或 UNKNOWN 可能只能靠人工查询发现 | 提供队列延迟、租约、UNKNOWN、错误率指标与告警；失败队列查询、重放和核对操作有授权、审计与操作手册 |

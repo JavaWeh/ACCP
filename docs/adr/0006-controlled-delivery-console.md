@@ -24,7 +24,7 @@ Worker 先提交 RUNNING 意图，再在项目授权锁内重新校验，并执�
 
 ## Web 身份与存储
 
-生产控制台通过 OIDC Authorization Code + PKCE 登录，API 按配置的 issuer/audience 验证 ID token 并映射已有成员。开发环境使用原有个人凭证，保存在页面内存，刷新后重新登录。前端不内置演示 token，不提供冒充任意用户的登录接口。
+生产控制台通过 OIDC Authorization Code + PKCE 登录。SPA client ID（`ACCP_OIDC_CLIENT_ID`，示例 `accp-web`）与 API audience（`ACCP_OIDC_AUDIENCE`，示例 `accp-api`）分开配置且必须不同；API 按配置的 issuer 与 **API audience** 验证 JWT **access token** 并映射已有成员，拒绝将 ID token 或 opaque token 当作 API bearer。身份 token 契约以 [ADR 0008](0008-product-foundation.md) 为准。开发环境使用原有个人凭证，保存在页面内存，刷新后重新登录。前端不内置演示 token，不提供冒充任意用户的登录接口。
 
 正文和结果仍使用 PostgreSQL 中的有界存储：Context/Artifact 文本最多 256 KiB、工具参数 64 KiB、结构化结果 256 KiB。外部 Git diff 最多 4 MiB，通过服务端读取和摘要核验。达到大文件需求后再接入 S3，保留现有 URI/摘要与权限模型。
 
