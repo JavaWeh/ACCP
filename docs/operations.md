@@ -23,19 +23,21 @@ accp maintenance --action leave --actor USER_ID --reason 'Verification completed
 
 ## 加密备份
 
+候选版本的 `accp` / `accp-ops` 镜像由 tag 触发的 Release 发布到 GHCR（见 [部署说明 · 发行镜像](production-deployment.md#发行镜像与升级说明d10--us-7) 与 [GitHub Releases](https://github.com/JavaWeh/ACCP/releases)）。备份与恢复命令中的 `--image` / `--ops-image` 使用该 Release 正文中的 digest，例如 `ghcr.io/javaweh/accp@sha256:…` 与 `ghcr.io/javaweh/accp-ops@sha256:…`；本地演练仍可按下方从源码构建 ops 镜像。
+
 构建 `deploy/production/Dockerfile.ops`，获得包含 PostgreSQL 客户端的 `accp-ops` 镜像。恢复身份在独立离线位置创建：
 
 ```sh
 accp-ops keygen --identity-file /offline/accp-backup-identity
 accp-ops backup --database-url-file /run/backup-url --recipient AGE_PUBLIC_KEY \
-  --config-manifest /run/public-config.json --image accp@sha256:IMAGE_DIGEST \
+  --config-manifest /run/public-config.json --image ghcr.io/javaweh/accp@sha256:IMAGE_DIGEST \
   --output /backups/backup.age
 accp-ops verify-backup --input /backups/backup.age --identity-file /offline/accp-backup-identity
 ```
 
 公开配置清单是字符串映射，记录配置文件摘要、部署版本和重建所需公开配置；禁止填写密码、token 或私钥。备份源必须使用 `accp` schema。备份包采用 [age 文件加密](https://pkg.go.dev/filippo.io/age)，同时校验导出文件摘要；公钥加密不认证备份发送者，恢复只使用可信备份目录及对应运行记录中的包。
 
-定时入口为 `scripts/hourly-backup.mjs`。它只挂载数据库 URL、公开配置清单和备份目录，不挂载解密私钥。通过 `--recipient-file` 提供公钥，`--network` 指定部署私有网络，`--image` 和 `--ops-image` 使用候选产物的不可变标识。Linux 可安装 `deploy/production/accp-backup.service` / `.timer`，按 service 中列出的变量配置 `/etc/accp/backup.env`。Windows 任务计划每小时运行相同 Node 命令，关闭重叠实例。
+定时入口为 `scripts/hourly-backup.mjs`。它只挂载数据库 URL、公开配置清单和备份目录，不挂载解密私钥。通过 `--recipient-file` 提供公钥，`--network` 指定部署私有网络，`--image` 和 `--ops-image` 使用 Release 发布的不可变 digest（不要用可变 `latest`）。Linux 可安装 `deploy/production/accp-backup.service` / `.timer`，按 service 中列出的变量配置 `/etc/accp/backup.env`。Windows 任务计划每小时运行相同 Node 命令，关闭重叠实例。
 
 保留最近 48 份小时包与每天首份的最近 30 份日包。清理仅匹配调度器自己的备份文件名，不删除数据库业务证据。备份失败不推进保留清理。`backup-journal.jsonl` 记录运行结果；进程被强制杀死后，确认没有备份仍在运行，再由本机操作者移除残留 `backup.lock`。工具临时目录需要足够容量，默认调度容器使用 4 GiB 临时文件系统；最终容量验收须确认是否需要调整。
 

@@ -24,7 +24,20 @@ docker compose --env-file .accp-local/production/compose.env -f deploy/productio
 docker compose --env-file .accp-local/production/compose.env -f deploy/production/compose.yaml --profile tools run --rm doctor
 ```
 
-`postgres` 初始化四个受限登录，`migrate` 完成迁移后 `grants` 设置权限，API/Worker 再启动。bootstrap 仅执行一次，拒绝在已有数据上重复运行。生产发行时设置固定版本及摘要的 `ACCP_IMAGE`，不用构建目录的可变 tag 代替发行标识。本仓库尚未提供 D10 的正式发布流水线。
+`postgres` 初始化四个受限登录，`migrate` 完成迁移后 `grants` 设置权限，API/Worker 再启动。bootstrap 仅执行一次，拒绝在已有数据上重复运行。生产发行时设置固定版本及摘要的 `ACCP_IMAGE`，不用构建目录的可变 tag 或浮动 `latest` 代替发行标识。
+
+### 发行镜像与升级说明（D10 / US-7）
+
+推送匹配 `v*` 的 git tag 后，[`.github/workflows/release.yml`](../.github/workflows/release.yml) 先校验 `docs/releases/<tag>.md`（US-8 门禁），再向 GHCR 发布 digest 固定的镜像，并创建**正式**（非草稿）GitHub Release，附 Bridge 安装包与 `SHA256SUMS.txt`。安装时从该 Release 复制摘要，例如：
+
+```sh
+# 将下方摘要替换为 Release 正文中的实际值
+export ACCP_IMAGE=ghcr.io/javaweh/accp@sha256:REPLACE_WITH_RELEASE_DIGEST
+# 备份/恢复使用的 ops 镜像同样按 digest 固定
+# ghcr.io/javaweh/accp-ops@sha256:REPLACE_WITH_OPS_DIGEST
+```
+
+升级前阅读对应版本的 [升级说明](releases/README.md)；迁移后须重新执行 `grants`，并用 `accp-ops check` 确认 `deploy/production/grants.sql` 中的权限已生效。未通过升级说明门禁时，流水线不会向 GHCR 推送该次发行制品，也不会创建 Release。
 
 仅 Caddy 暴露 80/443；数据库、NATS、API 仅在 Compose 网络内访问。跨主机数据库或消息服务不属于此内部明文网络假设，应另配 TLS。企业 CA 可以通过只读 CA 文件与 `SSL_CERT_FILE` 注入，禁止关闭证书验证。
 

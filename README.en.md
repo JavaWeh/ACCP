@@ -107,7 +107,7 @@ Local data is stored in Docker named volumes, and randomly generated credentials
 
 ACCP provides a single-organization, single-machine Linux Docker Compose deployment using enterprise OIDC sign-in. The deployment includes the web console, Go API, Worker, PostgreSQL, and NATS. An administrator must configure HTTPS, the identity provider, members, and repositories.
 
-- [Deployment and ongoing administration (Chinese)](docs/production-deployment.md): installation, identity integration, separation of runtime accounts, and installation checks.
+- [Deployment and ongoing administration (Chinese)](docs/production-deployment.md): installation, identity integration, separation of runtime accounts, and installation checks; candidate images are on [GitHub Releases](https://github.com/JavaWeh/ACCP/releases) and GHCR (`ghcr.io/javaweh/accp` / `accp-ops`, pin by digest).
 - [Operations, backup, and recovery (Chinese)](docs/operations.md): maintenance windows, key rotation, encrypted backups, isolated recovery, and incident handling.
 - [Agent Bridge and SDK (Chinese)](docs/m2-execution.md#使用-local-bridge-和-go-sdk): client connection, task execution, and session configuration.
 - [Tool gateway configuration (Chinese)](docs/m3-m4-platform.md#工具配置与-mcp-gateway): connect GitHub or your own MCP tools, configure approvals, and reconcile outcomes.

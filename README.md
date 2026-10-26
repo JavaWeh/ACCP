@@ -107,7 +107,7 @@ node scripts/m2-smoke.mjs
 
 ACCP 提供单企业、单机 Linux Docker Compose 部署方案，使用企业 OIDC 账号登录。部署包含 Web 控制台、Go API、Worker、PostgreSQL 和 NATS；管理员需配置 HTTPS、身份服务、成员及仓库。
 
-- [部署与持续管理](docs/production-deployment.md)：安装、身份接入、运行账号分权与安装自检。
+- [部署与持续管理](docs/production-deployment.md)：安装、身份接入、运行账号分权与安装自检；候选版本镜像见 [GitHub Releases](https://github.com/JavaWeh/ACCP/releases) 与 GHCR（`ghcr.io/javaweh/accp` / `accp-ops`，按 digest 固定）。
 - [运维、备份与恢复](docs/operations.md)：维护窗口、密钥轮换、加密备份、隔离恢复和故障处理。
 - [Agent Bridge 与 SDK](docs/m2-execution.md#使用-local-bridge-和-go-sdk)：客户端连接、任务执行和会话配置。
 - [工具网关配置](docs/m3-m4-platform.md#工具配置与-mcp-gateway)：接入 GitHub 或自有 MCP 工具，设置审批与结果核对。

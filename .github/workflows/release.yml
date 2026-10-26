@@ -1,0 +1,271 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and validate without GHCR push or GitHub Release create
+        type: boolean
+        default: true
+      version:
+        description: Version tag for dry-run on a branch (e.g. v0.1.0-rc.1)
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_ACCP: ghcr.io/javaweh/accp
+  IMAGE_OPS: ghcr.io/javaweh/accp-ops
+
+jobs:
+  upgrade-notes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      publish: ${{ steps.meta.outputs.publish }}
+    steps:
+      - name: Resolve tag and publish mode
+        id: meta
+        run: |
+          set -euo pipefail
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            tag="${{ github.ref_name }}"
+          else
+            tag="${{ inputs.version }}"
+          fi
+          if [ -z "$tag" ]; then
+            echo "version is required for workflow_dispatch (e.g. v0.1.0-rc.1)" >&2
+            exit 1
+          fi
+          case "$tag" in
+            v*) ;;
+            *)
+              echo "tag must start with v: $tag" >&2
+              exit 1
+              ;;
+          esac
+          dry_run="${{ inputs.dry_run }}"
+          publish=false
+          if [ "${{ github.ref_type }}" = "tag" ] && [ "$dry_run" != "true" ]; then
+            publish=true
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=$tag publish=$publish dry_run=${dry_run:-false}"
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Fail closed on incomplete upgrade notes
+        run: node scripts/check-upgrade-notes.mjs --version "${{ steps.meta.outputs.tag }}"
+
+  build-images:
+    needs: upgrade-notes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      accp_digest: ${{ steps.digests.outputs.accp_digest }}
+      ops_digest: ${{ steps.digests.outputs.ops_digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Log in to GHCR
+        if: needs.upgrade-notes.outputs.publish == 'true'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push accp
+        id: build_accp
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ needs.upgrade-notes.outputs.publish == 'true' }}
+          load: ${{ needs.upgrade-notes.outputs.publish != 'true' }}
+          tags: ${{ env.IMAGE_ACCP }}:${{ needs.upgrade-notes.outputs.tag }}
+      - name: Build and push accp-ops
+        id: build_ops
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: ./deploy/production/Dockerfile.ops
+          push: ${{ needs.upgrade-notes.outputs.publish == 'true' }}
+          load: ${{ needs.upgrade-notes.outputs.publish != 'true' }}
+          tags: ${{ env.IMAGE_OPS }}:${{ needs.upgrade-notes.outputs.tag }}
+      - name: Record image digests
+        id: digests
+        run: |
+          set -euo pipefail
+          tag="${{ needs.upgrade-notes.outputs.tag }}"
+          publish="${{ needs.upgrade-notes.outputs.publish }}"
+          mkdir -p release-meta
+          if [ "$publish" = "true" ]; then
+            accp_digest="${{ steps.build_accp.outputs.digest }}"
+            ops_digest="${{ steps.build_ops.outputs.digest }}"
+          else
+            accp_digest="$(docker image inspect "${{ env.IMAGE_ACCP }}:${tag}" --format '{{index .RepoDigests 0}}' 2>/dev/null || true)"
+            if [ -z "$accp_digest" ] || [ "$accp_digest" = "<no value>" ]; then
+              accp_id="$(docker image inspect "${{ env.IMAGE_ACCP }}:${tag}" --format '{{.Id}}')"
+              accp_digest="local:${accp_id}"
+            else
+              accp_digest="${accp_digest#*@}"
+            fi
+            ops_digest="$(docker image inspect "${{ env.IMAGE_OPS }}:${tag}" --format '{{index .RepoDigests 0}}' 2>/dev/null || true)"
+            if [ -z "$ops_digest" ] || [ "$ops_digest" = "<no value>" ]; then
+              ops_id="$(docker image inspect "${{ env.IMAGE_OPS }}:${tag}" --format '{{.Id}}')"
+              ops_digest="local:${ops_id}"
+            else
+              ops_digest="${ops_digest#*@}"
+            fi
+          fi
+          echo "accp_digest=$accp_digest" >> "$GITHUB_OUTPUT"
+          echo "ops_digest=$ops_digest" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "{" \
+            "  \"tag\": \"${tag}\"," \
+            "  \"accp\": \"${{ env.IMAGE_ACCP }}@${accp_digest}\"," \
+            "  \"accp_ops\": \"${{ env.IMAGE_OPS }}@${ops_digest}\"" \
+            "}" > release-meta/image-digests.json
+          cat release-meta/image-digests.json
+      - name: Upload image digest metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-digests
+          path: release-meta/image-digests.json
+          if-no-files-found: error
+
+  build-bridge:
+    needs: upgrade-notes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.22.3
+      - name: Package Bridge archives
+        run: |
+          set -euo pipefail
+          mkdir -p bridge-dist
+          node scripts/package-bridge.mjs --out bridge-dist --version "${{ needs.upgrade-notes.outputs.tag }}"
+          ls -la bridge-dist
+          cat bridge-dist/SHA256SUMS.txt
+      - name: Upload Bridge packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bridge-packages
+          path: bridge-dist/*
+          if-no-files-found: error
+
+  github-release:
+    needs: [upgrade-notes, build-images, build-bridge]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Download image digests
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: image-digests
+          path: release-meta
+      - name: Download Bridge packages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: bridge-packages
+          path: bridge-dist
+      - name: Compose release body
+        id: body
+        run: |
+          set -euo pipefail
+          tag="${{ needs.upgrade-notes.outputs.tag }}"
+          notes="docs/releases/${tag}.md"
+          test -f "$notes"
+          {
+            cat "$notes"
+            echo
+            echo "## Published digests"
+            echo
+            echo '```json'
+            cat release-meta/image-digests.json
+            echo '```'
+            echo
+            echo "## Bridge checksums"
+            echo
+            echo '```'
+            cat bridge-dist/SHA256SUMS.txt
+            echo '```'
+          } > release-body.md
+          prerelease=false
+          case "$tag" in
+            *-*) prerelease=true ;;
+          esac
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+      - name: Create published GitHub Release
+        if: needs.upgrade-notes.outputs.publish == 'true'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          tag_name: ${{ needs.upgrade-notes.outputs.tag }}
+          name: ${{ needs.upgrade-notes.outputs.tag }}
+          body_path: release-body.md
+          draft: false
+          prerelease: ${{ steps.body.outputs.prerelease == 'true' }}
+          files: |
+            bridge-dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Dry-run summary (no Release create)
+        if: needs.upgrade-notes.outputs.publish != 'true'
+        run: |
+          set -euo pipefail
+          echo "Dry-run / non-publish mode: skipped GHCR push authentication path already gated; skipped GitHub Release create."
+          echo "Tag: ${{ needs.upgrade-notes.outputs.tag }}"
+          echo "Release body preview (first 40 lines):"
+          head -n 40 release-body.md
+          echo "Bridge assets:"
+          ls -la bridge-dist

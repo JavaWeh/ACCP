@@ -10,11 +10,12 @@
     "npm": ">=10 <11"
   },
   "scripts": {
-    "check": "npm run check:markdown && npm run check:links && npm run check:openapi && npm run check:contracts && npm run test:tooling && npm run check:private",
+    "check": "npm run check:markdown && npm run check:links && npm run check:openapi && npm run check:contracts && npm run check:upgrade-notes && npm run test:tooling && npm run check:private",
     "check:markdown": "markdownlint-cli2",
     "check:links": "node scripts/check-links.mjs",
     "check:openapi": "node scripts/check-openapi.mjs",
     "check:contracts": "node scripts/check-contracts.mjs",
+    "check:upgrade-notes": "node scripts/check-upgrade-notes.mjs",
     "check:private": "node scripts/check-private.mjs",
     "check:history": "node scripts/check-private.mjs --history",
     "test:tooling": "node --test scripts/tests/*.test.mjs"

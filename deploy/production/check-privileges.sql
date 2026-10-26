@@ -7,6 +7,9 @@ DO $$ BEGIN
  PERFORM id FROM human_users FOR SHARE;
  PERFORM id FROM organizations FOR UPDATE;
  PERFORM id FROM projects FOR UPDATE;
+ IF NOT has_table_privilege(current_user,'task_contexts','DELETE') THEN
+  RAISE EXCEPTION 'API missing DELETE on task_contexts; re-run deploy/production/grants.sql';
+ END IF;
  IF has_column_privilege(current_user,'human_users','active','UPDATE') OR
     has_table_privilege(current_user,'audit_records','UPDATE') OR
     has_table_privilege(current_user,'organization_audit','DELETE') OR

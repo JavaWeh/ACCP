@@ -115,6 +115,17 @@ npm run test:ui
 
 对应步骤见 [生产部署](docs/production-deployment.md)、[运维与恢复](docs/operations.md) 和 [受控工具接入](docs/m3-m4-platform.md#工具配置与-mcp-gateway)。保留脱敏的检查结果，明确目标环境与未覆盖项；不要把样例验收扩大为任意客户端、多人或生产兼容性结论。
 
+## 切割发行 tag
+
+发行由 [`.github/workflows/release.yml`](.github/workflows/release.yml) 在推送 `v*` tag 后全自动完成：先校验升级说明，再推送 GHCR 镜像并创建正式 GitHub Release（非草稿）。不要依赖可变 `latest`。
+
+1. 仅在已通过 validate / control-plane 等检查的 `main`（或约定的发布 SHA）上打 tag。
+2. 先在 `docs/releases/<tag>.md` 写好升级说明，章节要求见 [docs/releases/README.md](docs/releases/README.md)；本地运行 `node scripts/check-upgrade-notes.mjs --version <tag>` 与 `npm run check`。
+3. 可选：在 Actions 中对 `Release` 工作流执行 `workflow_dispatch`（`dry_run=true`、填写 `version`），验证门禁与构建，**不会**推送 GHCR 或创建 Release。
+4. 确认说明与 dry-run 通过后，再 `git tag <tag> <sha>` 并推送该 tag。首次发行前由仓库维护者开启 Actions 对 GHCR 的 package 写入权限，并建议限制谁可创建 `v*` tag。
+
+升级说明未通过时流水线 fail closed，不会发布该次制品。
+
 ## 提交 Pull Request
 
 使用 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md)，让每个 PR 围绕一个可审核的目标：
