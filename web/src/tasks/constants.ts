@@ -14,4 +14,8 @@ export {
   DEFAULT_TASK_LIST_QUERY,
   defaultOrderForSort,
 } from "./taskListSearchParams";
-export type { SortField, SortOrder, TaskListQuery } from "./taskListSearchParams";
+export type {
+  SortField,
+  SortOrder,
+  TaskListQuery,
+} from "./taskListSearchParams";

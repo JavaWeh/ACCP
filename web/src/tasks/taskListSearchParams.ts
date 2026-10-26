@@ -90,7 +90,10 @@ export function serializeTaskListSearch(query: TaskListQuery): string {
   return text ? `?${text}` : "";
 }
 
-export function taskListSearchEquals(a: TaskListQuery, b: TaskListQuery): boolean {
+export function taskListSearchEquals(
+  a: TaskListQuery,
+  b: TaskListQuery,
+): boolean {
   return (
     a.q === b.q &&
     a.owner === b.owner &&
@@ -105,10 +108,7 @@ export function hasActiveFilters(query: TaskListQuery): boolean {
 }
 
 /** Resolve URL owner (`me` or id) to the API `owner` query value. */
-export function apiOwnerParam(
-  owner: string,
-  meId: string,
-): string | undefined {
+export function apiOwnerParam(owner: string, meId: string): string | undefined {
   if (!owner) return undefined;
   if (owner === "me") return meId;
   return owner;
