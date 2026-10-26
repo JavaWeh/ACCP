@@ -477,6 +477,27 @@ export function Modal({
   close: () => void;
 }) {
   const { translate } = useI18n();
+  const marker = useRef<HTMLSpanElement>(null);
+
+  // Select can keep aria-expanded=true for a tick after .select__popover unmounts.
+  // Escape then closes the select instead of the dialog; dismiss here when no
+  // nested listbox/popover is actually present (capture, before Select handles it).
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (document.querySelector('.select__popover, [role="listbox"]')) return;
+      const anchor = marker.current;
+      if (!anchor) return;
+      const dialogs = [...document.querySelectorAll('[role="dialog"]')];
+      const owner = dialogs.find((dialog) => dialog.contains(anchor));
+      if (!owner || owner !== dialogs.at(-1)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [close]);
 
   return (
     <HeroModal.Backdrop
@@ -489,6 +510,7 @@ export function Modal({
     >
       <HeroModal.Container size="lg" scroll="inside">
         <HeroModal.Dialog>
+          <span ref={marker} hidden />
           <HeroModal.CloseTrigger aria-label={translate("关闭")} />
           <HeroModal.Header>
             <HeroModal.Heading>{title}</HeroModal.Heading>
