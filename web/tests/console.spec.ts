@@ -70,7 +70,7 @@ test("human console creates and publishes context, creates a task, and reads aud
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "创建草稿", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: new RegExp(taskName) }).click();
+  await page.getByRole("link", { name: new RegExp(taskName) }).click();
   await expect(
     page
       .getByRole("region", { name: "任务详情" })

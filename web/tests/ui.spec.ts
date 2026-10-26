@@ -137,17 +137,45 @@ async function consoleFixture(
       });
     if (/\/projects\/[^/]+\/tasks$/.test(path)) {
       const query = new URL(request.url()).searchParams;
+      let matched = tasks.filter(
+        (item) =>
+          (!query.get("owner") ||
+            item.owner_user_id === query.get("owner")) &&
+          (query.get("archived") !== "true" || item.archived === true) &&
+          (!query.get("status") || item.status === query.get("status")) &&
+          (!query.get("q") ||
+            `${item.title} ${item.objective}`
+              .toLowerCase()
+              .includes(query.get("q")!.toLowerCase())),
+      );
+      const sort = query.get("sort");
+      const orderParam = query.get("order");
+      // Workspace bootstrap (api.all) may omit sort; US-11b list always sends both.
+      if (sort && orderParam) {
+        const order = orderParam === "asc" ? 1 : -1;
+        matched = [...matched].sort((a, b) => {
+          if (sort === "title") {
+            return a.title.localeCompare(b.title) * order;
+          }
+          const left = String(a.updated_at || a.id);
+          const right = String(b.updated_at || b.id);
+          return left.localeCompare(right) * order;
+        });
+      }
+      const limit = Math.max(1, Number(query.get("limit") || "25"));
+      const cursor = query.get("cursor") || "";
+      const start = cursor
+        ? matched.findIndex((item) => item.id === cursor) + 1
+        : 0;
+      const sliceStart = start < 0 ? 0 : start;
+      const pageItems = matched.slice(sliceStart, sliceStart + limit);
+      const next =
+        sliceStart + limit < matched.length
+          ? pageItems.at(-1)?.id
+          : undefined;
       return send({
-        items: tasks.filter(
-          (item) =>
-            (!query.get("owner") ||
-              item.owner_user_id === query.get("owner")) &&
-            (!query.get("status") || item.status === query.get("status")) &&
-            (!query.get("q") ||
-              `${item.title} ${item.objective}`
-                .toLowerCase()
-                .includes(query.get("q")!.toLowerCase())),
-        ),
+        items: pageItems,
+        ...(next ? { next_cursor: next } : {}),
       });
     }
     if (/\/projects\/[^/]+\/contexts$/.test(path))
@@ -640,7 +668,7 @@ test("keyboard tabs and Owner checkboxes submit the selected evidence", async ({
   const fixture = await consoleFixture(page);
   await login(page);
   await navigate(page, "任务协作");
-  await page.getByRole("button", { name: /验证协作界面/ }).click();
+  await page.getByRole("link", { name: /验证协作界面/ }).click();
   const overview = page.getByRole("tab", { name: "任务与执行" });
   await overview.focus();
   await page.keyboard.press("ArrowRight");
@@ -677,7 +705,7 @@ test("task links reopen after authentication and browser navigation", async ({
   await consoleFixture(page);
   await login(page);
   await navigate(page, "任务协作");
-  await page.getByRole("button", { name: /验证协作界面/ }).click();
+  await page.getByRole("link", { name: /验证协作界面/ }).click();
   await expect(page).toHaveURL(/\/projects\/project_demo\/tasks\/task_demo$/);
   await expect(page.getByRole("region", { name: "任务详情" })).toBeVisible();
   await page.reload();
@@ -695,7 +723,7 @@ test("task links reopen after authentication and browser navigation", async ({
     .getByRole("button", { name: /任务协作/ })
     .click();
   await expect(
-    page.getByRole("button", { name: /验证协作界面/ }),
+    page.getByRole("link", { name: /验证协作界面/ }),
   ).toBeVisible();
   await page.goBack();
   await expect(page.getByRole("region", { name: "任务详情" })).toBeVisible();
@@ -844,13 +872,119 @@ test("task search, help and sanitized diagnostic export are reachable", async ({
   expect(fixture.errors).toEqual([]);
 });
 
+test("task list sends sort/order, normalizes URL, and load-more appends", async ({
+  page,
+}) => {
+  const fixture = await consoleFixture(page);
+  const listGets: string[] = [];
+  const extra = Array.from({ length: 30 }, (_, i) => ({
+    id: `task_extra_${i}`,
+    project_id: "project_demo",
+    title: `批量任务 ${String(i).padStart(2, "0")}`,
+    objective: "分页",
+    status: "READY",
+    owner_user_id: "user_demo",
+    context_version_ids: [],
+    acceptance_criteria: [],
+    updated_at: `2026-01-${String((i % 28) + 1).padStart(2, "0")}T00:00:00Z`,
+  }));
+  await page.route("**/api/v1/projects/project_demo/tasks**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/\/$/, "");
+    if (route.request().method() !== "GET" || !path.endsWith("/tasks")) {
+      return route.fallback();
+    }
+    const url = new URL(route.request().url());
+    listGets.push(url.pathname.replace("/api/v1", "") + url.search);
+    const query = url.searchParams;
+    const all = [
+      {
+        id: "task_demo",
+        title: "验证协作界面",
+        objective: "确认筛选、排序与加载更多",
+        status: "IN_REVIEW",
+        owner_user_id: "user_demo",
+        context_version_ids: ["version_api"],
+        acceptance_criteria: ["核对测试证据"],
+        updated_at: "2026-01-31T00:00:00Z",
+      },
+      ...extra,
+    ];
+    let sorted = all;
+    if (query.get("sort") && query.get("order")) {
+      const order = query.get("order") === "asc" ? 1 : -1;
+      sorted = [...all].sort((a, b) => {
+        if (query.get("sort") === "title") {
+          return a.title.localeCompare(b.title) * order;
+        }
+        return a.updated_at.localeCompare(b.updated_at) * order;
+      });
+    }
+    const limit = Number(query.get("limit") || "25");
+    const cursor = query.get("cursor") || "";
+    const start = cursor
+      ? sorted.findIndex((item) => item.id === cursor) + 1
+      : 0;
+    const pageItems = sorted.slice(start, start + limit);
+    const next =
+      start + limit < sorted.length ? pageItems.at(-1)?.id : undefined;
+    return route.fulfill({
+      status: 200,
+      json: {
+        items: pageItems,
+        ...(next ? { next_cursor: next } : {}),
+      },
+    });
+  });
+  await login(page);
+  await navigate(page, "任务协作");
+  await expect
+    .poll(() =>
+      listGets.some(
+        (path) =>
+          path.includes("/tasks?") &&
+          path.includes("sort=updated_at") &&
+          path.includes("order=desc"),
+      ),
+    )
+    .toBe(true);
+  await expect(page).toHaveURL(/sort=updated_at/);
+  await expect(page).toHaveURL(/order=desc/);
+  await expect(page).not.toHaveURL(/cursor=/);
+  await expect(page.getByRole("button", { name: "上一页" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "下一页" })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "加载更多", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "加载更多", exact: true }).click();
+  await expect(page.getByRole("link", { name: /批量任务/ })).toHaveCount(30);
+  await expect(
+    page.getByRole("button", { name: "加载更多", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("✓ 已全部加载")).toBeVisible();
+  await page.getByRole("button", { name: "按标题排序" }).click();
+  await expect(page).toHaveURL(/sort=title/);
+  await expect(page).toHaveURL(/order=asc/);
+  await expect
+    .poll(() =>
+      listGets.some(
+        (path) =>
+          path.includes("/tasks?") &&
+          path.includes("sort=title") &&
+          path.includes("order=asc") &&
+          !path.includes("cursor="),
+      ),
+    )
+    .toBe(true);
+  expect(fixture.errors).toEqual([]);
+});
+
 test("acceptance requires every criterion and verified evidence", async ({
   page,
 }) => {
   const fixture = await consoleFixture(page);
   await login(page);
   await navigate(page, "任务协作");
-  await page.getByRole("button", { name: /验证协作界面/ }).click();
+  await page.getByRole("link", { name: /验证协作界面/ }).click();
   await page.getByRole("tab", { name: "成果与验收" }).click();
   await page.getByLabel("审核意见").fill("核对后确认");
   await page.getByRole("button", { name: "提交验收决定" }).click();
@@ -1180,11 +1314,11 @@ test("switching language preserves login input, page and filters and persists af
     .getByRole("combobox", { name: "语言", exact: true })
     .selectOption("en-US");
   await expect(
-    page.getByRole("button", { name: /验证协作界面/ }),
-  ).toContainText("1 input");
-  await expect(
-    page.getByRole("button", { name: /验证协作界面/ }),
-  ).toContainText("1 criterion");
+    page.getByRole("link", { name: /验证协作界面/ }),
+  ).toBeVisible();
+  await expect(page.getByRole("grid", { name: "Task list" })).toContainText(
+    "验证协作界面",
+  );
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.reload();
   await expect(
@@ -1272,7 +1406,7 @@ test.describe("English workspace", () => {
       context_version_ids: ["version_api"],
       acceptance_criteria: ["Verify i18n payload"],
     });
-    await page.getByRole("button", { name: /验证协作界面/ }).click();
+    await page.getByRole("link", { name: /验证协作界面/ }).click();
     await page.getByRole("tab", { name: "Artifacts and acceptance" }).click();
     await page.getByRole("checkbox", { name: "核对测试证据" }).press("Space");
     await page.getByLabel("Review comments").fill("Reviewed in English");
