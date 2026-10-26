@@ -56,7 +56,10 @@ test("human console creates and publishes context, creates a task, and reads aud
     .getByRole("button", { name: "任务协作", exact: false })
     .first()
     .click();
-  await page.getByRole("button", { name: "创建任务", exact: false }).click();
+  await page
+    .getByRole("button", { name: "创建任务", exact: false })
+    .first()
+    .click();
   const taskName = `浏览器验收任务 ${Date.now()}`;
   await page.getByLabel("任务标题").fill(taskName);
   await page
@@ -161,7 +164,7 @@ test("Owner reviews actual protocol evidence and completes the task from Web", a
     .click();
   await page.getByLabel("搜索任务").fill("M2 protocol acceptance");
   await page
-    .getByRole("button", { name: /M2 protocol acceptance/ })
+    .getByRole("link", { name: /M2 protocol acceptance/ })
     .first()
     .click();
   await page.getByRole("tab", { name: "成果与验收", exact: true }).click();
