@@ -607,4 +607,22 @@ export const enUS = {
   "同步 Git 文件": "Import Git file",
   "完整 Commit SHA": "Full commit SHA",
   "查看 Git 原文": "View Git source",
+  复制链接: "Copy link",
+  "复制任务链接：{title}": "Copy link to task: {title}",
+  已复制: "Copied",
+  链接已复制到剪贴板: "Link copied to clipboard",
+  "无法自动复制，请按 Ctrl+C 复制链接":
+    "Couldn't copy automatically. Press Ctrl+C to copy the link.",
+  找不到或无权访问: "Not found or no access",
+  "链接可能已失效，或你不是该项目的成员。请检查链接，或联系项目管理员。":
+    "The link may be invalid, or you may not be a member of this project. Check the link or contact a project admin.",
+  权限不足: "You don't have permission",
+  "你是该项目成员，但当前角色无法执行此操作。请联系项目管理员调整角色。":
+    "You're a member of this project, but your role doesn't allow this. Ask a project admin to change your role.",
+  链接失效: "Link not valid",
+  "这个链接的地址不正确或已不再可用。":
+    "This link address is incorrect or no longer available.",
+  返回项目概览: "Back to project overview",
+  返回任务列表: "Back to tasks",
+  错误编号: "Error ID",
 } satisfies Record<MessageKey, MessageValue>;

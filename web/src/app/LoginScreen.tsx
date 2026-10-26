@@ -4,21 +4,21 @@ import { Card } from "@heroui/react";
 import type { UserManager } from "oidc-client-ts";
 import { API } from "../api";
 import { Button, Input, Field, Form, Message, text } from "../ui";
-import { readRoute, type Route } from "../routing";
+import { buildReturnTo, sanitizeReturnTo } from "../returnTo";
 import type { AuthConfig } from "./types";
 
 export function LoginScreen({
   config,
   authError,
   manager,
-  navigate,
+  restoreReturnTo,
   setToken,
   setAuthError,
 }: {
   config: AuthConfig | undefined;
   authError: unknown;
   manager: UserManager | undefined;
-  navigate: (next: Route, replace?: boolean) => void;
+  restoreReturnTo: (raw: unknown) => void;
   setToken: (token: string) => void;
   setAuthError: (error: unknown) => void;
 }) {
@@ -108,11 +108,7 @@ export function LoginScreen({
               const returnTo = new URLSearchParams(location.search).get(
                 "returnTo",
               );
-              if (
-                returnTo?.startsWith("/projects/") &&
-                !returnTo.startsWith("//")
-              )
-                navigate(readRoute(returnTo), true);
+              restoreReturnTo(returnTo ?? sanitizeReturnTo(buildReturnTo()));
               setToken(value);
             }}
           >
@@ -134,7 +130,7 @@ export function LoginScreen({
             <p>{translate("此环境使用本地开发认证。")}</p>
             <a
               className="mt-3 inline-block font-medium"
-              href={`/dev-login?returnTo=${encodeURIComponent(location.pathname)}`}
+              href={`/dev-login?returnTo=${encodeURIComponent(buildReturnTo())}`}
             >
               {translate("前往开发登录 →")}
             </a>
@@ -145,7 +141,9 @@ export function LoginScreen({
             className="w-full"
             onClick={() =>
               manager
-                ?.signinRedirect({ state: { returnTo: location.pathname } })
+                ?.signinRedirect({
+                  state: { returnTo: buildReturnTo() },
+                })
                 .catch(setAuthError)
             }
           >

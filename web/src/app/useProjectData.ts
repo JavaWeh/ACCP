@@ -44,15 +44,34 @@ export function useProjectData({
   const [error, setError] = useState<unknown>();
   const [loaded, setLoaded] = useState(false);
   const [updated, setUpdated] = useState("");
+  const [projectUnavailable, setProjectUnavailable] = useState(false);
   useEffect(() => {
-    if (!route.projectID || route.projectID === projectID) return;
-    if (projects.some((project) => project.id === route.projectID))
-      setProjectID(route.projectID);
-  }, [route.projectID, projectID, projects]);
+    if (route.invalid) return;
+    if (!projects.length) return;
+    if (!route.projectID) {
+      if (projectUnavailable) setProjectUnavailable(false);
+      if (!projectID && projects[0]) {
+        setProjectID(projects[0].id);
+        navigate({ projectID: projects[0].id, page: "overview" }, true);
+      }
+      return;
+    }
+    const known = projects.some((project) => project.id === route.projectID);
+    setProjectUnavailable(!known);
+    if (known && route.projectID !== projectID) setProjectID(route.projectID);
+  }, [
+    route.projectID,
+    route.invalid,
+    projectID,
+    projects,
+    projectUnavailable,
+    navigate,
+  ]);
   async function reloadProjects(id?: string) {
     const list = await api.all("/projects");
     setProjects(list);
     if (id) {
+      setProjectUnavailable(false);
       setProjectID(id);
       navigate({ projectID: id, page: "management" });
     } else {
@@ -67,13 +86,32 @@ export function useProjectData({
         if (active) {
           setMe(human);
           setProjects(list);
-          const requested = readRoute(location.pathname).projectID;
+          const requested = readRoute(location.pathname);
+          if (requested.invalid) {
+            setProjectUnavailable(false);
+            const chrome =
+              list.find((project) => project.id === requested.projectID)?.id ||
+              list[0]?.id ||
+              "";
+            setProjectID(chrome);
+            return;
+          }
+          if (
+            requested.projectID &&
+            !list.some((project) => project.id === requested.projectID)
+          ) {
+            setProjectUnavailable(true);
+            setProjectID("");
+            setLoaded(true);
+            return;
+          }
+          setProjectUnavailable(false);
           const initial =
-            list.find((project) => project.id === requested)?.id ||
+            list.find((project) => project.id === requested.projectID)?.id ||
             list[0]?.id ||
             "";
           setProjectID(initial);
-          if (initial && initial !== requested)
+          if (initial && initial !== requested.projectID)
             navigate({ projectID: initial, page: "overview" }, true);
         }
       })
@@ -182,6 +220,7 @@ export function useProjectData({
     setError,
     loaded,
     updated,
+    projectUnavailable,
     reloadProjects,
     refresh,
     resetProjectData,

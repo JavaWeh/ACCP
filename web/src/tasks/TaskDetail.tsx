@@ -1,13 +1,16 @@
 import { useI18n } from "../i18n";
 import { Tabs } from "@heroui/react";
 import { useEffect, useState } from "react";
-import type { Doc, Page } from "../api";
+import { ApiError, type Doc, type Page } from "../api";
 import { short } from "../api";
 import type { Workspace } from "../main";
-import { Button, Badge, Empty, Message } from "../ui";
+import { CopyLink } from "../CopyLink";
+import { ForbiddenPage, NotFoundPage } from "../app/LinkStatus";
+import { Button, Badge, Message } from "../ui";
 import { TaskOverviewPanel } from "./TaskOverviewPanel";
 import { TaskEvidencePanel } from "./TaskEvidencePanel";
 import { TaskHistoryPanel } from "./TaskHistoryPanel";
+import { routePath } from "../routing";
 
 export function TaskDetail({
   w,
@@ -125,6 +128,19 @@ export function TaskDetail({
       clearTimeout(timer);
     };
   }, [w.api, w.project.id, id, canChange, task?.id, dependencySearch]);
+  if (error instanceof ApiError && error.status === 404) {
+    const tasksHref = routePath({ projectID: w.project.id, page: "tasks" });
+    return (
+      <NotFoundPage
+        backHref={tasksHref}
+        backLabel={translate("返回任务列表")}
+        onBack={() => close()}
+      />
+    );
+  }
+  if (error instanceof ApiError && error.status === 403) {
+    return <ForbiddenPage />;
+  }
   return (
     <section
       className="task-detail page-enter space-y-5"
@@ -134,7 +150,14 @@ export function TaskDetail({
         <Button variant="ghost" onPress={close}>
           ← {translate("任务协作")}
         </Button>
-        <code className="text-slate-500">{short(id)}</code>
+        <div className="flex items-center gap-3">
+          <CopyLink
+            ariaLabel={translate("复制任务链接：{title}", {
+              title: String(task?.title || translate("任务详情")),
+            })}
+          />
+          <code className="text-slate-500">{short(id)}</code>
+        </div>
       </div>
       <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-8">
         <h2 className="mb-4 text-2xl font-semibold">
@@ -145,7 +168,7 @@ export function TaskDetail({
           error === undefined ? (
             <p>{translate("正在读取任务…")}</p>
           ) : (
-            <Empty title={translate("无法读取任务")} />
+            <Message error={error} />
           )
         ) : (
           <>

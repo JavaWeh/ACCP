@@ -19,6 +19,7 @@ import type { Workspace } from "../main";
 import { Button, Input, Select, Badge, Empty, Message } from "../ui";
 import { columns } from "./constants";
 import { CreateTask } from "./CreateTask";
+import { readRoute } from "../routing";
 import {
   DEFAULT_TASK_LIST_QUERY,
   buildTaskListRequestParams,
@@ -38,7 +39,10 @@ type ListIntent = {
   cursor: string;
 };
 
-function readQueryFromLocation(): { query: TaskListQuery; normalized: boolean } {
+function readQueryFromLocation(): {
+  query: TaskListQuery;
+  normalized: boolean;
+} {
   return parseTaskListSearch(location.search);
 }
 
@@ -110,6 +114,9 @@ export function Tasks({
 
   useEffect(() => {
     const onPopState = () => {
+      const route = readRoute(location.pathname);
+      // Do not rewrite URL on invalid/other pages (US-12 O4 keeps the address).
+      if (route.invalid || route.page !== "tasks" || route.taskID) return;
       const { query: parsed, normalized } = readQueryFromLocation();
       if (normalized) writeTaskListUrl(parsed, "replace");
       if (!taskListSearchEquals(parsed, queryRef.current)) {
@@ -270,8 +277,7 @@ export function Tasks({
   const showSkeleton = loading && !items.length && !firstError;
   const showRefreshChrome = refreshing && items.length > 0;
   const appendLoading = loading && intent.mode === "append";
-  const canCreate =
-    w.roles.includes("MEMBER") || w.roles.includes("ADMIN");
+  const canCreate = w.roles.includes("MEMBER") || w.roles.includes("ADMIN");
   const filtersOn = hasActiveFilters(query);
 
   const ariaSort = (
@@ -560,9 +566,7 @@ export function Tasks({
                       <Table.Cell>
                         <Badge value={task.status} />
                       </Table.Cell>
-                      <Table.Cell>
-                        {ownerName(task.owner_user_id)}
-                      </Table.Cell>
+                      <Table.Cell>{ownerName(task.owner_user_id)}</Table.Cell>
                       <Table.Cell className="whitespace-nowrap">
                         {stamp(task.updated_at)}
                       </Table.Cell>

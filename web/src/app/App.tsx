@@ -18,7 +18,10 @@ import {
   Audit,
   Tools,
 } from "./lazyPages";
+import { CopyLink } from "../CopyLink";
+import { sanitizeReturnTo } from "../returnTo";
 import { LoginScreen } from "./LoginScreen";
+import { ForbiddenPage, InvalidLinkPage, NotFoundPage } from "./LinkStatus";
 import { Overview } from "./Overview";
 import { useAuthSession } from "./useAuthSession";
 import { useProjectData } from "./useProjectData";
@@ -49,6 +52,15 @@ export function App() {
     else history.pushState(null, "", path);
     setRoute(next);
   }, []);
+  const restoreReturnTo = useCallback((raw: unknown) => {
+    const safePath = sanitizeReturnTo(raw);
+    history.replaceState(null, "", safePath);
+    setRoute(readRoute(location.pathname));
+  }, []);
+  const goHref = useCallback((href: string) => {
+    history.pushState(null, "", href);
+    setRoute(readRoute(location.pathname));
+  }, []);
   useEffect(() => {
     const onPopState = () => setRoute(readRoute(location.pathname));
     addEventListener("popstate", onPopState);
@@ -77,6 +89,7 @@ export function App() {
     setError,
     loaded,
     updated,
+    projectUnavailable,
     reloadProjects,
     refresh,
     resetProjectData,
@@ -108,7 +121,7 @@ export function App() {
         config={config}
         authError={authError}
         manager={manager}
-        navigate={navigate}
+        restoreReturnTo={restoreReturnTo}
         setToken={setToken}
         setAuthError={setAuthError}
       />
@@ -271,6 +284,7 @@ export function App() {
                   ? translate("更新于 {time}", { time: time(updated) })
                   : translate("正在同步")}
               </span>
+              <CopyLink />
               <Button
                 variant="outline"
                 size="sm"
@@ -293,12 +307,18 @@ export function App() {
               </div>
             }
           >
-            {loaded &&
-            project &&
-            !allowedNav.some((item) => item.id === page) ? (
-              <Empty title={translate("此页面需要更高权限")}>
-                {translate("请联系项目管理员确认你的访问权限。")}
-              </Empty>
+            {route.invalid ? (
+              <InvalidLinkPage projectID={route.projectID} onBack={goHref} />
+            ) : projectUnavailable ? (
+              <NotFoundPage
+                backHref="/"
+                backLabel={translate("返回首页")}
+                onBack={goHref}
+              />
+            ) : loaded &&
+              project &&
+              !allowedNav.some((item) => item.id === page) ? (
+              <ForbiddenPage />
             ) : page === "management" && admin ? (
               <Management
                 api={api}

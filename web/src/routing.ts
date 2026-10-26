@@ -14,7 +14,13 @@ export const pages = [
 ] as const;
 
 export type PageID = (typeof pages)[number];
-export type Route = { projectID: string; page: PageID; taskID?: string };
+export type Route = {
+  projectID: string;
+  page: PageID;
+  taskID?: string;
+  /** Unknown page segment, decode failure, or extra path parts (O4). */
+  invalid?: boolean;
+};
 
 function segment(value: string): string {
   try {
@@ -24,17 +30,30 @@ function segment(value: string): string {
   }
 }
 
+function pathOnly(pathname: string): string {
+  return pathname.split(/[?#]/, 1)[0] || "/";
+}
+
 export function readRoute(pathname: string): Route {
-  const parts = pathname.split("/").filter(Boolean);
+  const parts = pathOnly(pathname).split("/").filter(Boolean);
   if (parts[0] !== "projects" || !parts[1])
     return { projectID: "", page: "overview" };
   const projectID = segment(parts[1]);
-  const page = pages.find((candidate) => candidate === parts[2]) || "overview";
-  const taskID =
-    page === "tasks" && parts[3] && parts.length === 4
-      ? segment(parts[3])
-      : undefined;
-  return { projectID, page, taskID };
+  if (!projectID) return { projectID: "", page: "overview", invalid: true };
+  if (!parts[2]) return { projectID, page: "overview" };
+  const page = pages.find((candidate) => candidate === parts[2]);
+  if (!page) return { projectID, page: "overview", invalid: true };
+  if (page === "tasks") {
+    if (parts.length === 3) return { projectID, page };
+    if (parts.length === 4) {
+      const taskID = segment(parts[3]);
+      if (!taskID) return { projectID, page, invalid: true };
+      return { projectID, page, taskID };
+    }
+    return { projectID, page, invalid: true };
+  }
+  if (parts.length > 3) return { projectID, page, invalid: true };
+  return { projectID, page };
 }
 
 export function routePath(route: Route): string {

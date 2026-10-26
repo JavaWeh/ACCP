@@ -8,6 +8,7 @@ import {
 import { API } from "../api";
 import type { Doc } from "../api";
 import { readRoute, type Route } from "../routing";
+import { sanitizeReturnTo } from "../returnTo";
 import type { AuthConfig } from "./types";
 
 export function useAuthSession({
@@ -73,15 +74,9 @@ export function useAuthSession({
           if (location.pathname === "/auth/callback") {
             const returnTo = (user.state as { returnTo?: unknown } | null)
               ?.returnTo;
-            const safePath =
-              typeof returnTo === "string" &&
-              returnTo.startsWith("/") &&
-              !returnTo.startsWith("//") &&
-              returnTo !== "/auth/callback"
-                ? returnTo
-                : "/";
+            const safePath = sanitizeReturnTo(returnTo);
             history.replaceState(null, "", safePath);
-            setRoute(readRoute(safePath));
+            setRoute(readRoute(location.pathname));
           }
         }
         await manager.clearStaleState();

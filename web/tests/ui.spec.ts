@@ -139,8 +139,7 @@ async function consoleFixture(
       const query = new URL(request.url()).searchParams;
       let matched = tasks.filter(
         (item) =>
-          (!query.get("owner") ||
-            item.owner_user_id === query.get("owner")) &&
+          (!query.get("owner") || item.owner_user_id === query.get("owner")) &&
           (query.get("archived") !== "true" || item.archived === true) &&
           (!query.get("status") || item.status === query.get("status")) &&
           (!query.get("q") ||
@@ -170,9 +169,7 @@ async function consoleFixture(
       const sliceStart = start < 0 ? 0 : start;
       const pageItems = matched.slice(sliceStart, sliceStart + limit);
       const next =
-        sliceStart + limit < matched.length
-          ? pageItems.at(-1)?.id
-          : undefined;
+        sliceStart + limit < matched.length ? pageItems.at(-1)?.id : undefined;
       return send({
         items: pageItems,
         ...(next ? { next_cursor: next } : {}),
@@ -722,11 +719,65 @@ test("task links reopen after authentication and browser navigation", async ({
     .getByRole("region", { name: "任务详情" })
     .getByRole("button", { name: /任务协作/ })
     .click();
-  await expect(
-    page.getByRole("link", { name: /验证协作界面/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /验证协作界面/ })).toBeVisible();
   await page.goBack();
   await expect(page.getByRole("region", { name: "任务详情" })).toBeVisible();
+});
+
+test("returnTo keeps search and hash; copy link and invalid page", async ({
+  page,
+  context,
+}) => {
+  await consoleFixture(page);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(
+    "/projects/project_demo/tasks?status=IN_PROGRESS&sort=updated_at&order=desc#row-demo",
+  );
+  await page.getByRole("link", { name: "前往开发登录 →" }).click();
+  await expect(page).toHaveURL(/returnTo=/);
+  const returnTo = new URL(page.url()).searchParams.get("returnTo");
+  expect(returnTo).toContain("/projects/project_demo/tasks?");
+  expect(returnTo).toContain("status=IN_PROGRESS");
+  expect(returnTo).toContain("#row-demo");
+  await page.getByLabel("个人开发凭证").fill("synthetic-ui-test-value");
+  await page.getByRole("button", { name: "登录工作空间", exact: true }).click();
+  await expect(page).toHaveURL(/status=IN_PROGRESS/);
+  await expect(page).toHaveURL(/sort=updated_at/);
+  await expect(page).toHaveURL(/order=desc/);
+  expect(page.url()).toContain("#row-demo");
+  await expect(
+    page.getByRole("heading", { name: "任务协作", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("radio", { name: "全部任务", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "没有符合条件的任务", exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "复制链接", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "复制链接", exact: true }),
+  ).toContainText("已复制");
+  await expect(
+    page.getByText("链接已复制到剪贴板", { exact: true }),
+  ).toBeVisible();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain("/projects/project_demo/tasks?");
+  expect(copied).toContain("status=IN_PROGRESS");
+  expect(copied).toContain("#row-demo");
+
+  await page.evaluate(() => {
+    history.pushState(null, "", "/projects/project_demo/not-a-real-page");
+    dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await expect(
+    page.getByRole("heading", { name: "链接失效", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "返回项目概览", exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/projects\/project_demo\/not-a-real-page$/);
 });
 
 test("administrators see readable diagnostics and replay requires a reason", async ({
@@ -1313,9 +1364,7 @@ test("switching language preserves login input, page and filters and persists af
   await page
     .getByRole("combobox", { name: "语言", exact: true })
     .selectOption("en-US");
-  await expect(
-    page.getByRole("link", { name: /验证协作界面/ }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /验证协作界面/ })).toBeVisible();
   await expect(page.getByRole("grid", { name: "Task list" })).toContainText(
     "验证协作界面",
   );
