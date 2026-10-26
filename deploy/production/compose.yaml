@@ -23,6 +23,7 @@ x-runtime: &runtime
   ACCP_NATS_TOKEN_FILE: /run/secrets/nats_token
   ACCP_TOOLS_FILE: /etc/accp/tools.json
   ACCP_GITHUB_TOKEN_FILE: /run/secrets/github_token
+  ACCP_DATABASE_MAX_CONNS: ${ACCP_DATABASE_MAX_CONNS:-10}
 
 services:
   postgres:

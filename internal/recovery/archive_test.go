@@ -13,6 +13,22 @@ import (
 	"time"
 )
 
+func TestDumpArgsIncludePgTrgmExtension(t *testing.T) {
+	args := dumpArgs("00000003-00000004-1", "/tmp/accp.dump")
+	var hasSchema, hasExtension bool
+	for _, arg := range args {
+		if arg == "--schema=accp" {
+			hasSchema = true
+		}
+		if arg == "--extension=pg_trgm" {
+			hasExtension = true
+		}
+	}
+	if !hasSchema || !hasExtension {
+		t.Fatalf("dumpArgs must include --schema=accp and --extension=pg_trgm, got %v", args)
+	}
+}
+
 func TestBackupAuthenticationAndArchiveBoundaries(t *testing.T) {
 	key, _ := age.GenerateX25519Identity()
 	wrong, _ := age.GenerateX25519Identity()

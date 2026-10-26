@@ -61,6 +61,8 @@ PostgreSQL、JetStream 和 Caddy 状态位于命名卷。升级和维护不得�
 
 配置可使用 `DATABASE_URL_FILE`、`ACCP_SESSION_KEYS_FILE`、`ACCP_SESSION_KEY_FILE`、`ACCP_NATS_TOKEN_FILE`、`ACCP_GITHUB_TOKEN_FILE`。同时设置值和 `_FILE` 会启动失败；文件必须非空（未启用 GitHub 工具时允许空 GitHub token）。变更文件后重建相关容器，不能假定单个文件 bind mount 或进程自动重读。
 
+可选环境变量 `ACCP_DATABASE_MAX_CONNS` 设置 pgx 连接池上限（正整数，建议范围 1–1000）。未设置、空值或非法值时默认为 **10**，与历史硬编码行为一致。按压测结论调优时写入 Compose 环境文件并重建 API/Worker；不要在未复测前改架构。
+
 Session keyring 格式为 `{"active":"k2","keys":{"k1":"64位十六进制旧密钥","k2":"64位十六进制新密钥"}}`，每个 key 是随机 32 字节，最多八把。先让 API/Worker 同时加载包含新旧 key 的配置，再切换 active 并一起重建，执行 doctor 确认配置一致。旧 Session 在保留旧 key 且授权仍有效时可继续使用；在最长 Session 寿命及客户端过渡窗口结束后移除旧 key。旧单密钥格式迁移可在 keyring 临时设置 `legacy`，迁移结束必须删除。紧急泄漏时直接删除泄漏 key 并重签发 Session，不能保留兼容窗口。密钥变化也影响使用同一 signer 的 Gateway 凭据。
 
 数据库密码轮换安排维护窗口：停止 API/Worker，在受保护的操作员连接中更新对应角色密码，同时更新 `secrets/<role>_password` 和 `<role>_url` 文件，然后重建使用该登录的容器并执行 doctor。修改 secret 文件本身不会改变 PostgreSQL 内的密码；禁止把密码放到命令行、日志或工单中。NATS 当前采用单 token：同时更新 token 文件并重建 NATS/API/Worker，短暂中断后通过 JetStream 持久数据恢复；检查 doctor 与事件积压。GitHub token 先在提供方建立最小权限新 token，更新文件重建 API/Worker，验证后撤销旧 token。

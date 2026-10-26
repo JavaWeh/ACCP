@@ -53,6 +53,10 @@ accp-ops verify-backup --input /backups/backup.age --identity-file /offline/accp
 
 恢复 JSON 报告提供快照时间、表摘要、RPO 和恢复命令耗时。实际业务 RTO 还包括人工核对、权限重建和部署，必须另计；不能把命令耗时直接宣称为完整业务 RTO。任务、快照、成果、审计与副作用账本均保留。
 
+## 数据库连接池
+
+`ACCP_DATABASE_MAX_CONNS` 控制 API/Worker（及本机 `accp` 入口）pgx 池的 `MaxConns`。默认 **10**；合法范围为 1–1000。容量压测（US-2）可在不改代码的情况下调高/调低该值并重建进程；指标端点暴露 `accp_database_pool_acquired` / `accp_database_pool_max`（当前不暴露池等待时间）。
+
 ## 监控与故障处置
 
 API 指标通过单独内部端口 `9090/metrics` 暴露，公网 Caddy 不转发该端口。将 `deploy/monitoring/compose.yaml` 叠加在生产 Compose 后，预先创建仅本机可管理的 `secrets/grafana_password`。Prometheus/Grafana 只绑定本机 `19090` / `13000`，外部管理员使用受控隧道访问。规则和仪表盘随仓库提供。

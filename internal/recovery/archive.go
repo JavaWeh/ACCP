@@ -83,6 +83,22 @@ func Fingerprints(ctx context.Context, tx pgx.Tx) (map[string]Table, error) {
 	return result, nil
 }
 
+// dumpArgs are the pg_dump flags for ACCP schema backups.
+// --schema=accp alone omits CREATE EXTENSION; --extension=pg_trgm adds it so
+// gin_trgm_ops indexes (tasks_search_trgm) restore into an empty database.
+// Dump order remains schema → extension → dependent indexes via pg_dump deps.
+func dumpArgs(snapshot, dumpFile string) []string {
+	return []string{
+		"--format=custom",
+		"--no-owner",
+		"--no-privileges",
+		"--schema=accp",
+		"--extension=pg_trgm",
+		"--snapshot=" + snapshot,
+		"--file=" + dumpFile,
+	}
+}
+
 func command(ctx context.Context, connection, program string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, program, args...)
 	// Connection strings never appear in argv or subprocess output.
@@ -164,7 +180,7 @@ func Backup(ctx context.Context, url, recipient, output, image string, configura
 	}
 	defer os.RemoveAll(temp)
 	dump := filepath.Join(temp, "database.dump")
-	cmd := command(ctx, url, "pg_dump", "--format=custom", "--no-owner", "--no-privileges", "--schema=accp", "--snapshot="+snapshot, "--file="+dump)
+	cmd := command(ctx, url, "pg_dump", dumpArgs(snapshot, dump)...)
 	if err = cmd.Run(); err != nil {
 		return m, errors.New("snapshot database export failed")
 	}

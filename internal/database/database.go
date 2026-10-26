@@ -5,7 +5,10 @@ import (
 	"crypto/sha256"
 	"embed"
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,6 +16,26 @@ import (
 
 //go:embed migrations/*.sql
 var migrations embed.FS
+
+const (
+	defaultMaxConns int32 = 10
+	minMaxConns     int32 = 1
+	maxMaxConns     int32 = 1000
+)
+
+// ParseMaxConns reads ACCP_DATABASE_MAX_CONNS-style values.
+// Unset, empty, or invalid input (non-integer or outside 1..1000) returns 10.
+func ParseMaxConns(raw string) int32 {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return defaultMaxConns
+	}
+	n, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil || n < int64(minMaxConns) || n > int64(maxMaxConns) {
+		return defaultMaxConns
+	}
+	return int32(n)
+}
 
 func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	if url == "" {
@@ -22,7 +45,7 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid database configuration")
 	}
-	cfg.MaxConns = 10
+	cfg.MaxConns = ParseMaxConns(os.Getenv("ACCP_DATABASE_MAX_CONNS"))
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
