@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"unicode/utf8"
@@ -61,7 +62,16 @@ func (g *GitHub) FetchFile(ctx context.Context, repositoryURL, path, revision st
 		parts[i] = url.PathEscape(part)
 	}
 	body, status, err := g.request(ctx, "GET", repo+"/contents/"+strings.Join(parts, "/")+"?ref="+revision, "application/vnd.github+json", nil)
-	if err != nil || status != 200 {
+	if err != nil {
+		return "", "", errors.New("Git file unavailable at the requested commit")
+	}
+	// Distinguish an authentication/authorization failure from a generic
+	// missing file so operators can tell an invalid server token apart from a
+	// bad commit. The HTTP status never contains the token itself.
+	if status == 401 || status == 403 {
+		return "", "", fmt.Errorf("Git authentication failed (HTTP %d); check the server GitHub token's access to this repository", status)
+	}
+	if status != 200 {
 		return "", "", errors.New("Git file unavailable at the requested commit")
 	}
 	var file struct {
