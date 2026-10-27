@@ -53,7 +53,7 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   // header project Select to the newly created project before touching members
   // and repos, otherwise the repo registration hits that seeded URL and returns
   // 409 REPOSITORY_EXISTS instead of the expected 已登记仓库 success.
-  await page.getByRole("combobox", { name: "当前项目" }).click();
+  await page.getByLabel("当前项目").click();
   await page
     .getByRole("option", {
       name: "OIDC administration acceptance",
