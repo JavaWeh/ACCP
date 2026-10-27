@@ -103,7 +103,7 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   await repo.getByRole("button", { name: "登记仓库", exact: true }).click();
   await expect(page.getByText(/已登记仓库/)).toBeVisible();
   await expect(
-    page.getByText("https://github.com/example/orders"),
+    page.getByText("https://github.com/example/orders", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "项目", exact: true }).click();
   await page
