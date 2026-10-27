@@ -42,3 +42,7 @@
 独立卷样本中外部工具账本为空；非空未结账本、旧 Session 拒绝和不可变证据由额外数据库集成测试覆盖。全规模备份/恢复、恢复进程中断后的重试、完整业务 RTO 和最终功能集容量结果仍需在候选版本包补齐。没有以脚本存在代替这些未完成演练。
 
 这些结果是运行保障包的证据，不是 D03–D10 整体候选版本通过，也不包含连续稳定性、多端联合验收或正式生产放行。操作说明见 [管理员运维手册](operations.md)。
+
+## 注：Windows 浏览器退出（2026-10-27 补记）
+
+上表「Windows 浏览器退出：退出码 0，57.1 秒」对应的是统一走 `npm --prefix web run test:ui`（`web/scripts/test-ui.mjs`）入口的结果。早期反复出现的「用例通过但进程不退出」根因是 Playwright `webServer` 在 Windows 上派生的 Vite 子进程树未被回收；现由该脚本在同一进程内托管 Vite 并在 `finally` 关闭，不再依赖 Windows 杀进程树。根因、修复与残留风险（直接 `playwright test` 走 `webServer` 仍可能挂起；本轮为 Linux 沙箱未在 Windows 重测）见 [产品交付计划 · Windows Playwright 退出问题](product-delivery-plan.md#windows-playwright-退出问题2026-10-27)。

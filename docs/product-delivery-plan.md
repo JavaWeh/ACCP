@@ -1,5 +1,7 @@
 # ACCP 从 MVP 到可交付产品的差距与计划
 
+> **阅读指引（2026-10-27 更新）。** 本文混有两类内容：**当前状态**（[D01–D03 编码进展](#d01d03-编码进展)、[结论与交付目标](#结论与交付目标)、[差距清单](#差距清单)）与**历史快照**（文末「[编码前评估的验证边界（历史快照 · 勿当作当前状态）](#编码前评估的验证边界历史快照--勿当作当前状态2026-09-16)」）。读当前状态请看前半部分与 [next-phase-plan.md](next-phase-plan.md)；文末历史快照记录的是 2026-09-16 编码前评估当时的证据，其中的数字（契约正反例计数、主 JS 包 815/241 KB、Windows 测试进程不退出等）属于**当时**口径，已被后续实现与验证取代，不能当作今天的状态。
+
 ## D03–D10 已确认实施范围（2026-09-17）
 
 本轮基线为已合并 PR #11 的 `e42dc8532301705bf238b715f8bf3c0cbf41f11e`。以下决定覆盖文中历史估算的冲突项：单企业、50 人、20 项目、10 万任务、20 个并发 Run；8 vCPU / 16 GiB；只保留文本与 Git 引用，正文上限 256 KiB，不引入对象存储。每小时公钥加密备份，目标 RPO/RTO 均不超过一小时，保留 48 份小时备份和 30 份每日备份。
@@ -35,13 +37,13 @@
 | D02 | SPA client ID/API audience 分离，PKCE S256/access token，token 存 tab 作用域 sessionStorage（2026-10-27 刷新保持登录 MVP；关闭标签页即清除、不入 localStorage、`automaticSilentRenew` 仍 false、过期仍重新认证）与 IdP 注销，ID/opaque token 拒绝 | 签名 JWT/JWKS 单元测试覆盖错误 issuer/audience、过期、篡改、类型与新 kid 刷新/旧 key 退出；真实隔离 Keycloak 登录、注销、同标签页刷新保持登录、过期后重新认证、未登记身份拒绝、access token 可用/ID token 拒绝通过（OIDC Playwright 需可运行的 Keycloak，本机无 docker 未实跑）。目标 IdP 轮换与真实时间过期场景仍待演练 |
 | D03 | TLS 生产 Compose，迁移/bootstrap/API/Worker 分权，文件 Secret/keyring，持久卷、进程恢复策略、Worker 心跳与脱敏 doctor，旧库迁移辅助命令、部署手册、隔离验收 CI 定义 | 新安装及旧版 001–003 数据库升级到 004 已实测；表与序列所有权、API/Worker 权限检查通过；doctor 11 项通过，停 Worker 检出后恢复通过。数据库/NATS 密码轮换为已编写操作步骤，尚未做完整轮换演练 |
 
-实际检查：`npm run check`（73 正例、27 反例、375 Schema 位置、10 工具测试）、Go 单元测试/vet、全量 Linux race 集成测试、Web TypeScript/生产构建和格式检查通过。14 个原有 UI 组件用例报告通过，但 Windows 测试进程结束清理仍未正常退出，不将整条命令记为成功。生产镜像已构建，真实 TLS/Keycloak/分权数据库及 Worker 环境已启动验证。
+实际检查：`npm run check`（73 正例、27 反例、375 Schema 位置、10 工具测试）、Go 单元测试/vet、全量 Linux race 集成测试、Web TypeScript/生产构建和格式检查通过。14 个原有 UI 组件用例报告通过。**早期曾出现 Windows 测试进程结束后不正常退出的问题**，根因是 Playwright `webServer` 在 Windows 上派生的 Vite 子进程树未被回收；现由 `web/scripts/test-ui.mjs` 在同一进程内托管 Vite 并在 `finally` 中关闭，不再依赖 Windows 杀进程树，[D03–D05 验收记录](acceptance-product-operations.md) 已记录该命令退出码 0。根因与残留风险详见 [Windows Playwright 退出问题](#windows-playwright-退出问题2026-10-27)。生产镜像已构建，真实 TLS/Keycloak/分权数据库及 Worker 环境已启动验证。
 
 验收发现并修复：有项目数据后，Worker 的项目行锁以及 API 的身份/企业行锁需要最小列 UPDATE 权限；补齐列权限后重新核对禁止修改 active/status、审计和迁移表的边界。旧库迁移还需转移独立 fencing 序列的所有权，修复后在新副本复验通过。
 
 2026-09-17 获得隔离账号和公开 CA 的最小挂载授权后，真实 Keycloak 浏览器测试 **3 passed（15.9s，退出码 0）**。使用一次性 Linux Chrome 146 容器运行仓库 Playwright 1.63 脚本，连接真实 TLS、Keycloak 26.7.3 与分权生产 API；没有忽略 TLS 错误，也未挂载数据库或运维秘密。正式验收 Dockerfile 使用固定 Playwright 官方镜像，其完整镜像构建和远程 CI 结果尚未验证。
 
-本次真实浏览器验收发现并修复两处问题：CSP 将带路径 issuer 当作精确连接源而阻止 discovery，现使用经过解析的 HTTPS origin；输入包装组件将默认值放在内层输入上，导致默认分支与项目名称为空，现交给 TextField 管理。新增 CSP 回归测试通过，修复后 14 项原有 UI 用例再次报告通过；Windows UI 进程清理问题仍单列。当前生产验收镜像摘要为 `sha256:b223dbfc01e02d95690baddd2d775bd7083be9f91e5c08bb3520ea119c3ed735`。
+本次真实浏览器验收发现并修复两处问题：CSP 将带路径 issuer 当作精确连接源而阻止 discovery，现使用经过解析的 HTTPS origin；输入包装组件将默认值放在内层输入上，导致默认分支与项目名称为空，现交给 TextField 管理。新增 CSP 回归测试通过，修复后 14 项原有 UI 用例再次报告通过；Windows UI 进程清理问题此后由 `web/scripts/test-ui.mjs` 修复（见 [Windows Playwright 退出问题](#windows-playwright-退出问题2026-10-27)），不再单列为失败项。当前生产验收镜像摘要为 `sha256:b223dbfc01e02d95690baddd2d775bd7083be9f91e5c08bb3520ea119c3ed735`。
 
 整体状态为**主要编码与真实登录闭环完成、部分交付演练待完成**。安装与兼容边界见 [生产部署手册](production-deployment.md)，设计决策见 [ADR 0008](adr/0008-product-foundation.md)。
 
@@ -131,14 +133,61 @@ P0 为限制明确的正式交付阻塞项；P1 为本版成品的日常使用�
 7. **可用性与支持**：关键页面支持大数据分页、键盘操作和可理解的错误恢复；提供待办入口、可分享任务链接、版本信息与脱敏诊断材料。
 8. **版本证据包**：提交 SHA、发布包/镜像摘要、测试结果、支持环境、限制、迁移/恢复报告和操作手册齐全；阻塞缺陷为零，其余缺陷有明确影响范围和负责人。
 
-## 编码前评估的验证边界（历史记录）
+## Windows Playwright 退出问题（2026-10-27）
 
-- 已从远程快进同步至上述基线，并核对本地 HEAD 与 origin/main 一致。
+多份验收记录反复出现同一注脚：14 项 UI 组件用例报告通过，但 Windows 上测试进程结束后不正常退出，因此不把整条命令记为成功。本节给出根因与修复结论，取代各处零散注脚。
+
+**根因。** Playwright 的 `webServer` 配置会由 Playwright 以子进程方式启动开发服务器（Vite）。在 Windows 上，Node 对子进程树的信号传递与回收不同于 POSIX：Playwright 结束后需要杀掉整棵进程树，Vite（及其可能派生的 esbuild/依赖优化子进程）未被干净回收，父测试进程便挂起等待，表现为用例全部通过但命令不返回。这是 Windows 进程树语义问题，不是用例失败或被测代码缺陷。
+
+**修复。** 改用 `web/scripts/test-ui.mjs` 作为入口（`npm --prefix web run test:ui`）。该脚本：
+
+- 用 `vite` 的 `createServer` 在**当前进程内**托管开发服务器（`web/scripts/test-ui.mjs:5-11`），因此 Windows 不需要去杀一棵 shell 的子进程树；
+- 以 `ACCP_UI_MANAGED_SERVER=1` 派生 Playwright CLI 子进程跑 `playwright.ui.config.ts`，该配置据此标志不再自行拉起 `webServer`；
+- 在 `finally` 中 `await server.close()` 关闭内托管的 Vite（`web/scripts/test-ui.mjs:37-39`），并将子进程退出码透传为 `process.exitCode`。
+
+[D03–D05 验收记录](acceptance-product-operations.md) 据此记录 Windows 浏览器退出「14 项通过、退出码 0、57.1 秒」。
+
+**残留风险（诚实）。** 本机为 Linux 沙箱，无法在 Windows 重新实跑复验，上述 Windows 退出码 0 依据既有验收记录而非本轮重测。若有人在 Windows 上**绕过** `test-ui.mjs` 直接 `playwright test --config playwright.ui.config.ts` 且该配置启用了 `webServer`，仍可能复现挂起；修复的前提是统一走 `scripts/test-ui.mjs` 入口。`test-ui.mjs` 已在 `finally` 关闭服务器并透传子进程退出码，未发现需要额外硬化之处，故本轮不改脚本。
+
+## 打包体积评估（2026-10-27）
+
+P1-1 把三个最大的前端单体文件（`workspace.tsx`/`main.tsx`/`tasks.tsx`）按特性拆分后，本轮生产构建已从单一大包变为按入口/特性分割的多 chunk。
+
+**命令。** `npm --prefix web run build`（本轮已执行，产物位于 `web/dist/assets/`）。
+
+**当前 chunk 表**（原始字节取自 `web/dist/assets/` 构建产物）：
+
+| 产物 | 原始 | gzip |
+| --- | --- | --- |
+| `index-*.js` | ~428 KB (427,575 B) | ~129 KB（本轮构建输出） |
+| `ui-*.js` | ~277 KB (276,559 B) | 未在本沙箱复测 |
+| `i18n-*.js` | ~142 KB (141,965 B) | 未在本沙箱复测 |
+| `tasks-*.js` | ~45 KB (45,146 B) | 未在本沙箱复测 |
+| `workspace-*.js` | ~38 KB (38,776 B) | 未在本沙箱复测 |
+| `management-*.js` | ~17 KB (16,694 B) | 未在本沙箱复测 |
+| `operations-*.js` | ~8 KB (8,492 B) | 未在本沙箱复测 |
+| `toggle-button-group-*.js` | ~6 KB (5,841 B) | 未在本沙箱复测 |
+| `help-*.js` | ~2 KB (2,271 B) | 未在本沙箱复测 |
+| `index-*.css` | ~459 KB (459,156 B) | 未在本沙箱复测 |
+
+**与历史对比。** 编码前历史快照记录为单一主 JS 包约 **815 KB / gzip 约 241 KB**（见文末历史快照）。拆分后最大 JS chunk 降至约 **428 KB / gzip 约 129 KB**，且 `tasks`/`workspace`/`management`/`operations` 等已拆为可按路由懒加载的独立 chunk。
+
+**结论。**
+
+- 拆分达成了「不再是单体大包」的 P1-1 目标，最大入口 chunk 的 gzip 体积较历史减少约一半。
+- 是否进一步拆分：`ui-*.js`（~277 KB，HeroUI/组件库）与 `i18n-*.js`（~142 KB，三语言包）是后续的主要可优化线索（如按语言或路由再分包、tree-shaking 复核）。但构建仍有大 chunk 提示的空间不紧迫，不作为交付阻塞。
+- 诚实边界：以上为**构建产物体积**，非运行时性能实测；gzip 数仅 `index-*.js` 来自本轮 Vite 构建输出，其余 chunk 的 gzip 值在当前受限沙箱（无 `gzip`/`npm` 执行权限）未独立复测，原始字节为准。页面加载/交互性能需在目标环境单独度量。
+
+## 编码前评估的验证边界（历史快照 · 勿当作当前状态）（2026-09-16）
+
+> **历史快照，勿当作当前状态。** 下列条目是 **2026-09-16 编码前评估当时**的证据与边界，仅作留痕。其中的计数与结论反映快照当时情况：主 JS 包体积、契约正反例数量、Windows 测试进程退出状态等均已被后续实现与验证更新，当前口径见本文前半部分、[next-phase-plan.md](next-phase-plan.md) 与 [打包体积评估](#打包体积评估2026-10-27)。请勿据此段推断今天的交付状态。
+
+- 已从远程快进同步至（当时）基线，并核对本地 HEAD 与 origin/main 一致。
 - 已检查业务路由、bootstrap、身份、任务、存储、事件 Worker、前端数据获取、迁移、部署和 CI 定义；使用代码索引追踪 bootstrap 调用关系。
-- `npm run check` 通过：67 个正例、24 个反例、342 处 OpenAPI Schema 编译与 10 项工具测试。
+- （当时）`npm run check` 通过：67 个正例、24 个反例、342 处 OpenAPI Schema 编译与 10 项工具测试。后续轮次正反例数量已增长（见本文 [D03–D05 验收记录](acceptance-product-operations.md) 与开头各节），此处保留快照数字。
 - `go test ./...` 与 `go vet ./...` 通过；使用本地 Go 工具链。普通测试不等同于带 integration 标签和 race 的数据库测试。
-- 按锁文件安装 Web 依赖后，TypeScript 检查与生产构建通过。主 JS 包约 815 KB（gzip 约 241 KB），构建有大 chunk 提示；这是优化线索，不是页面性能实测。
+- 按锁文件安装 Web 依赖后，TypeScript 检查与生产构建通过。（当时）主 JS 包约 815 KB（gzip 约 241 KB），构建有大 chunk 提示；这是优化线索，不是页面性能实测。**该单体包已在 P1-1 拆分后不复存在**，当前构建为多 chunk（最大 `index-*.js` 约 428 KB / gzip 约 129 KB），详见 [打包体积评估](#打包体积评估2026-10-27)。
 - 本轮未重跑 PostgreSQL/NATS 集成、真实 API 浏览器验收、Docker 镜像构建、真实 IdP/下游及生产恢复；CI 定义被审阅不代表最新远程 CI 结果已核验。
-- 浏览器组件回归的 14 项用例均报告通过，覆盖表单、权限交互、焦点、移动布局、可访问性和多语言；测试进程在用例结束后未正常退出，已尝试中断，因此不记为整条命令成功。其接口使用测试替身，不能代替真实后端验收。
+- 浏览器组件回归的 14 项用例均报告通过，覆盖表单、权限交互、焦点、移动布局、可访问性和多语言；（当时）测试进程在用例结束后未正常退出，已尝试中断，因此不记为整条命令成功。其接口使用测试替身，不能代替真实后端验收。**该退出问题的根因与修复见 [Windows Playwright 退出问题](#windows-playwright-退出问题2026-10-27)**；此处保留快照时的观察。
 
 上述条目记录编码前评估时的证据；本轮实现与验证见本文开头的 D01–D03 进展。与 [MVP 历史矩阵](mvp.md) 分开维护，避免把历史完成状态当作成品放行结论。提交和 PR 状态以 Git 记录为准。
