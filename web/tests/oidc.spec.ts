@@ -48,7 +48,10 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   await expect(
     page.getByText("已创建项目 OIDC administration acceptance"),
   ).toBeVisible();
-  await page.getByRole("button", { name: "项目设置", exact: true }).click();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "设置", exact: true })
+    .click();
   const member = page.locator("section").filter({
     has: page.getByRole("heading", { name: "登记企业成员", exact: true }),
   });

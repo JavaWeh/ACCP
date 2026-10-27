@@ -95,6 +95,7 @@ export const enUS = {
   身份主体标识: "Identity subject",
   显示名称: "Display name",
   项目设置: "Project settings",
+  设置: "Settings",
   使用中: "Active",
   已归档: "Archived",
   归档项目: "Archive project",

@@ -136,7 +136,7 @@ export function Management({
   );
 
   const tabs: { id: Tab; label: string; show: boolean }[] = [
-    { id: "settings", label: t("项目设置"), show: administrator },
+    { id: "settings", label: t("设置"), show: administrator },
     { id: "projects", label: t("项目"), show: canProjects },
     { id: "repositories", label: t("仓库"), show: projectAdmin },
     { id: "org-accounts", label: t("组织账号"), show: isOrgAdmin },
