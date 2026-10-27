@@ -16,6 +16,8 @@
 
 Web token 仅驻留内存；sessionStorage 只保存短期 OIDC 回调状态。过期后清除登录并重新认证，不进行后台 refresh。注销清除本地状态并调用 IdP end-session；已经签发的 access token 不因浏览器注销立即失效，其剩余有效期由 IdP 控制。ACCP 每次请求读取人类和成员状态，离岗须同步停用 ACCP 成员；IdP 单方面撤销的即时回调不在本次范围。
 
+> 修订（2026-10-27，刷新保持登录 MVP）：上段“Web token 仅驻留内存”不再成立。为消除 F5 刷新即掉登录的产品缺口，access token 改存 `window.sessionStorage`（tab 作用域）：同标签页刷新可恢复 ACCP 自身会话，无需再次点击登录。边界不变——不使用 localStorage（限制 XSS 影响面）、关闭标签页即清除、`automaticSilentRenew` 仍为 false、token 过期仍清除登录并重新认证、注销仍 `removeUser` 并调用 IdP end-session。未做：localStorage 持久化、强制静默续期、目标 IdP 真机演练。
+
 生产基线为单机 Compose：Caddy TLS、PostgreSQL、JetStream、一个 API 和一个 Worker。迁移、bootstrap、API、Worker 使用独立数据库登录，运行账号不得拥有 schema 或迁移表写权限。Secret 通过只读文件注入；Session 签名支持 active kid 和最多八把验证密钥，保留旧 key 的窗口由运维明确控制。数据库、NATS 和 Caddy 使用持久卷；进程故障自动重启。`doctor` 汇总安装检查，Worker 就绪必须同时具有近期事件循环与治理循环进展。
 
 ## 代价与边界

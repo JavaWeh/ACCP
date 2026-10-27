@@ -1,10 +1,6 @@
 import { LocalizedError } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
-import {
-  UserManager,
-  WebStorageStateStore,
-  InMemoryWebStorage,
-} from "oidc-client-ts";
+import { UserManager, WebStorageStateStore } from "oidc-client-ts";
 import { API } from "../api";
 import type { Doc } from "../api";
 import { readRoute, type Route } from "../routing";
@@ -45,7 +41,7 @@ export function useAuthSession({
               store: window.sessionStorage,
             }),
             userStore: new WebStorageStateStore({
-              store: new InMemoryWebStorage(),
+              store: window.sessionStorage,
             }),
           })
         : undefined,

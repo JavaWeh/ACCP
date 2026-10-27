@@ -26,6 +26,13 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
           k.startsWith("oidc.user:"),
         ).length,
     ),
+  ).toBe(1);
+  expect(
+    await page.evaluate(
+      () =>
+        Object.entries(localStorage).filter(([k]) => k.startsWith("oidc.user:"))
+          .length,
+    ),
   ).toBe(0);
   await page.getByTestId("area-management").click();
   await page
@@ -120,7 +127,7 @@ test("unprovisioned real IdP subject cannot access the enterprise", async ({
   ).toHaveCount(0);
 });
 
-test("real access token authorizes API while ID token is rejected and reload requires authentication", async ({
+test("real access token authorizes API while ID token is rejected and a same-tab reload keeps the session", async ({
   page,
 }) => {
   const issued = page.waitForResponse(
@@ -142,9 +149,13 @@ test("real access token authorizes API while ID token is rejected and reload req
     page.getByRole("heading", { name: "工作概览", exact: true }),
   ).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "使用企业账号登录 →" }).click();
-  // The new PKCE exchange may use the IdP SSO cookie; ACCP does not persist tokens.
+  // Keep-login MVP: ACCP restores its own access token from the tab-scoped
+  // sessionStorage userStore, so a same-tab reload shows the console again
+  // without a fresh login click and without a new PKCE token exchange.
   await expect(
     page.getByRole("heading", { name: "工作概览", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "使用企业账号登录 →" }),
+  ).toHaveCount(0);
 });
