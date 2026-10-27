@@ -1,10 +1,10 @@
 # ACCP「下一步」需求分析
 
-- 版本：**v3**｜日期：2026-10-25（America/Chicago）｜作者：peter｜类型：下一步需求分析（排期消化）
-- 相对 v2：关闭 **Q9a**——账号级停用仅「组织 ADMIN」；须新增该角色，与 registerHuman 不对称
+- 版本：**v3.1**｜日期：2026-10-27（America/Chicago）｜作者：peter｜类型：下一步需求分析（排期消化）
+- 相对 v3：同步 **M5 已完成**（US-14 / US-14b / US-15；`19e3428` / `d69cc2d` / `f5e63a8`）；相对 v2：关闭 **Q9a**——账号级停用仅「组织 ADMIN」；须新增该角色，与 registerHuman 不对称
 - 输入：
   - [next-phase-plan.md](next-phase-plan.md)
-  - [product-plan-next-phase.md](product-plan-next-phase.md)（草案 **v5**，与本文同步）
+  - [product-plan-next-phase.md](product-plan-next-phase.md)（草案 **v5.1**，与本文同步；M5 已完成）
   - [ui-audit-next-phase.md](ui-audit-next-phase.md)
   - [ui-spec-next-phase.md](ui-spec-next-phase.md)
 - 约定：**【事实】** 有出处；**【假设】** 未最终确认；**【Weh 已确认】** 2026-10-25 拍板。只写文档，不改代码、不 commit/push、**不调 GitHub API 创建 milestone/issue**。
@@ -60,7 +60,7 @@
 | # | must-fix / 补充 | 故事 | 估算 | 状态 |
 |---|---|---|---|---|
 | MF1 | 复合游标 + 无总条数 | US-11a / 11b | 5 + 4 | 已写入；**Q10 已确认** |
-| MF2 | 停用范围 | US-14 项目级；**US-14b 账号级→阶段 B，仅组织 ADMIN** | 4 + 5 | **Q9+Q9a 已确认**（须新增组织 ADMIN，与 registerHuman 不对称） |
+| MF2 | 停用范围 | US-14 项目级；**US-14b 账号级→阶段 B，仅组织 ADMIN** | 4 + 5 | **M5 已完成 2026-10-27**（`19e3428` / `d69cc2d`；Q9+Q9a；组织 ADMIN 授予/撤销与账号恢复仍延期） |
 | MF3 | 重放信号 | US-13a / 13b | 1.5 + 2 | 可开工；13a=首 PR |
 | MF4 | O5 勿重做深链 | US-12 增量 | 1.5 | 已写入 |
 | O3a / O12 / O13 | 文案 | — | — | 已写入 PRD |
@@ -97,9 +97,9 @@
 | US-12 | returnTo query+hash；复制链接；失效页 | 部分→11b | M4 |
 | US-13b | 超时重试 UI | 13a | M4 |
 | US-17 | audience 文档一致 | 无；**无 IdP 演练（Q8）** | M4 |
-| US-14 | 项目级成员管理 | 后端已有 | M5 |
-| **US-14b** | **账号级停用（仅组织 ADMIN；须新增该角色）** | 无开放拍板 | **M5（紧随 14）** |
-| US-15 | 项目归档/恢复、仓库 | 后端已有 | M5 |
+| US-14 | 项目级成员管理 | 后端已有 | **M5 已完成**（`19e3428`） |
+| **US-14b** | **账号级停用（仅组织 ADMIN；须新增该角色）** | 无开放拍板 | **M5 已完成**（`d69cc2d`；授予/撤销与账号恢复仍延期） |
+| US-15 | 项目归档/恢复、仓库 | 后端已有 | **M5 已完成**（`f5e63a8`） |
 
 ### 4.3 阶段 C / 仍范围外
 
@@ -131,7 +131,7 @@ P2-1…P2-4。~~US-14b~~ 已不在此列。目标 IdP 演练本期不做（Q8）
 2. **按 §8 清单**（人工或他员）创建 GitHub milestone/issue——**本文与 PRD 不调用 API**。
 3. **首 PR：US-13a**（重放响应头 + 集成测试）。（若已在 main，跳过。）
 4. 并行 M1：US-4、US-6；token 到位后 US-5；同时设计 **全自动** 发布 workflow（US-7）与升级说明 CI 门禁（US-8）。
-5. M4 前 jack 交付 US-11b/12/13b；**M5 前增加 US-14b**（仅组织 ADMIN 可见；可写「停用后无法登录」；含新增组织 ADMIN 角色的最小可用）。
+5. ~~M4 前 jack 交付 US-11b/12/13b；**M5 前增加 US-14b**（仅组织 ADMIN 可见；可写「停用后无法登录」；含新增组织 ADMIN 角色的最小可用）。~~ **M5 已完成 2026-10-27**（US-14 / US-14b / US-15；`19e3428`..`f5e63a8`）。仍开放：US-5、Stage C、登录刷新保持、组织 ADMIN 授予/撤销与账号恢复、chatgpt 非阻塞建议（未编码）。
 
 ---
 
@@ -159,7 +159,7 @@ P2-1…P2-4。~~US-14b~~ 已不在此列。目标 IdP 演练本期不做（Q8）
 | M2 | ACCP next：RC 发布（全自动） | 2026-11-20 | US-7, US-8, US-9 |
 | M3 | ACCP next：容量与恢复 | 2026-12-04 | US-2, US-3(条件), US-16 |
 | M4 | ACCP next：控制台可持续 | 2026-12-23 | US-10, US-11a, US-11b, US-12, US-13b, US-17 |
-| M5 | ACCP next：日常管理（含账号级停用） | 2027-01-13 | US-14, **US-14b**, US-15 |
+| M5 | ACCP next：日常管理（含账号级停用） | 2027-01-13 | US-14, **US-14b**, US-15（**已完成 2026-10-27**） |
 
 ### Issues（建议一故事一 issue）
 
@@ -182,9 +182,9 @@ P2-1…P2-4。~~US-14b~~ 已不在此列。目标 IdP 演练本期不做（Q8）
 | US-12 Deep-link returnTo query+hash + copy link | M4 | 勿重做整条 OIDC |
 | US-13b Write-timeout retry UI | M4 | 依赖 13a |
 | US-17 Unify SPA client ID / API audience docs | M4 | 无 IdP 演练 |
-| US-14 Project-level member add/deactivate | M5 | |
-| **US-14b Account-level deactivate (org ADMIN only; new role)** | **M5** | **Q9+Q9a 已确认**：仅组织 ADMIN；须新增角色；与 registerHuman 不对称 |
-| US-15 Project archive/restore + repo register | M5 | |
+| US-14 Project-level member add/deactivate | M5 | **已完成** `19e3428` |
+| **US-14b Account-level deactivate (org ADMIN only; new role)** | **M5** | **已完成** `d69cc2d`；Q9+Q9a；授予/撤销与账号恢复仍延期 |
+| US-15 Project archive/restore + repo register | M5 | **已完成** `f5e63a8` |
 
 P2 项可不建 milestone，或建 `ACCP next: P2 backlog`（可选，非必须）。
 
@@ -197,3 +197,4 @@ P2 项可不建 milestone，或建 `ACCP next: P2 backlog`（可选，非必须�
 | v1 | 2026-10-25 | 初稿：消化审计 must-fix，阶段 A/B，待拍板清单 |
 | v2 | 2026-10-25 | Weh 拍板 Q1–Q10；Q5 全自动；Q9→US-14b 入 B；拟建 milestone/issue 清单；开放项仅 Q9a |
 | v3 | 2026-10-25 | **关闭 Q9a**：选 B 仅「组织 ADMIN」；须新增组织 ADMIN 角色，与 registerHuman（任一项目 ADMIN）不对称；同步阶段 B/UI/拟建 issue |
+| v3.1 | 2026-10-27 | **M5 已完成**：US-14 / US-14b / US-15 状态同步（`19e3428` / `d69cc2d` / `f5e63a8`）；不宣称 US-5、Stage C、登录刷新保持、组织 ADMIN 授予/撤销与账号恢复已完成 |

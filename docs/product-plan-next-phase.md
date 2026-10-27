@@ -1,6 +1,6 @@
 # ACCP 下一期产品方案（PRD）
 
-- 编写：peter（产品）｜日期：2026-10-20｜复核：2026-10-25｜状态：草案 v5（Q1–Q10 与 **Q9a** 均已拍板；Q9a=仅「组织 ADMIN」可账号级停用，需新增该角色，与 registerHuman 不对称），待实现
+- 编写：peter（产品）｜日期：2026-10-20｜复核：2026-10-25｜状态：草案 v5（Q1–Q10 与 **Q9a** 均已拍板；Q9a=仅「组织 ADMIN」可账号级停用，需新增该角色，与 registerHuman 不对称）；**M5（US-14 / US-14b / US-15）已完成 2026-10-27（America/Chicago）**（`19e3428` / `d69cc2d` / `f5e63a8`）；M1 仍余 US-5 等欠账
 - 输入：[next-phase-plan.md](next-phase-plan.md)（claude，基于 `main` HEAD `8c148a0`，即 PR #21 合并后）；[product-delivery-plan.md](product-delivery-plan.md)；[d07-d09.md](d07-d09.md)
 - 约定：**【事实】** 指可在仓库或上述文档中找到出处的内容；**【假设】** 指本方案为推进工作而做的假设，尚未确认，已关闭项见第 15 节「Weh 已确认」（含 Q9a）；当前无开放拍板子项。本文不编造数据，未知的基线一律写「未测」。
 
@@ -485,7 +485,7 @@ P2-1 文档去陈旧；P2-2 controlplane 测试覆盖；P2-3 Windows Playwright 
 | M2 发布候选 | US-7、US-8、US-9 → v0.1.0-rc.1（**【Weh 已确认】全自动** tag→CI→GHCR+正式 Release） | chatgpt，claude 审计 | 2026-11-20 | M1 | 已完成（5c9d300） |
 | M3 容量结论 | US-2（必要时加 US-3）、US-16 | chatgpt，claude 审计 | 2026-12-04 | M0 | 已完成（ca9daf7） |
 | M4 控制台可持续使用 | 阻塞子任务：US-11a（后端排序和游标）、US-13a（已在 M1 完成）；US-10 → US-11b、US-12、US-13b；US-17 | chatgpt，jack 设计 | 2026-12-23（不变：新增后端 5 人日，但 US-12 减 1.5 天、US-13 的前端部分减 1 天，US-11a 还可以和 US-10 并行） | M2、US-11a | 已完成 2026-10-26（本地 commit 链 3e5391e/5cee3c5/034e654/bd134ff/8a2c4a4；US-13a/13b 经 PR #22/#23 交付；US-17 仅文档，真实 IdP 演练按 Q8 推迟） |
-| M5 日常管理 | US-14（项目级）、**US-14b（账号级，仅组织 ADMIN；须新增该角色）**、US-15 | chatgpt，jack 设计 | 2027-01-13（+US-14b 约 5 人日，日期【假设】待人力校准） | M4 | 未开始 |
+| M5 日常管理 | US-14（项目级）、**US-14b（账号级，仅组织 ADMIN；须新增该角色）**、US-15 | chatgpt，jack 设计 | 2027-01-13（+US-14b 约 5 人日，日期【假设】待人力校准） | M4 | 已完成 2026-10-27（America/Chicago；`19e3428` US-14 / `d69cc2d` US-14b / `f5e63a8` US-15；Weh 经 grok 批准；chatgpt 验收 pass_with_suggestions、无 MUST_FIX；组织 ADMIN 授予/撤销与账号恢复 UI 仍延期；chatgpt 非阻塞建议未编码） |
 
 正式 RC 放行条件：M1、M2、M3 全部完成，且 M3 压测达标，或差距已被 Weh 书面接受。
 
@@ -574,3 +574,4 @@ P2-1 文档去陈旧；P2-2 controlplane 测试覆盖；P2-3 Windows Playwright 
 | v3.1 | 2026-10-25 | peter | O13：全文统一末批提示为「已全部加载」（与 UI 规范 v3.2 一致）；文首状态行与 §16 对齐为草案 v3；本文件为 2026-10-25 复核，配合 docs/requirements-next-step.md |
 | v4 | 2026-10-25 | peter | Weh 拍板 Q1–Q10：A1–A4/A6/Q6/Q8/Q10 确认；**Q5 改全自动发布**（更新 US-7/8、M2、风险）；**Q9 将 US-14b 升入阶段 B/M5**（更新非目标、范围、RICE、UI、里程碑）；§15 改为「已确认」表，仅留开放子项 Q9a；配合 requirements-next-step.md v2 |
 | v5 | 2026-10-25 | peter | **关闭 Q9a**：账号级停用仅「组织 ADMIN」可做；须新增组织 ADMIN 角色/权限，与 registerHuman（任一项目 ADMIN）不对称；更新 US-14b/Gherkin/RICE/M5/风险/UI/§15；配合 requirements-next-step.md v3 |
+| v5.1 | 2026-10-27 | peter | **M5 落地**：里程碑表 US-14 / US-14b / US-15 → 已完成（`19e3428`..`f5e63a8`）；文首状态同步；不宣称 US-5、Stage C、登录刷新保持、组织 ADMIN 授予/撤销与账号恢复、chatgpt 非阻塞建议已完成 |

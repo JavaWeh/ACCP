@@ -1,7 +1,7 @@
 # ACCP 下一阶段 UI 设计规范（US-11b/12/13b/14/14b/15，附 US-5）
 
-- 作者：jack（UI 设计）｜日期：2026-10-20｜修订：2026-10-25｜状态：草案 **v3.4**（chatgpt UI 审核 must-fix 已落地；C1–C6 已关闭）
-- 依据：`docs/product-plan-next-phase.md` 草案 **v5**、`docs/requirements-next-step.md` **v3**；US-5/11b/12/13b/14/14b/15；现有前端 `web/src`（React 19.3、Vite 8、HeroUI 3.2.5、Tailwind 4.3）
+- 作者：jack（UI 设计）｜日期：2026-10-20｜修订：2026-10-27｜状态：草案 **v3.4**（chatgpt UI 审核 must-fix 已落地；C1–C6 已关闭）；**M5（§6 / US-14 / US-14b / US-15）已落地 2026-10-27**（`19e3428` / `d69cc2d` / `f5e63a8`）；实现验收 chatgpt **pass_with_suggestions**、**无 MUST_FIX**（非阻塞建议未编码）
+- 依据：`docs/product-plan-next-phase.md` 草案 **v5.1**、`docs/requirements-next-step.md` **v3.1**；US-5/11b/12/13b/14/14b/15；现有前端 `web/src`（React 19.3、Vite 8、HeroUI 3.2.5、Tailwind 4.3）
 - Figma 低保真线框：<https://www.figma.com/design/k3OpUtH1QpUfO8gQrq5qQY> （新建文件，5 个画框，对应本文第 3–7 节；灰阶，仅表达布局与编号注释。画框使用 Inter 字体，中文若显示为缺字，以本文为准；v3.3 起含「组织账号」画框）
 - 原则：**沿用现有组件，不引入新依赖**；本规范只描述设计，不改代码。
 - 修订记录：2026-10-20 v2，依据 `docs/audit-next-phase.md`（claude 审计）更新：分页仅「本页 N 条」、排序分阶段交付、深链登录回跳只补查询参数和 hash、404/403 文案拆分、`Idempotency-Replayed` 响应头、停用改为项目级。
@@ -10,6 +10,7 @@
 - 修订记录：2026-10-20 v3.2，以 PRD v3（US-11a/11b、UI 需求第 1 项）为准重写 §3：排序不再分阶段，仅「更新时间 / 标题」×升/降序，始终有选中项（默认更新时间降序），前端显式传 sort/order 并写入 URL，表头可点击 + aria-sort；分页改为「加载更多」/「已全部加载」，加载与出错态、焦点与「已加载 N 条」播报；筛选/排序变化重置与 INVALID_CURSOR 兜底；更新 axe 清单与开放问题（O3、O3a 结论更新，新增引用 PRD Q10）。早期修订记录中的旧表述（如分阶段排序、按页计数）均已被本版取代。
 - 修订记录：2026-10-25 **v3.3**，对齐 PRD 草案 v5 / requirements v3（Weh 拍板 Q1–Q10、Q9a）：① 重写 §6 权限呈现（组织 ADMIN ≠ 项目 ADMIN，与 registerHuman 不对称）；② 补齐 **US-14b** 组织账号页、账号级停用确认（可写「无法登录」）、与项目级入口严格分区；③ US-14 确认文案与 PRD 逐字对齐；④ 补 US-15 归档阻塞列表；⑤ 核对 US-11b「已全部加载」、US-12、US-13b 与 PRD v5 一致；⑥ O13/O8/O3a(Q10) 标已解决；文末列需 chatgpt 审核的开放点 C1–C6。
 - 修订记录：2026-10-25 **v3.4**，按 `docs/ui-audit-next-phase.md`（chatgpt，有条件通过）must-fix + Weh 确认 C2：① 统一 §6.1/§6.0「有限只读」；② `/me.is_org_admin`（C1）；③ 成员列表拆 `membership_active`/`account_active` + Chip（C4）；④ 账号级停用鉴权仅组织 ADMIN、禁止复用「任一项目 ADMIN」（C6/M4）；⑤ 组织 ADMIN 可建项目并注明扩展 createProject 鉴权（C3）；⑥ M5 MVP 路由 `management?tab=org-accounts`，独立 URL 标后续（C5）；⑦ 补 409 `LAST_ORG_ADMIN` UI；⑧ §0/axe/§13 同步，C1–C6 全部标已解决。
+- 修订记录：2026-10-27 **状态同步（正文未改）**：§6 / M5 实现已落地；验收 **pass_with_suggestions**、无 MUST_FIX；组织 ADMIN 授予/撤销与账号恢复仍延期；chatgpt 非阻塞建议未编码。
 
 ---
 
@@ -63,9 +64,9 @@
 | 3 | 任务列表：筛选/排序/加载更多/三态 | US-11b（依赖后端 US-11a） | M4 开工前 |
 | 4 | 深链接、复制链接、无权限页、链接失效页 | US-12 | M4 开工前 |
 | 5 | 写操作超时、重试、已成功无需重复 | US-13b（依赖 US-13a 响应头） | M4 开工前 |
-| 6 | 本项目成员管理 | US-14 | M5 开工前 |
-| 6b | 组织账号 / 账号级停用（仅组织 ADMIN） | US-14b | M5 开工前 |
-| 6c | 项目归档恢复、仓库登记 | US-15 | M5 开工前 |
+| 6 | 本项目成员管理 | US-14 | **M5 已落地**（`19e3428`） |
+| 6b | 组织账号 / 账号级停用（仅组织 ADMIN） | US-14b | **M5 已落地**（`d69cc2d`；授予/撤销与账号恢复仍延期） |
+| 6c | 项目归档恢复、仓库登记 | US-15 | **M5 已落地**（`f5e63a8`） |
 | 7 | GitHub 同步失败文案（可选） | US-5 | 随 M1 |
 
 ---
