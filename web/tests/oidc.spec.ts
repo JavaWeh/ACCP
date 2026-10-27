@@ -46,7 +46,9 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   await create.getByLabel("操作原因").fill("Acceptance");
   await create.getByRole("button", { name: "创建项目", exact: true }).click();
   await expect(
-    page.getByText("已创建项目 OIDC administration acceptance"),
+    page
+      .getByRole("status")
+      .filter({ hasText: "已创建项目 OIDC administration acceptance" }),
   ).toBeVisible();
   // US-15: create does reload() without id, so the current project stays
   // project_initial (seeded with https://github.com/example/orders). Switch the
@@ -101,7 +103,9 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   await repo.getByLabel("仓库地址").fill("https://github.com/example/orders");
   await repo.getByLabel("操作原因").fill("Delivery");
   await repo.getByRole("button", { name: "登记仓库", exact: true }).click();
-  await expect(page.getByText(/已登记仓库/)).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: /已登记仓库/ }),
+  ).toBeVisible();
   await expect(
     page.getByText("https://github.com/example/orders", { exact: true }),
   ).toBeVisible();
@@ -116,8 +120,10 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   });
   await archive.getByLabel("操作原因").fill("Archive");
   await archive.getByRole("button", { name: "归档项目", exact: true }).click();
-  await expect(page.getByText(/已归档项目/)).toBeVisible();
-  await page.getByLabel("状态").click();
+  await expect(
+    page.getByRole("status").filter({ hasText: /已归档项目/ }),
+  ).toBeVisible();
+  await page.getByLabel("状态", { exact: true }).click();
   await page.getByRole("option", { name: "已归档", exact: true }).click();
   await page
     .getByRole("button", { name: /恢复 OIDC administration acceptance/ })
@@ -127,7 +133,9 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   });
   await restore.getByLabel("操作原因").fill("Restore");
   await restore.getByRole("button", { name: "恢复项目", exact: true }).click();
-  await expect(page.getByText(/已恢复项目/)).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: /已恢复项目/ }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "退出", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "使用企业账号登录 →" }),
