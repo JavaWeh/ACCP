@@ -5,8 +5,10 @@ package controlplane
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestManagementCreationIsolationAndArchive(t *testing.T) {
@@ -88,4 +90,94 @@ func TestManagementArchivedProjectRevokesUnusedGrant(t *testing.T) {
 	f.expect(f.call("alice", "POST", "/projects/project_demo/commands", newID("key"), `"1"`, Object{"command": "ARCHIVE", "reason": "No work"}), 200, "ManagementProject")
 	f.expect(f.call(f.token, "GET", "/projects/project_demo/tasks", "", "", nil), 401, "")
 	f.expect(f.call("alice", "POST", "/projects", newID("key"), "", Object{"name": "Next project"}), 201, "ManagementProject")
+}
+
+func TestProjectMembersListSplitActiveAndProjectScopedDeactivate(t *testing.T) {
+	f := setupExecution(t)
+	page := f.expect(f.call("alice", "GET", "/projects/project_demo/members", "", "", nil), 200, "MembershipPage")
+	items, _ := page["items"].([]any)
+	foundBob := false
+	for _, raw := range items {
+		item, _ := raw.(map[string]any)
+		if textValue(item, "id") != "user_bob" {
+			continue
+		}
+		foundBob = true
+		if item["membership_active"] != true || item["account_active"] != true || item["active"] != true {
+			t.Fatalf("expected split active fields for bob: %#v", item)
+		}
+	}
+	if !foundBob {
+		t.Fatal("bob missing from members list")
+	}
+	if _, err := f.pool.Exec(context.Background(), `UPDATE human_users SET active=false WHERE id='user_viewer'`); err != nil {
+		t.Fatal(err)
+	}
+	page = f.expect(f.call("alice", "GET", "/projects/project_demo/members", "", "", nil), 200, "MembershipPage")
+	items, _ = page["items"].([]any)
+	for _, raw := range items {
+		item, _ := raw.(map[string]any)
+		if textValue(item, "id") != "user_viewer" {
+			continue
+		}
+		if item["membership_active"] != true || item["account_active"] != false || item["active"] != false {
+			t.Fatalf("viewer should expose inactive account while membership stays active: %#v", item)
+		}
+	}
+	if _, err := f.pool.Exec(context.Background(), `UPDATE human_users SET active=true WHERE id='user_viewer'`); err != nil {
+		t.Fatal(err)
+	}
+
+	other := f.expect(f.call("alice", "POST", "/projects", newID("key"), "", Object{"name": "Sister project", "reason": "Scope check"}), 201, "ManagementProject")
+	otherPath := "/projects/" + textValue(other, "id")
+	f.expect(f.call("alice", "POST", otherPath+"/members", newID("key"), "", Object{"user_id": "user_bob", "roles": []string{"MEMBER"}, "reason": "Cross project"}), 201, "Membership")
+	otherAgent := f.expect(f.call("bob", "POST", "/agents", newID("key"), "", Object{"project_id": textValue(other, "id"), "manifest": f.manifest}), 201, "M2AgentIdentity")
+	otherGrant := f.expect(f.call("bob", "POST", "/agent-sessions", newID("key"), "", Object{
+		"project_id": textValue(other, "id"), "agent_id": otherAgent["id"],
+		"scopes":     []string{"tasks:read", "runs:claim", "runs:write", "context:read", "artifacts:write", "events:read"},
+		"expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}), 201, "M2SessionGrant")
+	otherSession := textValue(otherGrant["session"].(map[string]any), "id")
+	otherToken := textValue(otherGrant, "access_token")
+
+	task := f.readyTask()
+	ownerBefore := textValue(task, "owner_user_id")
+	f.expect(f.call("bob", "POST", "/projects/project_demo/members/user_alice/changes", newID("key"), `"1"`, Object{"roles": []string{"ADMIN"}, "active": false, "reason": "Not admin"}), 403, "")
+	changed := f.expect(f.call("alice", "POST", "/projects/project_demo/members/user_bob/changes", newID("key"), `"1"`, Object{"roles": []string{"MEMBER", "REVIEWER"}, "active": false, "reason": "Leave p1 only"}), 200, "Membership")
+	if changed["membership_active"] != false || changed["account_active"] != true || changed["active"] != false {
+		t.Fatalf("deactivate response fields: %#v", changed)
+	}
+	f.expect(f.call("bob", "GET", "/projects/project_demo/tasks", "", "", nil), 404, "")
+	f.expect(f.call(f.token, "GET", "/projects/project_demo/tasks", "", "", nil), 401, "")
+	f.expect(f.call("bob", "GET", otherPath, "", "", nil), 200, "ManagementProject")
+	f.expect(f.call(otherToken, "GET", otherPath+"/tasks", "", "", nil), 200, "TaskPage")
+	f.expect(f.call("bob", "GET", "/me", "", "", nil), 200, "Human")
+	var demoStatus, otherStatus string
+	if err := f.pool.QueryRow(context.Background(), `SELECT status FROM agent_sessions WHERE id=$1`, f.session).Scan(&demoStatus); err != nil || demoStatus != "REVOKED" {
+		t.Fatal("demo project session not revoked", err, demoStatus)
+	}
+	if err := f.pool.QueryRow(context.Background(), `SELECT status FROM agent_sessions WHERE id=$1`, otherSession).Scan(&otherStatus); err != nil || otherStatus != "ACTIVE" {
+		t.Fatal("other project session must stay active", err, otherStatus)
+	}
+	var accountActive bool
+	if err := f.pool.QueryRow(context.Background(), `SELECT active FROM human_users WHERE id='user_bob'`).Scan(&accountActive); err != nil || !accountActive {
+		t.Fatal("account-level active must stay true after project deactivate", err)
+	}
+	var ownerAfter string
+	if err := f.pool.QueryRow(context.Background(), `SELECT owner_user_id FROM tasks WHERE id=$1`, task["id"]).Scan(&ownerAfter); err != nil || ownerAfter != ownerBefore {
+		t.Fatal("tasks must not auto-reassign on project deactivate", err, ownerAfter, ownerBefore)
+	}
+	audits := f.expect(f.call("alice", "GET", "/projects/project_demo/audit-records", "", "", nil), 200, "AuditPage")
+	foundAudit := false
+	for _, raw := range audits["items"].([]any) {
+		item, _ := raw.(map[string]any)
+		if textValue(item, "resource_id") == "user_bob" && strings.Contains(fmt.Sprint(item["action"]), "/members/{user}/changes") {
+			foundAudit = true
+			break
+		}
+	}
+	if !foundAudit {
+		t.Fatal("project deactivate missing audit record")
+	}
+	f.expect(f.call("alice", "POST", "/projects/project_demo/members/user_alice/changes", newID("key"), `"1"`, Object{"roles": []string{"ADMIN"}, "active": false, "reason": "Last admin"}), 409, "")
 }

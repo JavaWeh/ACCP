@@ -244,7 +244,7 @@ func addMember(q *request) (reply, error) {
 	if tag.RowsAffected() != 1 {
 		return reply{}, fail(409, "MEMBER_EXISTS", "Use the versioned member change operation to update or restore this member.")
 	}
-	return entity(201, Object{"id": q.body["user_id"], "organization_id": q.org, "project_id": q.project, "display_name": name, "roles": roles, "active": true, "version": int64(1)}), nil
+	return entity(201, membershipDoc(textValue(q.body, "user_id"), q.org, q.project, name, roles, true, true, 1)), nil
 }
 
 func registerRepository(q *request) (reply, error) {

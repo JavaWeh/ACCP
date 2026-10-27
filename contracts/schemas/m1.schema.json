@@ -167,8 +167,17 @@
           "minItems": 1,
           "uniqueItems": true
         },
+        "membership_active": {
+          "type": "boolean",
+          "description": "Whether this project membership is active."
+        },
+        "account_active": {
+          "type": "boolean",
+          "description": "Whether the human account is active organization-wide."
+        },
         "active": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Effective access for this project: membership_active AND account_active. Prefer the split fields for UI."
         },
         "version": {
           "type": "integer",
@@ -181,6 +190,8 @@
         "project_id",
         "display_name",
         "roles",
+        "membership_active",
+        "account_active",
         "active",
         "version"
       ],

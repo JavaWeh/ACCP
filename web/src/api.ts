@@ -7,6 +7,8 @@ export type Membership = {
   project_id: string;
   display_name: string;
   roles: string[];
+  membership_active?: boolean;
+  account_active?: boolean;
   active: boolean;
   version: number;
 };

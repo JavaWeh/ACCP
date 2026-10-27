@@ -34,12 +34,20 @@ func projects(q *request) (reply, error) {
 	}
 	return page(q.http, items, limit), rows.Err()
 }
+func membershipDoc(id, org, project, name string, roles []string, membershipActive, accountActive bool, version int64) Object {
+	return Object{
+		"id": id, "organization_id": org, "project_id": project, "display_name": name, "roles": roles,
+		"membership_active": membershipActive, "account_active": accountActive,
+		"active": membershipActive && accountActive, "version": version,
+	}
+}
+
 func members(q *request) (reply, error) {
 	limit, cursor, err := pageParams(q.http)
 	if err != nil {
 		return reply{}, err
 	}
-	rows, err := q.tx.Query(q.http.Context(), `SELECT m.user_id,u.display_name,m.roles,m.active AND u.active,m.version FROM memberships m JOIN human_users u ON u.id=m.user_id WHERE m.project_id=$1 AND m.user_id>$2 ORDER BY m.user_id LIMIT $3`, q.project, cursor, limit+1)
+	rows, err := q.tx.Query(q.http.Context(), `SELECT m.user_id,u.display_name,m.roles,m.active,u.active,m.version FROM memberships m JOIN human_users u ON u.id=m.user_id WHERE m.project_id=$1 AND m.user_id>$2 ORDER BY m.user_id LIMIT $3`, q.project, cursor, limit+1)
 	if err != nil {
 		return reply{}, err
 	}
@@ -48,12 +56,12 @@ func members(q *request) (reply, error) {
 	for rows.Next() {
 		var id, name string
 		var roles []string
-		var active bool
+		var membershipActive, accountActive bool
 		var version int64
-		if err = rows.Scan(&id, &name, &roles, &active, &version); err != nil {
+		if err = rows.Scan(&id, &name, &roles, &membershipActive, &accountActive, &version); err != nil {
 			return reply{}, err
 		}
-		items = append(items, Object{"id": id, "organization_id": q.org, "project_id": q.project, "display_name": name, "roles": roles, "active": active, "version": version})
+		items = append(items, membershipDoc(id, q.org, q.project, name, roles, membershipActive, accountActive, version))
 	}
 	return page(q.http, items, limit), rows.Err()
 }
@@ -61,9 +69,9 @@ func changeMember(q *request) (reply, error) {
 	target := q.http.PathValue("user")
 	var oldRoles []string
 	var version int64
-	var active bool
+	var active, accountActive bool
 	var name string
-	err := q.tx.QueryRow(q.http.Context(), `SELECT m.roles,m.version,m.active,u.display_name FROM memberships m JOIN human_users u ON u.id=m.user_id WHERE m.project_id=$1 AND m.user_id=$2`, q.project, target).Scan(&oldRoles, &version, &active, &name)
+	err := q.tx.QueryRow(q.http.Context(), `SELECT m.roles,m.version,m.active,u.active,u.display_name FROM memberships m JOIN human_users u ON u.id=m.user_id WHERE m.project_id=$1 AND m.user_id=$2`, q.project, target).Scan(&oldRoles, &version, &active, &accountActive, &name)
 	if err == pgx.ErrNoRows {
 		return reply{}, fail(404, "NOT_FOUND", "Provisioned member not found.")
 	}
@@ -77,7 +85,8 @@ func changeMember(q *request) (reply, error) {
 	for _, r := range q.body["roles"].([]any) {
 		roles = append(roles, r.(string))
 	}
-	if active && hasRole(oldRoles, "ADMIN") && (!q.body["active"].(bool) || !hasRole(roles, "ADMIN")) {
+	membershipActive := q.body["active"].(bool)
+	if active && hasRole(oldRoles, "ADMIN") && (!membershipActive || !hasRole(roles, "ADMIN")) {
 		var count int
 		err = q.tx.QueryRow(q.http.Context(), `SELECT count(*) FROM memberships m JOIN human_users u ON u.id=m.user_id WHERE m.project_id=$1 AND m.active AND u.active AND 'ADMIN'=ANY(m.roles)`, q.project).Scan(&count)
 		if err != nil {
@@ -87,11 +96,11 @@ func changeMember(q *request) (reply, error) {
 			return reply{}, fail(409, "LAST_ADMIN", "At least one active human administrator must remain.")
 		}
 	}
-	_, err = q.tx.Exec(q.http.Context(), `UPDATE memberships SET roles=$1,active=$2,version=version+1 WHERE project_id=$3 AND user_id=$4`, roles, q.body["active"], q.project, target)
-	if err == nil && q.body["active"] == false {
+	_, err = q.tx.Exec(q.http.Context(), `UPDATE memberships SET roles=$1,active=$2,version=version+1 WHERE project_id=$3 AND user_id=$4`, roles, membershipActive, q.project, target)
+	if err == nil && !membershipActive {
 		err = revokeManagedSessions(q, target)
 	}
-	return entity(200, Object{"id": target, "organization_id": q.org, "project_id": q.project, "display_name": name, "roles": roles, "active": q.body["active"], "version": version + 1}), err
+	return entity(200, membershipDoc(target, q.org, q.project, name, roles, membershipActive, accountActive, version+1)), err
 }
 func listAudit(q *request) (reply, error) { return executionAudit(q) }
 func publishedEvent(q *request, version, parent Object) error {

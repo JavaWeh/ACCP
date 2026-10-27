@@ -2851,7 +2851,7 @@ paths:
       tags:
         - Identity
       summary: List provisioned project members
-      description: List provisioned project members
+      description: List provisioned project members. Each item exposes membership_active and account_active separately; active remains membership_active AND account_active for compatibility.
       x-accp-milestone: M1
       x-accp-actors:
         - HUMAN

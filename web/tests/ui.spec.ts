@@ -24,6 +24,19 @@ async function consoleFixture(
     id: "user_demo",
     display_name: "演示用户",
     roles,
+    membership_active: true,
+    account_active: true,
+    active: true,
+    version: 1,
+  };
+  const otherMember = {
+    id: "user_bob",
+    display_name: "Bob",
+    organization_id: "org_demo",
+    project_id: "project_demo",
+    roles: ["MEMBER"],
+    membership_active: true,
+    account_active: true,
     active: true,
     version: 1,
   };
@@ -122,7 +135,20 @@ async function consoleFixture(
         ],
       });
     if (/\/projects\/[^/]+\/members$/.test(path))
-      return send({ items: [member] });
+      return send({ items: [member, otherMember] });
+    if (path === "/organization/members")
+      return send({
+        items: [
+          member,
+          otherMember,
+          {
+            id: "user_new",
+            display_name: "新成员",
+            active: true,
+            kind: "HUMAN",
+          },
+        ],
+      });
     if (/\/projects\/[^/]+\/workbench$/.test(path))
       return send({
         mine: tasks.filter((item) => item.owner_user_id === member.id).length,
@@ -879,7 +905,7 @@ test("delegation defaults and member permissions preserve checked values", async
   await expect(page.getByLabel("访问凭证")).toHaveAttribute("type", "password");
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await navigate(page, "项目成员");
-  await page.getByRole("button", { name: "管理角色" }).click();
+  await page.getByRole("button", { name: "管理角色" }).first().click();
   await page
     .getByRole("checkbox", { name: "审核人", exact: true })
     .press("Space");
@@ -889,6 +915,45 @@ test("delegation defaults and member permissions preserve checked values", async
   expect(fixture.posts.at(-1)!.body).toMatchObject({
     roles: ["ADMIN", "MEMBER"],
     active: true,
+  });
+  expect(fixture.errors).toEqual([]);
+});
+
+test("project members add and project-level deactivate stay project-scoped", async ({
+  page,
+}) => {
+  const fixture = await consoleFixture(page);
+  await login(page);
+  await navigate(page, "项目成员");
+  const membersGrid = page.getByRole("grid", { name: "项目成员" });
+  await expect(membersGrid).toContainText("Bob");
+  await expect(membersGrid).toContainText("启用");
+  await expect(page.getByRole("button", { name: "停用账号" })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "从本项目停用 Bob" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "从本项目停用 演示用户" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "＋ 添加成员" }).click();
+  await expect(page.getByRole("dialog", { name: "添加成员" })).toBeVisible();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByRole("button", { name: "从本项目停用 Bob" }).click();
+  const dialog = page.getByRole("alertdialog", {
+    name: "从本项目停用 Bob？",
+  });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("不影响其在其他项目的成员身份");
+  await expect(dialog).not.toContainText("无法登录");
+  await dialog.getByLabel("操作原因").fill("离开本项目");
+  await dialog
+    .getByRole("button", { name: "从本项目停用", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("已从本项目停用 Bob")).toBeVisible();
+  expect(fixture.posts.at(-1)).toMatchObject({
+    path: "/projects/project_demo/members/user_bob/changes",
+    body: { active: false, reason: "离开本项目" },
   });
   expect(fixture.errors).toEqual([]);
 });

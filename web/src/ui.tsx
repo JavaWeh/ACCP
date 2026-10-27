@@ -471,10 +471,14 @@ export function Modal({
   title,
   children,
   close,
+  dismissable = true,
+  alertdialog = false,
 }: {
   title: string;
   children: ReactNode;
   close: () => void;
+  dismissable?: boolean;
+  alertdialog?: boolean;
 }) {
   const { translate } = useI18n();
   const marker = useRef<HTMLSpanElement>(null);
@@ -488,7 +492,9 @@ export function Modal({
       if (document.querySelector('.select__popover, [role="listbox"]')) return;
       const anchor = marker.current;
       if (!anchor) return;
-      const dialogs = [...document.querySelectorAll('[role="dialog"]')];
+      const dialogs = [
+        ...document.querySelectorAll('[role="dialog"], [role="alertdialog"]'),
+      ];
       const owner = dialogs.find((dialog) => dialog.contains(anchor));
       if (!owner || owner !== dialogs.at(-1)) return;
       event.preventDefault();
@@ -505,11 +511,11 @@ export function Modal({
       onOpenChange={(open) => {
         if (!open) close();
       }}
-      isDismissable
+      isDismissable={dismissable}
       variant="blur"
     >
       <HeroModal.Container size="lg" scroll="inside">
-        <HeroModal.Dialog>
+        <HeroModal.Dialog role={alertdialog ? "alertdialog" : undefined}>
           <span ref={marker} hidden />
           <HeroModal.CloseTrigger aria-label={translate("关闭")} />
           <HeroModal.Header>
