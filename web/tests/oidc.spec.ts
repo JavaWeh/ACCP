@@ -53,7 +53,9 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   // header project Select to the newly created project before touching members
   // and repos, otherwise the repo registration hits that seeded URL and returns
   // 409 REPOSITORY_EXISTS instead of the expected 已登记仓库 success.
-  await page.getByLabel("当前项目").click();
+  // The HeroUI Select trigger's accessible name is the selected value (e.g.
+  // the seeded project), not the aria-label 当前项目, so open it via data-slot.
+  await page.locator('header [data-slot="select-trigger"]').click();
   await page
     .getByRole("option", {
       name: "OIDC administration acceptance",
