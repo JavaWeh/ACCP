@@ -10,10 +10,49 @@ import (
 	"os"
 	"testing"
 
-	"github.com/JavaWeh/ACCP/internal/bootstrap"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// seedPre007 seeds the demo org/project/repo/humans/memberships/development_tokens
+// using only columns that exist before migration 007 (which adds human_users.is_org_admin).
+// It mirrors bootstrap.DevelopmentSpec identities without calling bootstrap.Apply, because
+// Apply unconditionally INSERTs is_org_admin and would fail against a pre-007 schema.
+func seedPre007(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	stmts := []string{
+		`INSERT INTO organizations(id,name) VALUES('org_demo','ACCP development')`,
+		`INSERT INTO projects(id,organization_id,name) VALUES('project_demo','org_demo','Demo project')`,
+		`INSERT INTO repositories(id,project_id,organization_id,document) VALUES('repo_demo','project_demo','org_demo','{"id":"repo_demo","project_id":"project_demo","organization_id":"org_demo","provider_id":"git","url":"https://github.com/JavaWeh/ACCP","default_branch":"main"}')`,
+		`INSERT INTO human_users(id,organization_id,issuer,subject,display_name) VALUES('user_alice','org_demo','urn:accp:development','alice','Alice')`,
+		`INSERT INTO human_users(id,organization_id,issuer,subject,display_name) VALUES('user_bob','org_demo','urn:accp:development','bob','Bob')`,
+		`INSERT INTO memberships(project_id,organization_id,user_id,roles) VALUES('project_demo','org_demo','user_alice',ARRAY['ADMIN','MEMBER','REVIEWER'])`,
+		`INSERT INTO memberships(project_id,organization_id,user_id,roles) VALUES('project_demo','org_demo','user_bob',ARRAY['MEMBER','REVIEWER'])`,
+		`INSERT INTO development_tokens(digest,issuer,subject,expires_at) VALUES('digest_alice','urn:accp:development','alice',now()+interval '7 days')`,
+		`INSERT INTO development_tokens(digest,issuer,subject,expires_at) VALUES('digest_bob','urn:accp:development','bob',now()+interval '7 days')`,
+	}
+	for _, s := range stmts {
+		if _, err := pool.Exec(ctx, s); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// assertOrgAdminBackfill verifies migration 007 added human_users.is_org_admin and backfilled
+// the first project ADMIN (alice) to true.
+func assertOrgAdminBackfill(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	var aliceAdmin, bobAdmin bool
+	if err := pool.QueryRow(ctx, `SELECT is_org_admin FROM human_users WHERE id='user_alice'`).Scan(&aliceAdmin); err != nil {
+		t.Fatal("is_org_admin column missing after migration", err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT is_org_admin FROM human_users WHERE id='user_bob'`).Scan(&bobAdmin); err != nil {
+		t.Fatal(err)
+	}
+	if !aliceAdmin || bobAdmin {
+		t.Fatal("migration 007 did not backfill the first project ADMIN as org admin")
+	}
+}
 
 func TestM1DataAndIdempotencySurviveM2Migration(t *testing.T) {
 	ctx := context.Background()
@@ -51,9 +90,7 @@ func TestM1DataAndIdempotencySurviveM2Migration(t *testing.T) {
 	if _, err = pool.Exec(ctx, `INSERT INTO schema_migrations VALUES($1,$2)`, "001_control_plane.sql", fmt.Sprintf("%x", sha256.Sum256(original))); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = bootstrap.Apply(ctx, pool, bootstrap.DevelopmentSpec(), true); err != nil {
-		t.Fatal(err)
-	}
+	seedPre007(ctx, t, pool)
 	_, err = pool.Exec(ctx, `INSERT INTO tasks(id,project_id,organization_id,owner_user_id,repository_id,document,status) VALUES('task_m1','project_demo','org_demo','user_bob','repo_demo','{"id":"task_m1","title":"Preserved M1 task","version":1,"status":"READY"}','READY')`)
 	if err != nil {
 		t.Fatal(err)
@@ -90,6 +127,7 @@ func TestM1DataAndIdempotencySurviveM2Migration(t *testing.T) {
 	if err = pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM human_users),(SELECT count(*) FROM development_tokens)`).Scan(&humans, &tokens); err != nil || humans != 2 || tokens != 2 {
 		t.Fatal("human identities or credentials lost", err)
 	}
+	assertOrgAdminBackfill(ctx, t, pool)
 }
 
 func TestM2AuditAndCredentialsSurviveM3Migration(t *testing.T) {
@@ -130,9 +168,7 @@ func TestM2AuditAndCredentialsSurviveM3Migration(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	if _, e = bootstrap.Apply(ctx, pool, bootstrap.DevelopmentSpec(), true); e != nil {
-		t.Fatal(e)
-	}
+	seedPre007(ctx, t, pool)
 	if _, e = pool.Exec(ctx, `INSERT INTO audit_records(id,project_id,organization_id,actor_user_id,action,resource_id,resource_version,trace_id) VALUES('audit_m2','project_demo','org_demo','user_bob','original_m2_action','project_demo',1,'trace_m2')`); e != nil {
 		t.Fatal(e)
 	}
@@ -161,4 +197,5 @@ func TestM2AuditAndCredentialsSurviveM3Migration(t *testing.T) {
 	if e = Ready(ctx, pool); e != nil {
 		t.Fatal(e)
 	}
+	assertOrgAdminBackfill(ctx, t, pool)
 }
