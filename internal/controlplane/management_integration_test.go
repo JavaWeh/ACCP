@@ -44,7 +44,14 @@ func TestManagementArchiveBlocksWorkAndDisableRevokesSessions(t *testing.T) {
 	f := setupExecution(t)
 	task := f.readyTask()
 	f.claim(task, newID("key"))
-	f.expect(f.call("alice", "POST", "/projects/project_demo/commands", newID("key"), `"1"`, Object{"command": "ARCHIVE", "reason": "Must fail"}), 409, "")
+	blocked := f.expect(f.call("alice", "POST", "/projects/project_demo/commands", newID("key"), `"1"`, Object{"command": "ARCHIVE", "reason": "Must fail"}), 409, "")
+	if blocked["code"] != "ARCHIVE_BLOCKED" {
+		t.Fatalf("expected ARCHIVE_BLOCKED, got %v", blocked["code"])
+	}
+	detail, _ := blocked["detail"].(string)
+	if !strings.Contains(detail, "task:") || !strings.Contains(detail, textValue(task, "id")) {
+		t.Fatalf("expected blocker task id in detail, got %q", detail)
+	}
 	f.expect(f.call("alice", "POST", "/projects/project_demo/members/user_bob/changes", newID("key"), `"1"`, Object{"roles": []string{"MEMBER", "REVIEWER"}, "active": false, "reason": "Offboard"}), 200, "Membership")
 	f.expect(f.call(f.token, "GET", "/projects/project_demo/tasks", "", "", nil), 401, "")
 	f.expect(f.call("alice", "POST", "/projects/project_demo/members/user_bob/changes", newID("key"), `"2"`, Object{"roles": []string{"MEMBER", "REVIEWER"}, "active": true}), 200, "Membership")
@@ -180,6 +187,22 @@ func TestProjectMembersListSplitActiveAndProjectScopedDeactivate(t *testing.T) {
 		t.Fatal("project deactivate missing audit record")
 	}
 	f.expect(f.call("alice", "POST", "/projects/project_demo/members/user_alice/changes", newID("key"), `"1"`, Object{"roles": []string{"ADMIN"}, "active": false, "reason": "Last admin"}), 409, "")
+}
+
+func TestOrganizationAdminCanCreateProjectWithoutProjectAdmin(t *testing.T) {
+	f := setup(t)
+	if _, err := f.pool.Exec(context.Background(), `UPDATE memberships SET roles=ARRAY['MEMBER']::text[] WHERE user_id='user_alice'`); err != nil {
+		t.Fatal(err)
+	}
+	created := f.expect(f.call("alice", "POST", "/projects", newID("key"), "", Object{"name": "Org-admin created", "reason": "C3"}), 201, "ManagementProject")
+	if created["status"] != "ACTIVE" {
+		t.Fatalf("expected ACTIVE project, got %#v", created)
+	}
+	path := "/projects/" + textValue(created, "id")
+	details := f.expect(f.call("alice", "GET", path, "", "", nil), 200, "ManagementProject")
+	if details["status"] != "ACTIVE" {
+		t.Fatalf("created project not readable: %#v", details)
+	}
 }
 
 func TestOrganizationAdminAccountDeactivate(t *testing.T) {

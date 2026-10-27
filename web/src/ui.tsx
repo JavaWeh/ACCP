@@ -89,19 +89,21 @@ export function Empty({
 
 // Each control owns its HeroUI label, description and validation context.
 const FieldContext = createContext<
-  { title: string; hint?: string } | undefined
+  { title: string; hint?: string; error?: string } | undefined
 >(undefined);
 export function Field({
   label: title,
   children,
   hint,
+  error,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  error?: string;
 }) {
   return (
-    <FieldContext.Provider value={{ title, hint }}>
+    <FieldContext.Provider value={{ title, hint, error }}>
       <div className="field">{children}</div>
     </FieldContext.Provider>
   );
@@ -115,7 +117,7 @@ function FieldFeedback() {
   return (
     <>
       {field?.hint && <Description>{field.hint}</Description>}
-      <FieldError />
+      <FieldError>{field?.error}</FieldError>
     </>
   );
 }
@@ -125,23 +127,28 @@ export function Input({
   readOnly,
   className,
   defaultValue,
+  isInvalid,
   ...props
 }: Omit<ComponentProps<typeof HeroInput>, "className"> & {
   className?: string;
+  isInvalid?: boolean;
 }) {
+  const field = useContext(FieldContext);
+  const invalid = isInvalid ?? !!field?.error;
   return (
     <TextField
       className={className}
       isRequired={required}
       isDisabled={disabled}
       isReadOnly={readOnly}
+      isInvalid={invalid}
       defaultValue={
         defaultValue === undefined ? undefined : String(defaultValue)
       }
       aria-label={props["aria-label"]}
     >
       <FieldLabel />
-      <HeroInput {...props} />
+      <HeroInput {...props} aria-invalid={invalid || undefined} />
       <FieldFeedback />
     </TextField>
   );

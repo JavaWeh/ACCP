@@ -3,6 +3,7 @@ package controlplane
 import (
 	"encoding/json"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -246,6 +247,10 @@ func projectCommand(q *request) (reply, error) {
 	desired := "ACTIVE"
 	if q.body["command"] == "ARCHIVE" {
 		desired = "ARCHIVED"
+		var total int
+		if e := q.tx.QueryRow(q.http.Context(), `SELECT count(*) FROM (SELECT id FROM tasks WHERE project_id=$1 AND status NOT IN ('DONE','CANCELED') UNION ALL SELECT id FROM task_runs WHERE project_id=$1 AND status='RUNNING' UNION ALL SELECT id FROM tool_invocations WHERE project_id=$1 AND status IN ('AWAITING_APPROVAL','READY','RUNNING','UNKNOWN')) blockers`, q.project).Scan(&total); e != nil {
+			return reply{}, e
+		}
 		rows, e := q.tx.Query(q.http.Context(), `SELECT id,kind FROM (SELECT id,'task' AS kind FROM tasks WHERE project_id=$1 AND status NOT IN ('DONE','CANCELED') UNION ALL SELECT id,'run' FROM task_runs WHERE project_id=$1 AND status='RUNNING' UNION ALL SELECT id,'invocation' FROM tool_invocations WHERE project_id=$1 AND status IN ('AWAITING_APPROVAL','READY','RUNNING','UNKNOWN')) blockers ORDER BY kind,id LIMIT 20`, q.project)
 		if e != nil {
 			return reply{}, e
@@ -265,7 +270,11 @@ func projectCommand(q *request) (reply, error) {
 			return reply{}, e
 		}
 		if len(ids) > 0 {
-			return reply{}, fail(409, "ARCHIVE_BLOCKED", "Finish or cancel tasks and reconcile operations first (up to 20): "+strings.Join(ids, ", "))
+			prefix := "Finish or cancel tasks and reconcile operations first (up to 20): "
+			if total > len(ids) {
+				prefix = "Finish or cancel tasks and reconcile operations first (showing " + strconv.Itoa(len(ids)) + " of " + strconv.Itoa(total) + "): "
+			}
+			return reply{}, fail(409, "ARCHIVE_BLOCKED", prefix+strings.Join(ids, ", "))
 		}
 	}
 	if state == desired {

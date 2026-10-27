@@ -1,6 +1,6 @@
 import { useI18n, LanguageSwitcher } from "../i18n";
 import { Icon } from "../icons";
-import { Avatar, Chip, Spinner } from "@heroui/react";
+import { Alert, Avatar, Chip, Spinner } from "@heroui/react";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { Button, Select, Empty, Message } from "../ui";
 import { readRoute, routePath, type PageID, type Route } from "../routing";
@@ -25,6 +25,7 @@ import { ForbiddenPage, InvalidLinkPage, NotFoundPage } from "./LinkStatus";
 import { Overview } from "./Overview";
 import { useAuthSession } from "./useAuthSession";
 import { useProjectData } from "./useProjectData";
+import { RestoreProjectDialog } from "../ProjectsPanel";
 
 export function App() {
   const { translate, label, number, time } = useI18n();
@@ -102,6 +103,8 @@ export function App() {
     navigate,
     route,
   });
+
+  const [restoringProject, setRestoringProject] = useState(false);
 
   async function logout() {
     resetProjectData();
@@ -249,7 +252,9 @@ export function App() {
             >
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {p.status === "ARCHIVED"
+                    ? `${p.name} (${translate("已归档")})`
+                    : p.name}
                 </option>
               ))}
             </Select>
@@ -287,8 +292,15 @@ export function App() {
         <main className="workspace mx-auto w-full max-w-[1600px] min-w-0 flex-1 px-5 py-7 sm:px-8 lg:p-10">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="mb-2 text-xs font-medium text-slate-600">
-                {translate("工作空间")} / {project?.name || translate("项目")}
+              <p className="mb-2 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-600">
+                <span>
+                  {translate("工作空间")} / {project?.name || translate("项目")}
+                </span>
+                {project?.status === "ARCHIVED" && (
+                  <Chip color="warning" size="sm" variant="soft">
+                    {translate("已归档")}
+                  </Chip>
+                )}
               </p>
               <h1 className="text-3xl font-semibold tracking-tight">
                 {nav.find((n) => n.id === page)?.title}
@@ -359,9 +371,43 @@ export function App() {
               workspace && (
                 <>
                   {project?.status === "ARCHIVED" && (
-                    <div className="notice">
-                      {translate("项目已归档，历史记录只读。")}
+                    <div className="mb-6 flex flex-wrap items-start gap-3">
+                      <Alert
+                        status="warning"
+                        className="min-w-0 flex-1"
+                        role="status"
+                      >
+                        <Alert.Indicator />
+                        <Alert.Content>
+                          <Alert.Title>
+                            {translate("项目已归档，只读")}
+                          </Alert.Title>
+                          <Alert.Description>
+                            {translate("项目已归档，历史记录只读。")}
+                          </Alert.Description>
+                        </Alert.Content>
+                      </Alert>
+                      {admin && (
+                        <Button
+                          className="shrink-0"
+                          size="sm"
+                          onPress={() => setRestoringProject(true)}
+                        >
+                          {translate("恢复项目")}
+                        </Button>
+                      )}
                     </div>
+                  )}
+                  {restoringProject && project && api && (
+                    <RestoreProjectDialog
+                      api={api}
+                      project={project}
+                      close={() => setRestoringProject(false)}
+                      onDone={async () => {
+                        setRestoringProject(false);
+                        await reloadProjects();
+                      }}
+                    />
                   )}
                   {page === "overview" && (
                     <Overview

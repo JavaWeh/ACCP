@@ -4,12 +4,30 @@ import { useI18n } from "./i18n";
 import { Button, Field, Form, Input, Message, Empty, Json, text } from "./ui";
 import { OrgAccounts } from "./OrgAccounts";
 import { ForbiddenPage } from "./app/LinkStatus";
+import { ProjectsPanel } from "./ProjectsPanel";
+import { RepositoriesPanel } from "./RepositoriesPanel";
 
-function readManagementTab(isOrgAdmin: boolean, canSettings: boolean) {
+type Tab = "settings" | "org-accounts" | "projects" | "repositories";
+
+function readManagementTab(
+  isOrgAdmin: boolean,
+  canSettings: boolean,
+  canProjects: boolean,
+  canRepos: boolean,
+): Tab {
   const tab = new URLSearchParams(location.search).get("tab");
   if (tab === "org-accounts") return "org-accounts";
+  if (tab === "projects" && canProjects) return "projects";
+  if (tab === "repositories" && canRepos) return "repositories";
+  if (tab === "settings" && canSettings) return "settings";
+  if (canProjects && !canSettings) return "projects";
   if (canSettings) return "settings";
   return isOrgAdmin ? "org-accounts" : "settings";
+}
+
+function tabQuery(tab: Tab) {
+  if (tab === "settings") return null;
+  return tab;
 }
 
 export function Management({
@@ -27,7 +45,6 @@ export function Management({
 }) {
   const { translate: t, label } = useI18n();
   const [people, setPeople] = useState<Doc[]>([]),
-    [repositories, setRepositories] = useState<Doc[]>([]),
     [audit, setAudit] = useState<Doc[]>([]),
     [config, setConfig] = useState<{ issuer: string; mode: string }>();
   const [error, setError] = useState<unknown>();
@@ -35,15 +52,17 @@ export function Management({
   const administrator = projects.some((p) => p.roles?.includes("ADMIN"));
   const isOrgAdmin = me.is_org_admin === true;
   const canOpen = administrator || isOrgAdmin;
-  const projectAdmin = project?.roles?.includes("ADMIN"),
-    active = project?.status !== "ARCHIVED";
-  const [tab, setTab] = useState(() =>
-    readManagementTab(isOrgAdmin, administrator),
+  const canProjects = administrator || isOrgAdmin;
+  const projectAdmin = !!project?.roles?.includes("ADMIN");
+  const active = project?.status !== "ARCHIVED";
+  const [tab, setTab] = useState<Tab>(() =>
+    readManagementTab(isOrgAdmin, administrator, canProjects, projectAdmin),
   );
 
-  function selectTab(next: string, replace = false) {
+  function selectTab(next: Tab, replace = false) {
     const url = new URL(location.href);
-    if (next === "org-accounts") url.searchParams.set("tab", "org-accounts");
+    const query = tabQuery(next);
+    if (query) url.searchParams.set("tab", query);
     else url.searchParams.delete("tab");
     const href = url.pathname + url.search + url.hash;
     if (replace) history.replaceState(null, "", href);
@@ -52,15 +71,23 @@ export function Management({
   }
 
   useEffect(() => {
-    const onPop = () => setTab(readManagementTab(isOrgAdmin, administrator));
+    const onPop = () =>
+      setTab(
+        readManagementTab(isOrgAdmin, administrator, canProjects, projectAdmin),
+      );
     addEventListener("popstate", onPop);
     return () => removeEventListener("popstate", onPop);
-  }, [isOrgAdmin, administrator]);
+  }, [isOrgAdmin, administrator, canProjects, projectAdmin]);
 
   useEffect(() => {
-    const wanted = readManagementTab(isOrgAdmin, administrator);
+    const wanted = readManagementTab(
+      isOrgAdmin,
+      administrator,
+      canProjects,
+      projectAdmin,
+    );
     if (wanted !== tab) setTab(wanted);
-  }, [isOrgAdmin, administrator]);
+  }, [isOrgAdmin, administrator, canProjects, projectAdmin]);
 
   async function refresh() {
     if (!administrator && !isOrgAdmin) return;
@@ -71,8 +98,6 @@ export function Management({
       ]);
       setPeople(members);
       setAudit(records);
-      if (projectID)
-        setRepositories(await api.all(`/projects/${projectID}/repositories`));
     }
   }
   useEffect(() => {
@@ -100,6 +125,9 @@ export function Management({
   if (tab === "org-accounts" && !isOrgAdmin) {
     return <ForbiddenPage detail={t("账号级停用仅组织管理员可操作。")} />;
   }
+  if (tab === "repositories" && !projectAdmin) {
+    return <ForbiddenPage />;
+  }
 
   const reason = (
     <Field label={t("操作原因")}>
@@ -107,51 +135,49 @@ export function Management({
     </Field>
   );
 
+  const tabs: { id: Tab; label: string; show: boolean }[] = [
+    { id: "settings", label: t("项目设置"), show: administrator },
+    { id: "projects", label: t("项目"), show: canProjects },
+    { id: "repositories", label: t("仓库"), show: projectAdmin },
+    { id: "org-accounts", label: t("组织账号"), show: isOrgAdmin },
+  ];
+
   return (
     <div className="grid gap-6">
       <div className="flex flex-wrap gap-2 overflow-x-auto">
-        {administrator && (
-          <Button
-            variant={tab === "settings" ? "outline" : "ghost"}
-            aria-current={tab === "settings" ? "page" : undefined}
-            onPress={() => selectTab("settings")}
-          >
-            {t("项目设置")}
-          </Button>
-        )}
-        {isOrgAdmin && (
-          <Button
-            variant={tab === "org-accounts" ? "outline" : "ghost"}
-            aria-current={tab === "org-accounts" ? "page" : undefined}
-            onPress={() => selectTab("org-accounts")}
-          >
-            {t("组织账号")}
-          </Button>
-        )}
+        {tabs
+          .filter((item) => item.show)
+          .map((item) => (
+            <Button
+              key={item.id}
+              variant={tab === item.id ? "outline" : "ghost"}
+              aria-current={tab === item.id ? "page" : undefined}
+              onPress={() => selectTab(item.id)}
+            >
+              {item.label}
+            </Button>
+          ))}
       </div>
       {error !== undefined && <Message error={error} />}
       {tab === "org-accounts" ? (
         <OrgAccounts api={api} me={me} />
+      ) : tab === "projects" ? (
+        <ProjectsPanel
+          api={api}
+          projects={projects}
+          canCreate={canProjects}
+          reload={done}
+        />
+      ) : tab === "repositories" && project ? (
+        <RepositoriesPanel
+          api={api}
+          project={project}
+          reload={async () => {
+            await done();
+          }}
+        />
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-xl border bg-white p-6">
-            <h2>{t("创建项目")}</h2>
-            <Form
-              submit={t("创建项目")}
-              action={async (d) => {
-                const p = await api.call("/projects", {
-                  name: text(d, "name"),
-                  reason: text(d, "reason"),
-                });
-                await done(p.id);
-              }}
-            >
-              <Field label={t("项目名称")}>
-                <Input name="name" required maxLength={200} />
-              </Field>
-              {reason}
-            </Form>
-          </section>
           <section className="rounded-xl border bg-white p-6">
             <h2>{t("登记企业成员")}</h2>
             <p>{t("登记身份不会自动授予项目访问权。")}</p>
@@ -210,116 +236,60 @@ export function Management({
                     {reason}
                   </Form>
                 )}
-                <Form
-                  submit={active ? t("归档项目") : t("恢复项目")}
-                  action={async (d) => {
-                    await api.call(
-                      `/projects/${project.id}/commands`,
-                      {
-                        command: active ? "ARCHIVE" : "RESTORE",
-                        reason: text(d, "reason"),
-                      },
-                      project.version,
-                    );
-                    await done();
-                  }}
-                >
-                  <p>{t("归档前必须结束任务并核对所有未结操作。")}</p>
-                  {reason}
-                </Form>
+                {!active && (
+                  <p className="mt-2 text-sm text-slate-600">
+                    {t("项目已归档，只读")}
+                  </p>
+                )}
               </section>
               {active && (
-                <>
-                  <section className="rounded-xl border bg-white p-6">
-                    <h2>{t("添加项目成员")}</h2>
-                    <Form
-                      submit={t("添加项目成员")}
-                      action={async (d) => {
-                        await api.call(`/projects/${project.id}/members`, {
-                          user_id: text(d, "user_id"),
-                          roles: d.getAll("roles"),
-                          reason: text(d, "reason"),
-                        });
-                        await done();
-                      }}
-                    >
-                      <label>
-                        {t("企业成员")}
-                        <select
-                          name="user_id"
-                          required
-                          className="block w-full rounded border p-2"
-                        >
-                          <option value="">{t("请选择")}</option>
-                          {people
-                            .filter((p) => p.active)
-                            .map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.display_name} · {p.id}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                      <fieldset>
-                        <legend>{t("项目角色")}</legend>
-                        {["MEMBER", "REVIEWER", "VIEWER", "ADMIN"].map(
-                          (role) => (
-                            <label key={role} className="mr-4">
-                              <input
-                                type="checkbox"
-                                name="roles"
-                                value={role}
-                                defaultChecked={role === "MEMBER"}
-                              />
-                              {label(role)}
-                            </label>
-                          ),
-                        )}
-                      </fieldset>
-                      {reason}
-                    </Form>
-                  </section>
-                  <section className="rounded-xl border bg-white p-6">
-                    <h2>{t("登记仓库")}</h2>
-                    <Form
-                      submit={t("登记仓库")}
-                      action={async (d) => {
-                        await api.call(`/projects/${project.id}/repositories`, {
-                          url: text(d, "url"),
-                          default_branch: text(d, "default_branch"),
-                          reason: text(d, "reason"),
-                        });
-                        await done();
-                      }}
-                    >
-                      <Field label={t("GitHub 仓库地址")}>
-                        <Input
-                          name="url"
-                          type="url"
-                          required
-                          placeholder="https://github.com/owner/repository"
-                        />
-                      </Field>
-                      <Field label={t("默认分支")}>
-                        <Input
-                          name="default_branch"
-                          defaultValue="main"
-                          required
-                        />
-                      </Field>
-                      {reason}
-                    </Form>
-                    {repositories.length ? (
-                      repositories.map((r) => (
-                        <p key={r.id}>
-                          {r.url} · {r.default_branch}
-                        </p>
-                      ))
-                    ) : (
-                      <p>{t("请先登记仓库，再创建任务。")}</p>
-                    )}
-                  </section>
-                </>
+                <section className="rounded-xl border bg-white p-6">
+                  <h2>{t("添加项目成员")}</h2>
+                  <Form
+                    submit={t("添加项目成员")}
+                    action={async (d) => {
+                      await api.call(`/projects/${project.id}/members`, {
+                        user_id: text(d, "user_id"),
+                        roles: d.getAll("roles"),
+                        reason: text(d, "reason"),
+                      });
+                      await done();
+                    }}
+                  >
+                    <label>
+                      {t("企业成员")}
+                      <select
+                        name="user_id"
+                        required
+                        className="block w-full rounded border p-2"
+                      >
+                        <option value="">{t("请选择")}</option>
+                        {people
+                          .filter((p) => p.active)
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.display_name} · {p.id}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <fieldset>
+                      <legend>{t("项目角色")}</legend>
+                      {["MEMBER", "REVIEWER", "VIEWER", "ADMIN"].map((role) => (
+                        <label key={role} className="mr-4">
+                          <input
+                            type="checkbox"
+                            name="roles"
+                            value={role}
+                            defaultChecked={role === "MEMBER"}
+                          />
+                          {label(role)}
+                        </label>
+                      ))}
+                    </fieldset>
+                    {reason}
+                  </Form>
+                </section>
               )}
             </>
           )}

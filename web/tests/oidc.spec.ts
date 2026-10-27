@@ -32,15 +32,16 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
     .getByRole("navigation")
     .getByRole("button", { name: "项目设置", exact: true })
     .click();
-  const create = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "创建项目", exact: true }),
-  });
+  await page.getByRole("button", { name: "项目", exact: true }).click();
+  await page.getByRole("button", { name: "＋ 创建项目" }).click();
+  const create = page.getByRole("dialog", { name: "创建项目" });
   await create.getByLabel("项目名称").fill("OIDC administration acceptance");
   await create.getByLabel("操作原因").fill("Acceptance");
   await create.getByRole("button", { name: "创建项目", exact: true }).click();
   await expect(
-    page.getByRole("heading", { level: 1, name: "项目设置", exact: true }),
+    page.getByText("已创建项目 OIDC administration acceptance"),
   ).toBeVisible();
+  await page.getByRole("button", { name: "项目设置", exact: true }).click();
   const member = page.locator("section").filter({
     has: page.getByRole("heading", { name: "登记企业成员", exact: true }),
   });
@@ -68,32 +69,39 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   await add.getByLabel("操作原因").fill("Join");
   await add.getByRole("button", { name: "添加项目成员", exact: true }).click();
   await expect(add.locator("form")).toHaveAttribute("aria-busy", "false");
-  const repo = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "登记仓库", exact: true }),
-  });
-  await repo
-    .getByLabel("GitHub 仓库地址")
-    .fill("https://github.com/example/orders");
+  await page.getByRole("button", { name: "仓库", exact: true }).click();
+  await page.getByRole("button", { name: "＋ 登记仓库" }).click();
+  const repo = page.getByRole("dialog", { name: "登记仓库" });
+  await repo.getByLabel("仓库地址").fill("https://github.com/example/orders");
   await repo.getByLabel("操作原因").fill("Delivery");
   await repo.getByRole("button", { name: "登记仓库", exact: true }).click();
-  await expect(repo.locator("form")).toHaveAttribute("aria-busy", "false");
-  await expect(repo.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByText(/已登记仓库/)).toBeVisible();
   await expect(
-    repo.getByText("https://github.com/example/orders · main"),
+    page.getByText("https://github.com/example/orders"),
   ).toBeVisible();
-  const settings = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "项目设置", exact: true }),
+  await page.getByRole("button", { name: "项目", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: /归档项目 OIDC administration acceptance/,
+    })
+    .click();
+  const archive = page.getByRole("alertdialog", {
+    name: /归档项目 OIDC administration acceptance？/,
   });
-  await settings.locator("form").last().getByLabel("操作原因").fill("Archive");
-  await settings.getByRole("button", { name: "归档项目", exact: true }).click();
-  await expect(
-    settings.getByRole("button", { name: "恢复项目", exact: true }),
-  ).toBeVisible();
-  await settings.getByLabel("操作原因").fill("Restore");
-  await settings.getByRole("button", { name: "恢复项目", exact: true }).click();
-  await expect(
-    settings.getByRole("button", { name: "归档项目", exact: true }),
-  ).toBeVisible();
+  await archive.getByLabel("操作原因").fill("Archive");
+  await archive.getByRole("button", { name: "归档项目", exact: true }).click();
+  await expect(page.getByText(/已归档项目/)).toBeVisible();
+  await page.getByLabel("状态").click();
+  await page.getByRole("option", { name: "已归档", exact: true }).click();
+  await page
+    .getByRole("button", { name: /恢复 OIDC administration acceptance/ })
+    .click();
+  const restore = page.getByRole("alertdialog", {
+    name: /恢复项目 OIDC administration acceptance？/,
+  });
+  await restore.getByLabel("操作原因").fill("Restore");
+  await restore.getByRole("button", { name: "恢复项目", exact: true }).click();
+  await expect(page.getByText(/已恢复项目/)).toBeVisible();
   await page.getByRole("button", { name: "退出", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "使用企业账号登录 →" }),

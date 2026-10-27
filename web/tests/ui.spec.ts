@@ -132,8 +132,27 @@ async function consoleFixture(
     if (path === "/projects")
       return send({
         items: [
-          { id: "project_demo", name: "演示项目" },
-          { id: "project_other", name: "第二项目" },
+          {
+            id: "project_demo",
+            name: "演示项目",
+            status: "ACTIVE",
+            version: 1,
+            roles,
+          },
+          {
+            id: "project_other",
+            name: "第二项目",
+            status: "ACTIVE",
+            version: 1,
+            roles,
+          },
+          {
+            id: "project_archived",
+            name: "归档样例",
+            status: "ARCHIVED",
+            version: 2,
+            roles,
+          },
         ],
       });
     if (/\/projects\/[^/]+\/members$/.test(path))
@@ -1008,6 +1027,206 @@ test("org accounts tab deactivates account for organization admins", async ({
   });
   expect(fixture.errors).toEqual([]);
 });
+
+test("project create archive-blocked restore and register repository", async ({
+  page,
+}) => {
+  test.setTimeout(60000);
+  const fixture = await consoleFixture(page);
+  let archiveAttempts = 0;
+  await page.route("**/api/v1/projects/**/commands", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const body = route.request().postDataJSON();
+    postsPush(fixture, route);
+    if (body.command === "ARCHIVE") {
+      archiveAttempts += 1;
+      if (archiveAttempts === 1) {
+        return route.fulfill({
+          status: 409,
+          json: {
+            type: "about:blank",
+            title: "Conflict",
+            status: 409,
+            code: "ARCHIVE_BLOCKED",
+            detail:
+              "Finish or cancel tasks and reconcile operations first (up to 20): task:task_demo, run:run_demo",
+            trace_id: "archive-blocked",
+          },
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        json: {
+          id: "project_demo",
+          organization_id: "org_demo",
+          name: "演示项目",
+          status: "ARCHIVED",
+          version: 2,
+        },
+      });
+    }
+    if (body.command === "RESTORE") {
+      return route.fulfill({
+        status: 200,
+        json: {
+          id: "project_archived",
+          organization_id: "org_demo",
+          name: "归档样例",
+          status: "ACTIVE",
+          version: 3,
+        },
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      json: { id: "project_demo", status: "ACTIVE", version: 1 },
+    });
+  });
+  const projectList = [
+    {
+      id: "project_demo",
+      name: "演示项目",
+      status: "ACTIVE",
+      version: 1,
+      roles: ["ADMIN", "MEMBER", "REVIEWER"],
+    },
+    {
+      id: "project_other",
+      name: "第二项目",
+      status: "ACTIVE",
+      version: 1,
+      roles: ["ADMIN", "MEMBER", "REVIEWER"],
+    },
+    {
+      id: "project_archived",
+      name: "归档样例",
+      status: "ARCHIVED",
+      version: 2,
+      roles: ["ADMIN", "MEMBER", "REVIEWER"],
+    },
+  ];
+  await page.route("**/api/v1/projects", async (route) => {
+    const method = route.request().method();
+    if (method === "GET") {
+      return route.fulfill({ status: 200, json: { items: projectList } });
+    }
+    if (method !== "POST") return route.fallback();
+    const body = route.request().postDataJSON();
+    postsPush(fixture, route);
+    const created = {
+      id: "project_created",
+      organization_id: "org_demo",
+      name: body.name,
+      status: "ACTIVE",
+      version: 1,
+      roles: ["ADMIN"],
+    };
+    projectList.push(created);
+    return route.fulfill({ status: 201, json: created });
+  });
+  await page.route("**/api/v1/projects/**/repositories", async (route) => {
+    if (route.request().method() === "GET") {
+      return route.fulfill({ status: 200, json: { items: [] } });
+    }
+    if (route.request().method() !== "POST") return route.fallback();
+    const body = route.request().postDataJSON();
+    postsPush(fixture, route);
+    return route.fulfill({
+      status: 201,
+      json: {
+        id: "repo_new",
+        project_id: "project_demo",
+        organization_id: "org_demo",
+        provider_id: "github",
+        url: body.url,
+        default_branch: body.default_branch,
+      },
+    });
+  });
+
+  await login(page);
+  await navigate(page, "项目设置");
+  await page.getByRole("button", { name: "项目", exact: true }).click();
+  await expect(page).toHaveURL(/tab=projects/);
+  await page.getByRole("button", { name: "＋ 创建项目" }).click();
+  const create = page.getByRole("dialog", { name: "创建项目" });
+  await create.getByLabel("项目名称").fill("新控制台项目");
+  await create.getByLabel("操作原因").fill("开通");
+  await create.getByRole("button", { name: "创建项目", exact: true }).click();
+  await expect(page.getByText("已创建项目 新控制台项目")).toBeVisible();
+  expect(
+    fixture.posts.some(
+      (p) =>
+        p.path === "/projects" &&
+        p.body.name === "新控制台项目" &&
+        p.body.reason === "开通",
+    ),
+  ).toBe(true);
+
+  await page.getByRole("button", { name: "归档项目 演示项目" }).click();
+  const archive = page.getByRole("alertdialog", {
+    name: "归档项目 演示项目？",
+  });
+  await expect(archive).toBeVisible();
+  await archive.getByLabel("操作原因").fill("清理");
+  await archive.getByRole("button", { name: "归档项目", exact: true }).click();
+  await expect(archive.getByText("无法归档")).toBeVisible();
+  await expect(archive.getByText(/task_demo/)).toBeVisible();
+  await expect(
+    archive.getByRole("link", { name: /task_demo/ }),
+  ).toHaveAttribute("href", "/projects/project_demo/tasks/task_demo");
+  await archive.getByRole("button", { name: "取消" }).click();
+
+  await page.getByLabel("状态").click();
+  await page.getByRole("option", { name: "已归档", exact: true }).click();
+  await page.getByRole("button", { name: "恢复 归档样例" }).click();
+  const restore = page.getByRole("alertdialog", {
+    name: "恢复项目 归档样例？",
+  });
+  await restore.getByLabel("操作原因").fill("继续使用");
+  await restore.getByRole("button", { name: "恢复项目", exact: true }).click();
+  await expect(page.getByText("已恢复项目 归档样例")).toBeVisible();
+
+  await page.getByRole("button", { name: "仓库", exact: true }).click();
+  await expect(page).toHaveURL(/tab=repositories/);
+  await page.getByRole("button", { name: "＋ 登记仓库" }).click();
+  const repo = page.getByRole("dialog", { name: "登记仓库" });
+  await repo.getByLabel("仓库地址").fill("acme/orders");
+  await repo.getByLabel("操作原因").fill("交付");
+  await repo.getByRole("button", { name: "登记仓库", exact: true }).click();
+  await expect(page.getByText(/已登记仓库/)).toBeVisible();
+  const register = fixture.posts.find((p) => p.path.endsWith("/repositories"));
+  expect(register?.body).toMatchObject({
+    url: "https://github.com/acme/orders",
+    default_branch: "main",
+    reason: "交付",
+  });
+  expect(fixture.errors).toEqual([]);
+});
+
+function postsPush(
+  fixture: {
+    posts: {
+      path: string;
+      body: Record<string, any>;
+      key: string | undefined;
+    }[];
+  },
+  route: {
+    request: () => {
+      url: () => string;
+      postDataJSON: () => any;
+      headers: () => Record<string, string>;
+    };
+  },
+) {
+  const path = new URL(route.request().url()).pathname.replace("/api/v1", "");
+  fixture.posts.push({
+    path,
+    body: route.request().postDataJSON(),
+    key: route.request().headers()["idempotency-key"],
+  });
+}
 
 test("task search, help and sanitized diagnostic export are reachable", async ({
   page,
