@@ -187,6 +187,15 @@ async function consoleFixture(
             is_org_admin: false,
             kind: "HUMAN",
           },
+          {
+            id: "user_gone",
+            organization_id: "org_demo",
+            display_name: "停用用户",
+            active: false,
+            account_active: false,
+            is_org_admin: false,
+            kind: "HUMAN",
+          },
         ],
       });
     if (/\/projects\/[^/]+\/workbench$/.test(path))
@@ -1024,6 +1033,58 @@ test("org accounts tab deactivates account for organization admins", async ({
   expect(fixture.posts.at(-1)).toMatchObject({
     path: "/organization/members/user_bob/changes",
     body: { active: false, reason: "离职" },
+  });
+  expect(fixture.errors).toEqual([]);
+});
+
+test("org accounts tab grants organization admin to another member", async ({
+  page,
+}) => {
+  const fixture = await consoleFixture(page);
+  await login(page);
+  await navigate(page, "项目设置");
+  await page.getByRole("button", { name: "组织账号" }).click();
+  await expect(page).toHaveURL(/tab=org-accounts/);
+  await page.getByRole("button", { name: "授予组织管理员 Bob" }).click();
+  const dialog = page.getByRole("alertdialog", {
+    name: "授予组织管理员：Bob？",
+  });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("将获得组织管理员权限");
+  await dialog.getByLabel("操作原因").fill("接任管理");
+  await dialog
+    .getByRole("button", { name: "授予组织管理员", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("已授予组织管理员 Bob")).toBeVisible();
+  expect(fixture.posts.at(-1)).toMatchObject({
+    path: "/organization/members/user_bob/changes",
+    body: { is_org_admin: true, reason: "接任管理" },
+  });
+  expect(fixture.errors).toEqual([]);
+});
+
+test("org accounts tab reactivates a deactivated account", async ({ page }) => {
+  const fixture = await consoleFixture(page);
+  await login(page);
+  await navigate(page, "项目设置");
+  await page.getByRole("button", { name: "组织账号" }).click();
+  await expect(page).toHaveURL(/tab=org-accounts/);
+  await expect(
+    page.getByRole("button", { name: "停用账号 停用用户" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "恢复账号 停用用户" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "恢复账号 停用用户？" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("可以重新登录控制台");
+  await expect(dialog).toContainText("不会自动恢复");
+  await dialog.getByLabel("操作原因").fill("重新入职");
+  await dialog.getByRole("button", { name: "恢复账号", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("已恢复账号 停用用户")).toBeVisible();
+  expect(fixture.posts.at(-1)).toMatchObject({
+    path: "/organization/members/user_gone/changes",
+    body: { active: true, reason: "重新入职" },
   });
   expect(fixture.errors).toEqual([]);
 });

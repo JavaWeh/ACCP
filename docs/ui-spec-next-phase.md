@@ -10,7 +10,8 @@
 - 修订记录：2026-10-20 v3.2，以 PRD v3（US-11a/11b、UI 需求第 1 项）为准重写 §3：排序不再分阶段，仅「更新时间 / 标题」×升/降序，始终有选中项（默认更新时间降序），前端显式传 sort/order 并写入 URL，表头可点击 + aria-sort；分页改为「加载更多」/「已全部加载」，加载与出错态、焦点与「已加载 N 条」播报；筛选/排序变化重置与 INVALID_CURSOR 兜底；更新 axe 清单与开放问题（O3、O3a 结论更新，新增引用 PRD Q10）。早期修订记录中的旧表述（如分阶段排序、按页计数）均已被本版取代。
 - 修订记录：2026-10-25 **v3.3**，对齐 PRD 草案 v5 / requirements v3（Weh 拍板 Q1–Q10、Q9a）：① 重写 §6 权限呈现（组织 ADMIN ≠ 项目 ADMIN，与 registerHuman 不对称）；② 补齐 **US-14b** 组织账号页、账号级停用确认（可写「无法登录」）、与项目级入口严格分区；③ US-14 确认文案与 PRD 逐字对齐；④ 补 US-15 归档阻塞列表；⑤ 核对 US-11b「已全部加载」、US-12、US-13b 与 PRD v5 一致；⑥ O13/O8/O3a(Q10) 标已解决；文末列需 chatgpt 审核的开放点 C1–C6。
 - 修订记录：2026-10-25 **v3.4**，按 `docs/ui-audit-next-phase.md`（chatgpt，有条件通过）must-fix + Weh 确认 C2：① 统一 §6.1/§6.0「有限只读」；② `/me.is_org_admin`（C1）；③ 成员列表拆 `membership_active`/`account_active` + Chip（C4）；④ 账号级停用鉴权仅组织 ADMIN、禁止复用「任一项目 ADMIN」（C6/M4）；⑤ 组织 ADMIN 可建项目并注明扩展 createProject 鉴权（C3）；⑥ M5 MVP 路由 `management?tab=org-accounts`，独立 URL 标后续（C5）；⑦ 补 409 `LAST_ORG_ADMIN` UI；⑧ §0/axe/§13 同步，C1–C6 全部标已解决。
-- 修订记录：2026-10-27 **状态同步（正文未改）**：§6 / M5 实现已落地；验收 **pass_with_suggestions**、无 MUST_FIX；组织 ADMIN 授予/撤销与账号恢复仍延期；chatgpt 非阻塞建议未编码。
+- 修订记录：2026-10-27 **状态同步（正文未改）**：§6 / M5 实现已落地；验收 **pass_with_suggestions**、无 MUST_FIX；chatgpt 非阻塞建议未编码。
+- 修订记录：2026-10-27 **组织 ADMIN 授予/撤销 + 账号恢复已落地**（Stage 3）：§6.4 原「本期不做」的授予/撤销组织 ADMIN 与账号级「恢复启用」现已实现（复用 `POST /organization/members/{user}/changes`，`HumanChange` 扩为 oneOf：`{active:bool}` / `{is_org_admin:bool}`）；UI 见 §6.4.2/§6.4.5/§6.4.6，文案见 §6.8。
 
 ---
 
@@ -65,7 +66,7 @@
 | 4 | 深链接、复制链接、无权限页、链接失效页 | US-12 | M4 开工前 |
 | 5 | 写操作超时、重试、已成功无需重复 | US-13b（依赖 US-13a 响应头） | M4 开工前 |
 | 6 | 本项目成员管理 | US-14 | **M5 已落地**（`19e3428`） |
-| 6b | 组织账号 / 账号级停用（仅组织 ADMIN） | US-14b | **M5 已落地**（`d69cc2d`；授予/撤销与账号恢复仍延期） |
+| 6b | 组织账号 / 账号级停用（仅组织 ADMIN） | US-14b | **M5 已落地**（`d69cc2d`）；授予/撤销组织 ADMIN + 账号恢复 **已落地 2026-10-27**（Stage 3） |
 | 6c | 项目归档恢复、仓库登记 | US-15 | **M5 已落地**（`f5e63a8`） |
 | 7 | GitHub 同步失败文案（可选） | US-5 | 随 M1 |
 
@@ -365,7 +366,7 @@
 
 | 角色 | 如何识别（**已关闭 C1**） | 界面呈现 |
 |---|---|---|
-| **组织 ADMIN** | `GET /me`（或等价会话引导接口）返回布尔 **`is_org_admin: true`**；由种子/bootstrap 授予首个组织 ADMIN。**本期不做**授予/撤销 UI。识别**不得**用「任一项目含 ADMIN」推断 | 顶栏 Chip「组织管理员」；管理区可见「组织账号」Tab |
+| **组织 ADMIN** | `GET /me`（或等价会话引导接口）返回布尔 **`is_org_admin: true`**；由种子/bootstrap 授予首个组织 ADMIN；**授予/撤销 UI 已落地（2026-10-27，§6.4.6）**。识别**不得**用「任一项目含 ADMIN」推断 | 顶栏 Chip「组织管理员」；管理区可见「组织账号」Tab |
 | **项目 ADMIN** | 当前项目 `roles` 含 `ADMIN` | 顶栏 Chip「项目管理员」；本项目成员 Tab **可写**（添加 / 从本项目停用） |
 | 同时具备两者 | `is_org_admin` 且本项目 `ADMIN` | 顶栏 **并排**两枚 Chip，**组织管理员在左**；两套入口均可用 |
 | 仅项目 ADMIN、非组织 ADMIN | `is_org_admin !== true` | **不显示**「组织账号」Tab 与「停用账号」；`?tab=org-accounts` 直链 → 403（§4.3） |
@@ -471,17 +472,17 @@
 ┌ 组织账号 ──────────────────────────────────────────┐
 │① [🔍 搜索姓名或邮箱]  [状态：全部/启用/账号已停用 ▾] │
 │② 姓名 │ 邮箱 │ 组织角色 │ 账号状态 │ 操作           │
-│  张三 │ …    │ 组织管理员│ 启用     │ [停用账号]③   │
-│  王五 │ …    │ —        │ 启用     │ [停用账号]     │
-│  赵六 │ …    │ —        │ 账号已停用│ —             │
+│  张三 │ …    │ 组织管理员│ 启用     │ [停用账号][撤销组织管理员]③ │
+│  王五 │ …    │ —        │ 启用     │ [停用账号][授予组织管理员]   │
+│  赵六 │ …    │ —        │ 账号已停用│ [恢复账号]     │
 └────────────────────────────────────────────────────┘
 ```
 
 1. 列表来源（**已关闭 C6**）：优先扩展现网 **`GET /organization/members`**（返回账号态 `active` / `account_active`，及是否组织 ADMIN）；避免平行的 `/organization/users` 除非合同另有强理由。状态筛选用「账号已停用」，不用「已停用」（以免与 membership 混淆）。
 2. 组织角色列：`is_org_admin` 用户显示 Chip「组织管理员」；其他人「—」。
-3. 「停用账号」`Button variant="danger"` size sm。自己的行不显示。`account_active===false` 行无操作。
+3. 「停用账号」`Button variant="danger-soft"` size sm。自己的行不显示。`account_active===false` 行改显「恢复账号」（§6.4.6）。活跃的他人行并列「授予组织管理员」/「撤销组织管理员」（按 `is_org_admin` 切换，§6.4.6）。
 4. **写路径**：`POST /api/v1/organization/members/{user}/changes`（body: `active:false` + `reason`，`Idempotency-Key`）或显式 `.../deactivate`。鉴权 **仅组织 ADMIN**——**禁止**复用「任一项目 ADMIN」的 `executeOrganization` 门槛。成功须审计，并吊销该用户委托的 Agent/MCP 会话（全项目范围，以实现为准）。
-5. **本期不做**：账号级「恢复启用」、授予/撤销组织 ADMIN UI（种子授予，C1）。
+5. **已落地 2026-10-27（Stage 3，§6.4.6）**：账号级「恢复账号」、授予/撤销组织 ADMIN UI（复用同一 changes 路径）。
 6. 409 **`LAST_ORG_ADMIN`**：见 §6.4.4。
 
 #### 6.4.3 二次确认
@@ -520,6 +521,15 @@
 | 成功停用 | 行更新 + live 播报；已打开的项目成员页下次进入/刷新后显示「账号已停用」Chip（Nice：可 invalidate） |
 | `LAST_ORG_ADMIN` | §6.4.4 |
 | 非组织 ADMIN 直链 / 错 Tab | 403 页 |
+
+#### 6.4.6 授予/撤销组织 ADMIN + 账号恢复（**已落地 2026-10-27，Stage 3**）
+
+- **同一写路径**：`POST /api/v1/organization/members/{user}/changes`。`HumanChange` 扩为 `oneOf`：`{active:bool, reason}`（`false` 停用 / `true` 恢复）或 `{is_org_admin:bool, reason}`（授予/撤销）；两者不可同时出现（否则 400 `INVALID_BODY`）。鉴权仍为 **仅组织 ADMIN**；项目 ADMIN 单独 → 403 `ORG_ADMIN_REQUIRED`。
+- **恢复账号**：`account_active===false` 行显「恢复账号」。确认对话框标题「恢复账号 {name}？」，非危险态；说明须与停用（「无法登录」）区分——恢复后可重新登录与调用 API，**项目成员身份保持停用前状态、不自动恢复**，**已吊销的 Agent/MCP 会话不重新签发**。成功 `role=status`「已恢复账号 {name}」。
+- **授予/撤销组织 ADMIN**：活跃他人行按 `is_org_admin` 显示「授予组织管理员」或「撤销组织管理员」；确认对话框带原因必填，文案与停用/恢复区分。
+  - 撤销最后一名活跃组织 ADMIN（含对自己撤销）→ 409 `LAST_ORG_ADMIN`：对话框不关闭，`Alert status="danger"`「无法撤销最后一名组织管理员」，焦点移「取消」，复用 §6.4.4 模式。
+  - 向已停用账号授予 → 422 `INACTIVE_ACCOUNT`（UI 仅对活跃他人显示授予入口，故一般不触发；后端兜底）。
+- **审计**：均经既有 `organization_audit`（路由 + 原因）。文案见 §6.8。
 
 ### 6.5 项目创建、归档与恢复（US-15）
 
@@ -583,6 +593,16 @@
 | 无法停用最后一名组织管理员（409 LAST_ORG_ADMIN） | Can't deactivate the last organization admin | Нельзя отключить последнего администратора организации | 标题 2 行 |
 | {name} 是唯一的组织管理员。请先将组织管理员授予他人，再停用此账号。 | {name} is the only organization admin. Grant organization admin to someone else first, then deactivate this account. | {name} — единственный администратор организации. Сначала назначьте администратора организации другому пользователю, затем отключите эту учётную запись. | 3–4 行 |
 | 你是组织管理员，对本项目成员为只读。 | You're an organization admin with read-only access to this project's members. | Вы администратор организации и можете только просматривать участников этого проекта. | 2 行 |
+| 恢复账号 / 恢复账号 {name}？ | Reactivate account / Reactivate account {name}? | Восстановить учётную запись / Восстановить учётную запись {name}? | 按钮 + 标题 |
+| 恢复后，{name} 可以重新登录控制台并调用 API。项目成员身份保持停用前的状态，不会自动恢复；已吊销的 Agent/MCP 会话不会重新签发。此操作写入审计。 | After this, {name} can sign in to the console and call the API again. Project memberships stay as they were before deactivation and are not restored automatically; revoked Agent/MCP sessions are not re-issued. This is recorded in the audit log. | После этого {name} снова сможет входить в консоль и вызывать API. Участие в проектах останется таким же, как до отключения, и не восстанавливается автоматически; отозванные сеансы Agent/MCP не выдаются заново. Действие записывается в журнал аудита. | 对话框正文（与「无法登录」区分） |
+| 已恢复账号 {name} | Account {name} reactivated | Учётная запись {name} восстановлена | role=status |
+| 授予组织管理员 / 撤销组织管理员 | Grant organization admin / Revoke organization admin | Назначить администратором организации / Отозвать администратора организации | 按钮 + 主按钮 |
+| 授予组织管理员：{name}？ / 撤销组织管理员：{name}？ | Grant organization admin to {name}? / Revoke organization admin from {name}? | Назначить {name} администратором организации? / Отозвать у {name} права администратора организации? | 对话框标题 |
+| {name} 将获得组织管理员权限，可管理组织账号、授予或撤销组织管理员，并执行账号级停用与恢复。此操作写入审计。 | {name} will gain organization admin rights: managing organization accounts, granting or revoking organization admin, and deactivating or reactivating accounts. This is recorded in the audit log. | {name} получит права администратора организации: управление учётными записями организации, назначение и отзыв администраторов организации, а также отключение и восстановление учётных записей. Действие записывается в журнал аудита. | 授予正文 |
+| 撤销后，{name} 将不再拥有组织管理员权限，但其项目成员身份不受影响。此操作写入审计。 | After this, {name} no longer has organization admin rights, but their project memberships are unaffected. This is recorded in the audit log. | После этого {name} больше не будет администратором организации, но участие в проектах не изменится. Действие записывается в журнал аудита. | 撤销正文 |
+| 已授予组织管理员 {name} / 已撤销组织管理员 {name} | Granted organization admin to {name} / Revoked organization admin from {name} | {name} назначен администратором организации / У {name} отозваны права администратора организации | role=status |
+| 无法撤销最后一名组织管理员（409 LAST_ORG_ADMIN） | Can't revoke the last organization admin | Нельзя отозвать последнего администратора организации | 标题 2 行 |
+| {name} 是唯一的组织管理员。请先将组织管理员授予他人，再撤销其权限。 | {name} is the only organization admin. Grant organization admin to someone else first, then revoke this one. | {name} — единственный администратор организации. Сначала назначьте администратором организации другого пользователя, затем отзовите эти права. | 3–4 行 |
 | 成员状态 / 账号 | Membership / Account | Участие / Учётная запись | 表头 |
 | 不能停用自己 | You can't deactivate yourself | Нельзя деактивировать себя | — |
 | 取消 | Cancel | Отмена | — |

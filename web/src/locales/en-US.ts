@@ -518,6 +518,27 @@ export const enUS = {
   无法停用最后一名组织管理员: "Can't deactivate the last organization admin",
   "{name} 是唯一的组织管理员。请先将组织管理员授予他人，再停用此账号。":
     "{name} is the only organization admin. Grant organization admin to someone else first, then deactivate this account.",
+  恢复账号: "Reactivate account",
+  "恢复账号 {name}": "Reactivate account {name}",
+  "恢复账号 {name}？": "Reactivate account {name}?",
+  "恢复后，{name} 可以重新登录控制台并调用 API。项目成员身份保持停用前的状态，不会自动恢复；已吊销的 Agent/MCP 会话不会重新签发。此操作写入审计。":
+    "After this, {name} can sign in to the console and call the API again. Project memberships stay as they were before deactivation and are not restored automatically; revoked Agent/MCP sessions are not re-issued. This is recorded in the audit log.",
+  "已恢复账号 {name}": "Account {name} reactivated",
+  授予组织管理员: "Grant organization admin",
+  撤销组织管理员: "Revoke organization admin",
+  "授予组织管理员 {name}": "Grant organization admin to {name}",
+  "撤销组织管理员 {name}": "Revoke organization admin from {name}",
+  "授予组织管理员：{name}？": "Grant organization admin to {name}?",
+  "撤销组织管理员：{name}？": "Revoke organization admin from {name}?",
+  "{name} 将获得组织管理员权限，可管理组织账号、授予或撤销组织管理员，并执行账号级停用与恢复。此操作写入审计。":
+    "{name} will gain organization admin rights: managing organization accounts, granting or revoking organization admin, and deactivating or reactivating accounts. This is recorded in the audit log.",
+  "撤销后，{name} 将不再拥有组织管理员权限，但其项目成员身份不受影响。此操作写入审计。":
+    "After this, {name} no longer has organization admin rights, but their project memberships are unaffected. This is recorded in the audit log.",
+  "已授予组织管理员 {name}": "Granted organization admin to {name}",
+  "已撤销组织管理员 {name}": "Revoked organization admin from {name}",
+  无法撤销最后一名组织管理员: "Can't revoke the last organization admin",
+  "{name} 是唯一的组织管理员。请先将组织管理员授予他人，再撤销其权限。":
+    "{name} is the only organization admin. Grant organization admin to someone else first, then revoke this one.",
   "你是组织管理员，对本项目成员为只读。":
     "You're an organization admin with read-only access to this project's members.",
   你没有组织管理员权限: "You don't have organization admin permission",

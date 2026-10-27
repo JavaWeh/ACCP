@@ -97,21 +97,44 @@
     },
     "HumanChange": {
       "type": "object",
-      "properties": {
-        "active": {
-          "const": false
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "active": {
+              "type": "boolean"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "active",
+            "reason"
+          ],
+          "additionalProperties": false
         },
-        "reason": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2000
+        {
+          "type": "object",
+          "properties": {
+            "is_org_admin": {
+              "type": "boolean"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "is_org_admin",
+            "reason"
+          ],
+          "additionalProperties": false
         }
-      },
-      "required": [
-        "active",
-        "reason"
-      ],
-      "additionalProperties": false
+      ]
     },
     "AddMember": {
       "type": "object",

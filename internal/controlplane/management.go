@@ -155,11 +155,13 @@ func registerHuman(q *request) (reply, error) {
 	return reply{status: 201, resource: id, version: 1, body: humanDoc(id, q.org, textValue(q.body, "display_name"), true, false)}, nil
 }
 
+// changeOrganizationMember fans the organization-ADMIN account journal out to three
+// shapes carried by HumanChange (schema oneOf): {active:false} deactivate,
+// {active:true} reactivate, and {is_org_admin:bool} grant/revoke. Reactivate is
+// deliberately not symmetric with deactivate: it does not re-add project memberships
+// and does not re-issue revoked agent sessions.
 func changeOrganizationMember(q *request) (reply, error) {
 	target := q.http.PathValue("user")
-	if q.body["active"] != false {
-		return reply{}, fail(422, "INVALID_HUMAN", "Account reactivation is not available on this path.")
-	}
 	var name string
 	var active, orgAdmin bool
 	err := q.tx.QueryRow(q.http.Context(), `SELECT display_name,active,is_org_admin FROM human_users WHERE id=$1 AND organization_id=$2 FOR UPDATE`, target, q.org).Scan(&name, &active, &orgAdmin)
@@ -169,17 +171,24 @@ func changeOrganizationMember(q *request) (reply, error) {
 	if err != nil {
 		return reply{}, err
 	}
+	if desired, ok := q.body["is_org_admin"].(bool); ok {
+		return changeOrganizationAdmin(q, target, name, active, orgAdmin, desired)
+	}
+	if q.body["active"] == true {
+		if active {
+			return reply{status: 200, resource: target, version: 1, body: humanDoc(target, q.org, name, true, orgAdmin)}, nil
+		}
+		if _, err = q.tx.Exec(q.http.Context(), `UPDATE human_users SET active=true WHERE id=$1 AND organization_id=$2`, target, q.org); err != nil {
+			return reply{}, err
+		}
+		return reply{status: 200, resource: target, version: 1, body: humanDoc(target, q.org, name, true, orgAdmin)}, nil
+	}
 	if !active {
 		return reply{status: 200, resource: target, version: 1, body: humanDoc(target, q.org, name, false, orgAdmin)}, nil
 	}
 	if orgAdmin {
-		var others int
-		err = q.tx.QueryRow(q.http.Context(), `SELECT count(*) FROM human_users WHERE organization_id=$1 AND is_org_admin AND active AND id<>$2`, q.org, target).Scan(&others)
-		if err != nil {
+		if err = requireRemainingOrgAdmin(q, target); err != nil {
 			return reply{}, err
-		}
-		if others < 1 {
-			return reply{}, fail(409, "LAST_ORG_ADMIN", "At least one active organization administrator must remain.")
 		}
 	}
 	_, err = q.tx.Exec(q.http.Context(), `UPDATE human_users SET active=false WHERE id=$1 AND organization_id=$2`, target, q.org)
@@ -190,6 +199,43 @@ func changeOrganizationMember(q *request) (reply, error) {
 		return reply{}, err
 	}
 	return reply{status: 200, resource: target, version: 1, body: humanDoc(target, q.org, name, false, orgAdmin)}, nil
+}
+
+func changeOrganizationAdmin(q *request, target, name string, active, orgAdmin, desired bool) (reply, error) {
+	if desired {
+		if !active {
+			return reply{}, fail(422, "INACTIVE_ACCOUNT", "Reactivate this account before granting organization administrator.")
+		}
+		if !orgAdmin {
+			if _, err := q.tx.Exec(q.http.Context(), `UPDATE human_users SET is_org_admin=true WHERE id=$1 AND organization_id=$2`, target, q.org); err != nil {
+				return reply{}, err
+			}
+		}
+		return reply{status: 200, resource: target, version: 1, body: humanDoc(target, q.org, name, active, true)}, nil
+	}
+	if orgAdmin {
+		if active {
+			if err := requireRemainingOrgAdmin(q, target); err != nil {
+				return reply{}, err
+			}
+		}
+		if _, err := q.tx.Exec(q.http.Context(), `UPDATE human_users SET is_org_admin=false WHERE id=$1 AND organization_id=$2`, target, q.org); err != nil {
+			return reply{}, err
+		}
+	}
+	return reply{status: 200, resource: target, version: 1, body: humanDoc(target, q.org, name, active, false)}, nil
+}
+
+func requireRemainingOrgAdmin(q *request, target string) error {
+	var others int
+	err := q.tx.QueryRow(q.http.Context(), `SELECT count(*) FROM human_users WHERE organization_id=$1 AND is_org_admin AND active AND id<>$2`, q.org, target).Scan(&others)
+	if err != nil {
+		return err
+	}
+	if others < 1 {
+		return fail(409, "LAST_ORG_ADMIN", "At least one active organization administrator must remain.")
+	}
+	return nil
 }
 
 func createProject(q *request) (reply, error) {

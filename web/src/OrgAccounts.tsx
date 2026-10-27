@@ -26,6 +26,8 @@ export function OrgAccounts({ api, me }: { api: API; me: Doc }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [status, setStatus] = useState("");
   const [deactivating, setDeactivating] = useState<Doc>();
+  const [reactivating, setReactivating] = useState<Doc>();
+  const [adminChange, setAdminChange] = useState<Doc>();
 
   async function refresh() {
     setPeople(await api.all("/organization/members"));
@@ -99,7 +101,8 @@ export function OrgAccounts({ api, me }: { api: API; me: Doc }) {
                 {filtered.map((person) => {
                   const name = person.display_name || person.id;
                   const active = accountActive(person);
-                  const canDeactivate = active && person.id !== me.id;
+                  const self = person.id === me.id;
+                  const isAdmin = person.is_org_admin === true;
                   return (
                     <Table.Row key={person.id} id={person.id}>
                       <Table.Cell>
@@ -109,7 +112,7 @@ export function OrgAccounts({ api, me }: { api: API; me: Doc }) {
                         <small>{person.id}</small>
                       </Table.Cell>
                       <Table.Cell>
-                        {person.is_org_admin ? (
+                        {isAdmin ? (
                           <Chip color="accent" size="sm" variant="soft">
                             {translate("组织管理员")}
                           </Chip>
@@ -129,19 +132,49 @@ export function OrgAccounts({ api, me }: { api: API; me: Doc }) {
                         )}
                       </Table.Cell>
                       <Table.Cell>
-                        {canDeactivate ? (
+                        {active && !self && (
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="danger-soft"
+                              size="sm"
+                              className="shrink-0 text-sm"
+                              aria-label={translate("停用账号 {name}", {
+                                name,
+                              })}
+                              onPress={() => setDeactivating(person)}
+                            >
+                              {translate("停用账号")}
+                            </Button>
+                            <Button
+                              variant="tertiary"
+                              size="sm"
+                              className="shrink-0 text-sm"
+                              aria-label={translate(
+                                isAdmin
+                                  ? "撤销组织管理员 {name}"
+                                  : "授予组织管理员 {name}",
+                                { name },
+                              )}
+                              onPress={() => setAdminChange(person)}
+                            >
+                              {translate(
+                                isAdmin ? "撤销组织管理员" : "授予组织管理员",
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                        {!active && (
                           <Button
-                            variant="danger-soft"
+                            variant="secondary"
                             size="sm"
                             className="shrink-0 text-sm"
-                            aria-label={translate("停用账号 {name}", { name })}
-                            onPress={() => setDeactivating(person)}
+                            aria-label={translate("恢复账号 {name}", { name })}
+                            onPress={() => setReactivating(person)}
                           >
-                            {translate("停用账号")}
+                            {translate("恢复账号")}
                           </Button>
-                        ) : (
-                          "—"
                         )}
+                        {active && self && "—"}
                       </Table.Cell>
                     </Table.Row>
                   );
@@ -159,6 +192,34 @@ export function OrgAccounts({ api, me }: { api: API; me: Doc }) {
           onDone={async (name) => {
             setDeactivating(undefined);
             setStatus(translate("已停用账号 {name}", { name }));
+            await refresh();
+          }}
+        />
+      )}
+      {reactivating && (
+        <ReactivateAccountDialog
+          api={api}
+          person={reactivating}
+          close={() => setReactivating(undefined)}
+          onDone={async (name) => {
+            setReactivating(undefined);
+            setStatus(translate("已恢复账号 {name}", { name }));
+            await refresh();
+          }}
+        />
+      )}
+      {adminChange && (
+        <OrgAdminDialog
+          api={api}
+          person={adminChange}
+          close={() => setAdminChange(undefined)}
+          onDone={async (name, granted) => {
+            setAdminChange(undefined);
+            setStatus(
+              granted
+                ? translate("已授予组织管理员 {name}", { name })
+                : translate("已撤销组织管理员 {name}", { name }),
+            );
             await refresh();
           }}
         />
@@ -264,6 +325,186 @@ function DeactivateAccountDialog({
         <div className="mb-2">
           <Button
             id="deactivate-account-cancel"
+            type="button"
+            variant="tertiary"
+            onPress={close}
+          >
+            {translate("取消")}
+          </Button>
+        </div>
+      </Form>
+    </Modal>
+  );
+}
+
+function ReactivateAccountDialog({
+  api,
+  person,
+  close,
+  onDone,
+}: {
+  api: API;
+  person: Doc;
+  close: () => void;
+  onDone: (name: string) => Promise<void>;
+}) {
+  const { translate } = useI18n();
+  const name = person.display_name || person.id;
+  const [forbidden, setForbidden] = useState(false);
+
+  return (
+    <Modal
+      title={translate("恢复账号 {name}？", { name })}
+      close={close}
+      dismissable={false}
+      alertdialog
+    >
+      <p className="max-w-prose text-sm leading-6 text-slate-700">
+        {translate(
+          "恢复后，{name} 可以重新登录控制台并调用 API。项目成员身份保持停用前的状态，不会自动恢复；已吊销的 Agent/MCP 会话不会重新签发。此操作写入审计。",
+          { name },
+        )}
+      </p>
+      {forbidden && (
+        <Alert status="danger" className="my-4" role="alert">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{translate("你没有组织管理员权限")}</Alert.Title>
+          </Alert.Content>
+        </Alert>
+      )}
+      <Form
+        submit={translate("恢复账号")}
+        onDone={() => undefined}
+        action={async (data) => {
+          try {
+            await api.call(`/organization/members/${person.id}/changes`, {
+              active: true,
+              reason: text(data, "reason"),
+            });
+            await onDone(name);
+          } catch (err) {
+            if (
+              err instanceof ApiError &&
+              (err.status === 403 || err.code === "ORG_ADMIN_REQUIRED")
+            ) {
+              setForbidden(true);
+              return { keepOpen: true };
+            }
+            throw err;
+          }
+        }}
+      >
+        <Field label={translate("操作原因")}>
+          <TextArea name="reason" required autoFocus disabled={forbidden} />
+        </Field>
+        <div className="mb-2">
+          <Button type="button" variant="tertiary" onPress={close}>
+            {translate("取消")}
+          </Button>
+        </div>
+      </Form>
+    </Modal>
+  );
+}
+
+function OrgAdminDialog({
+  api,
+  person,
+  close,
+  onDone,
+}: {
+  api: API;
+  person: Doc;
+  close: () => void;
+  onDone: (name: string, granted: boolean) => Promise<void>;
+}) {
+  const { translate } = useI18n();
+  const name = person.display_name || person.id;
+  const granting = person.is_org_admin !== true;
+  const [lastOrgAdmin, setLastOrgAdmin] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+
+  return (
+    <Modal
+      title={translate(
+        granting ? "授予组织管理员：{name}？" : "撤销组织管理员：{name}？",
+        { name },
+      )}
+      close={close}
+      dismissable={false}
+      alertdialog
+    >
+      <p className="max-w-prose text-sm leading-6 text-slate-700">
+        {translate(
+          granting
+            ? "{name} 将获得组织管理员权限，可管理组织账号、授予或撤销组织管理员，并执行账号级停用与恢复。此操作写入审计。"
+            : "撤销后，{name} 将不再拥有组织管理员权限，但其项目成员身份不受影响。此操作写入审计。",
+          { name },
+        )}
+      </p>
+      {forbidden && (
+        <Alert status="danger" className="my-4" role="alert">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{translate("你没有组织管理员权限")}</Alert.Title>
+          </Alert.Content>
+        </Alert>
+      )}
+      {lastOrgAdmin && (
+        <Alert status="danger" className="my-4" role="alert">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{translate("无法撤销最后一名组织管理员")}</Alert.Title>
+            <Alert.Description>
+              {translate(
+                "{name} 是唯一的组织管理员。请先将组织管理员授予他人，再撤销其权限。",
+                { name },
+              )}
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      )}
+      <Form
+        submit={translate(granting ? "授予组织管理员" : "撤销组织管理员")}
+        onDone={() => undefined}
+        action={async (data) => {
+          try {
+            await api.call(`/organization/members/${person.id}/changes`, {
+              is_org_admin: granting,
+              reason: text(data, "reason"),
+            });
+            await onDone(name, granting);
+          } catch (err) {
+            if (err instanceof ApiError && err.code === "LAST_ORG_ADMIN") {
+              setLastOrgAdmin(true);
+              queueMicrotask(() =>
+                document.getElementById("org-admin-cancel")?.focus(),
+              );
+              return { keepOpen: true };
+            }
+            if (
+              err instanceof ApiError &&
+              (err.status === 403 || err.code === "ORG_ADMIN_REQUIRED")
+            ) {
+              setForbidden(true);
+              return { keepOpen: true };
+            }
+            throw err;
+          }
+        }}
+      >
+        <Field label={translate("操作原因")}>
+          <TextArea
+            name="reason"
+            required
+            autoFocus
+            disabled={lastOrgAdmin || forbidden}
+          />
+        </Field>
+        <div className="mb-2">
+          <Button
+            id="org-admin-cancel"
             type="button"
             variant="tertiary"
             onPress={close}

@@ -568,6 +568,21 @@
       "valid": true
     },
     {
+      "file": "valid/management-HumanReactivate.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/HumanChange",
+      "valid": true
+    },
+    {
+      "file": "valid/management-HumanGrantAdmin.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/HumanChange",
+      "valid": true
+    },
+    {
+      "file": "valid/management-HumanRevokeAdmin.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/HumanChange",
+      "valid": true
+    },
+    {
       "file": "valid/management-AddMember.json",
       "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/AddMember",
       "valid": true
@@ -601,6 +616,14 @@
       "expected_error": {
         "keyword": "required",
         "missingProperty": "reason"
+      }
+    },
+    {
+      "file": "invalid/management-human-ambiguous.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/HumanChange",
+      "valid": false,
+      "expected_error": {
+        "keyword": "oneOf"
       }
     },
     {

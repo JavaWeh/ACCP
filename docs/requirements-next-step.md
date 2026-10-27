@@ -60,7 +60,7 @@
 | # | must-fix / 补充 | 故事 | 估算 | 状态 |
 |---|---|---|---|---|
 | MF1 | 复合游标 + 无总条数 | US-11a / 11b | 5 + 4 | 已写入；**Q10 已确认** |
-| MF2 | 停用范围 | US-14 项目级；**US-14b 账号级→阶段 B，仅组织 ADMIN** | 4 + 5 | **M5 已完成 2026-10-27**（`19e3428` / `d69cc2d`；Q9+Q9a；组织 ADMIN 授予/撤销与账号恢复仍延期） |
+| MF2 | 停用范围 | US-14 项目级；**US-14b 账号级→阶段 B，仅组织 ADMIN** | 4 + 5 | **M5 已完成 2026-10-27**（`19e3428` / `d69cc2d`；Q9+Q9a）；组织 ADMIN 授予/撤销与账号恢复 **已落地 2026-10-27（Stage 3）** |
 | MF3 | 重放信号 | US-13a / 13b | 1.5 + 2 | 可开工；13a=首 PR |
 | MF4 | O5 勿重做深链 | US-12 增量 | 1.5 | 已写入 |
 | O3a / O12 / O13 | 文案 | — | — | 已写入 PRD |
@@ -98,7 +98,7 @@
 | US-13b | 超时重试 UI | 13a | M4 |
 | US-17 | audience 文档一致 | 无；**无 IdP 演练（Q8）** | M4 |
 | US-14 | 项目级成员管理 | 后端已有 | **M5 已完成**（`19e3428`） |
-| **US-14b** | **账号级停用（仅组织 ADMIN；须新增该角色）** | 无开放拍板 | **M5 已完成**（`d69cc2d`；授予/撤销与账号恢复仍延期） |
+| **US-14b** | **账号级停用（仅组织 ADMIN；须新增该角色）** | 无开放拍板 | **M5 已完成**（`d69cc2d`）；授予/撤销与账号恢复 **已落地 2026-10-27（Stage 3）** |
 | US-15 | 项目归档/恢复、仓库 | 后端已有 | **M5 已完成**（`f5e63a8`） |
 
 ### 4.3 阶段 C / 仍范围外
@@ -131,7 +131,7 @@ P2-1…P2-4。~~US-14b~~ 已不在此列。目标 IdP 演练本期不做（Q8）
 2. **按 §8 清单**（人工或他员）创建 GitHub milestone/issue——**本文与 PRD 不调用 API**。
 3. **首 PR：US-13a**（重放响应头 + 集成测试）。（若已在 main，跳过。）
 4. 并行 M1：US-4、US-6；token 到位后 US-5；同时设计 **全自动** 发布 workflow（US-7）与升级说明 CI 门禁（US-8）。
-5. ~~M4 前 jack 交付 US-11b/12/13b；**M5 前增加 US-14b**（仅组织 ADMIN 可见；可写「停用后无法登录」；含新增组织 ADMIN 角色的最小可用）。~~ **M5 已完成 2026-10-27**（US-14 / US-14b / US-15；`19e3428`..`f5e63a8`）。仍开放：US-5、Stage C、登录刷新保持、组织 ADMIN 授予/撤销与账号恢复、chatgpt 非阻塞建议（未编码）。
+5. ~~M4 前 jack 交付 US-11b/12/13b；**M5 前增加 US-14b**（仅组织 ADMIN 可见；可写「停用后无法登录」；含新增组织 ADMIN 角色的最小可用）。~~ **M5 已完成 2026-10-27**（US-14 / US-14b / US-15；`19e3428`..`f5e63a8`）。仍开放：US-5、Stage C、chatgpt 非阻塞建议（未编码）。登录刷新保持（2026-10-27 MVP）、组织 ADMIN 授予/撤销与账号恢复（2026-10-27 Stage 3）已落地。
 
 ---
 
@@ -183,7 +183,7 @@ P2-1…P2-4。~~US-14b~~ 已不在此列。目标 IdP 演练本期不做（Q8）
 | US-13b Write-timeout retry UI | M4 | 依赖 13a |
 | US-17 Unify SPA client ID / API audience docs | M4 | 无 IdP 演练 |
 | US-14 Project-level member add/deactivate | M5 | **已完成** `19e3428` |
-| **US-14b Account-level deactivate (org ADMIN only; new role)** | **M5** | **已完成** `d69cc2d`；Q9+Q9a；授予/撤销与账号恢复仍延期 |
+| **US-14b Account-level deactivate (org ADMIN only; new role)** | **M5** | **已完成** `d69cc2d`；Q9+Q9a；授予/撤销与账号恢复 **已落地 2026-10-27（Stage 3）** |
 | US-15 Project archive/restore + repo register | M5 | **已完成** `f5e63a8` |
 
 P2 项可不建 milestone，或建 `ACCP next: P2 backlog`（可选，非必须）。
@@ -198,3 +198,4 @@ P2 项可不建 milestone，或建 `ACCP next: P2 backlog`（可选，非必须�
 | v2 | 2026-10-25 | Weh 拍板 Q1–Q10；Q5 全自动；Q9→US-14b 入 B；拟建 milestone/issue 清单；开放项仅 Q9a |
 | v3 | 2026-10-25 | **关闭 Q9a**：选 B 仅「组织 ADMIN」；须新增组织 ADMIN 角色，与 registerHuman（任一项目 ADMIN）不对称；同步阶段 B/UI/拟建 issue |
 | v3.1 | 2026-10-27 | **M5 已完成**：US-14 / US-14b / US-15 状态同步（`19e3428` / `d69cc2d` / `f5e63a8`）；不宣称 US-5、Stage C、登录刷新保持、组织 ADMIN 授予/撤销与账号恢复已完成 |
+| v3.2 | 2026-10-27 | **组织 ADMIN 授予/撤销 + 账号恢复已落地（Stage 3）**：复用 `POST /organization/members/{user}/changes`（`HumanChange` oneOf：`active` / `is_org_admin`）；撤销最后一名活跃组织 ADMIN → 409 `LAST_ORG_ADMIN`；向停用账号授予 → 422 `INACTIVE_ACCOUNT`；账号恢复不自动恢复项目成员身份、不重签会话。仍开放：US-5、Stage C |

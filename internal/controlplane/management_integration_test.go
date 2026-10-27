@@ -287,3 +287,90 @@ func TestOrganizationAdminAccountDeactivate(t *testing.T) {
 		t.Fatal("account deactivate missing organization audit")
 	}
 }
+
+func TestOrganizationAdminGrantRevokeAndReactivate(t *testing.T) {
+	f := setup(t)
+
+	// Give bob project ADMIN so the 403 below proves project ADMIN alone is not enough.
+	f.expect(f.call("alice", "POST", "/projects/project_demo/members/user_bob/changes", newID("key"), `"1"`, Object{"roles": []string{"ADMIN", "MEMBER", "REVIEWER"}, "active": true, "reason": "Project admin only"}), 200, "Membership")
+	denied := f.expect(f.call("bob", "POST", "/organization/members/user_viewer/changes", newID("key"), "", Object{"is_org_admin": true, "reason": "Project admin cannot grant"}), 403, "")
+	if denied["code"] != "ORG_ADMIN_REQUIRED" {
+		t.Fatalf("expected ORG_ADMIN_REQUIRED, got %v", denied["code"])
+	}
+
+	// A body carrying both account state and the admin flag matches no HumanChange branch.
+	f.expect(f.call("alice", "POST", "/organization/members/user_bob/changes", newID("key"), "", Object{"active": true, "is_org_admin": true, "reason": "Ambiguous"}), 400, "")
+
+	// Grant organization admin to bob.
+	granted := f.expect(f.call("alice", "POST", "/organization/members/user_bob/changes", newID("key"), "", Object{"is_org_admin": true, "reason": "Promote"}), 200, "ManagementHuman")
+	if granted["is_org_admin"] != true || granted["active"] != true {
+		t.Fatalf("grant response: %#v", granted)
+	}
+	var bobAdmin bool
+	if err := f.pool.QueryRow(context.Background(), `SELECT is_org_admin FROM human_users WHERE id='user_bob'`).Scan(&bobAdmin); err != nil || !bobAdmin {
+		t.Fatal("grant not persisted", err, bobAdmin)
+	}
+
+	// bob, now an org admin, revokes alice while two admins remain.
+	revoked := f.expect(f.call("bob", "POST", "/organization/members/user_alice/changes", newID("key"), "", Object{"is_org_admin": false, "reason": "Rotate"}), 200, "ManagementHuman")
+	if revoked["is_org_admin"] != false {
+		t.Fatalf("revoke response: %#v", revoked)
+	}
+	var aliceAdmin bool
+	if err := f.pool.QueryRow(context.Background(), `SELECT is_org_admin FROM human_users WHERE id='user_alice'`).Scan(&aliceAdmin); err != nil || aliceAdmin {
+		t.Fatal("revoke not persisted", err, aliceAdmin)
+	}
+
+	// bob is now the last active org admin; self-revoke is refused.
+	last := f.expect(f.call("bob", "POST", "/organization/members/user_bob/changes", newID("key"), "", Object{"is_org_admin": false, "reason": "Last admin"}), 409, "")
+	if last["code"] != "LAST_ORG_ADMIN" {
+		t.Fatalf("expected LAST_ORG_ADMIN, got %v", last["code"])
+	}
+	var stillAdmin bool
+	if err := f.pool.QueryRow(context.Background(), `SELECT is_org_admin FROM human_users WHERE id='user_bob'`).Scan(&stillAdmin); err != nil || !stillAdmin {
+		t.Fatal("last org admin must remain", err, stillAdmin)
+	}
+
+	// Deactivate the viewer, then granting org admin to an inactive account is refused.
+	f.expect(f.call("bob", "POST", "/organization/members/user_viewer/changes", newID("key"), "", Object{"active": false, "reason": "Offboard"}), 200, "ManagementHuman")
+	inactive := f.expect(f.call("bob", "POST", "/organization/members/user_viewer/changes", newID("key"), "", Object{"is_org_admin": true, "reason": "Promote inactive"}), 422, "")
+	if inactive["code"] != "INACTIVE_ACCOUNT" {
+		t.Fatalf("expected INACTIVE_ACCOUNT, got %v", inactive["code"])
+	}
+
+	// A project-only admin (alice, after losing org admin) cannot reactivate.
+	aliceDenied := f.expect(f.call("alice", "POST", "/organization/members/user_viewer/changes", newID("key"), "", Object{"active": true, "reason": "Project admin cannot reactivate"}), 403, "")
+	if aliceDenied["code"] != "ORG_ADMIN_REQUIRED" {
+		t.Fatalf("expected ORG_ADMIN_REQUIRED, got %v", aliceDenied["code"])
+	}
+
+	// Reactivate restores sign-in without re-adding roles and keeps the account non-admin.
+	reactivated := f.expect(f.call("bob", "POST", "/organization/members/user_viewer/changes", newID("key"), "", Object{"active": true, "reason": "Rehire"}), 200, "ManagementHuman")
+	if reactivated["active"] != true || reactivated["account_active"] != true || reactivated["is_org_admin"] != false {
+		t.Fatalf("reactivate response: %#v", reactivated)
+	}
+	var viewerActive bool
+	if err := f.pool.QueryRow(context.Background(), `SELECT active FROM human_users WHERE id='user_viewer'`).Scan(&viewerActive); err != nil || !viewerActive {
+		t.Fatal("reactivate not persisted", err, viewerActive)
+	}
+	f.expect(f.call("viewer", "GET", "/me", "", "", nil), 200, "Human")
+
+	// Grant and revoke are audited through the shared organization journal.
+	audits := f.expect(f.call("bob", "GET", "/organization/audit-records", "", "", nil), 200, "ManagementAuditPage")
+	var grants, reactivates int
+	for _, raw := range audits["items"].([]any) {
+		item, _ := raw.(map[string]any)
+		if !strings.Contains(fmt.Sprint(item["action"]), "/organization/members/") {
+			continue
+		}
+		switch textValue(item, "reason") {
+		case "Promote":
+			grants++
+		case "Rehire":
+			reactivates++
+		}
+	}
+	if grants < 1 || reactivates < 1 {
+		t.Fatalf("missing grant/reactivate audit records: grants=%d reactivates=%d", grants, reactivates)
+	}
+}

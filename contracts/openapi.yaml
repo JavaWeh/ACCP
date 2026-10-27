@@ -4543,7 +4543,7 @@ paths:
       tags:
         - Identity
       summary: change Organization Member account
-      description: Account-level deactivate (human_users.active=false). Requires organization ADMIN (is_org_admin); deliberately asymmetric vs registerHuman (any project ADMIN). Revokes delegated Agent/MCP sessions across all projects, writes organization audit, and returns 409 LAST_ORG_ADMIN when the target is the last active organization administrator.
+      description: Account-level journal for a provisioned human. Requires organization ADMIN (is_org_admin); deliberately asymmetric vs registerHuman (any project ADMIN). The HumanChange body selects one action - {active:false} deactivates (revokes delegated Agent/MCP sessions across all projects), {active:true} reactivates (does not restore project memberships and does not re-issue revoked sessions), and {is_org_admin:bool} grants or revokes organization administrator. Writes organization audit. Returns 409 LAST_ORG_ADMIN when deactivating or revoking the last active organization administrator, and 422 INACTIVE_ACCOUNT when granting organization administrator to an inactive account.
       x-accp-milestone: M5
       x-accp-actors:
         - HUMAN
