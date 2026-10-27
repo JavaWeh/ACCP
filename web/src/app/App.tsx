@@ -1,6 +1,6 @@
 import { useI18n, LanguageSwitcher } from "../i18n";
 import { Icon } from "../icons";
-import { Avatar, Spinner } from "@heroui/react";
+import { Avatar, Chip, Spinner } from "@heroui/react";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { Button, Select, Empty, Message } from "../ui";
 import { readRoute, routePath, type PageID, type Route } from "../routing";
@@ -132,6 +132,7 @@ export function App() {
       ? data.members.find((m) => m.id === me.id)?.roles || []
       : [];
   const admin = roles.includes("ADMIN") || project?.roles?.includes("ADMIN");
+  const isOrgAdmin = me?.is_org_admin === true;
   const reviewer = roles.includes("REVIEWER") || admin;
   const managementPages = new Set([
     "management",
@@ -141,7 +142,8 @@ export function App() {
   ]);
   const managementArea = managementPages.has(page);
   const allowedNav = allNav.filter((item) => {
-    if (["management", "operations", "tools"].includes(item.id)) return admin;
+    if (item.id === "management") return admin || isOrgAdmin;
+    if (["operations", "tools"].includes(item.id)) return admin;
     if (item.id === "agents") return admin || roles.includes("MEMBER");
     if (["approvals", "audit"].includes(item.id)) return reviewer;
     return true;
@@ -178,13 +180,15 @@ export function App() {
           >
             {translate("工作台")}
           </Button>
-          {(admin || reviewer) && (
+          {(admin || reviewer || isOrgAdmin) && (
             <Button
               data-testid="area-management"
               variant={managementArea ? "outline" : "ghost"}
               aria-current={managementArea ? "page" : undefined}
               className="min-w-0 flex-1"
-              onPress={() => navigatePage(admin ? "management" : "audit")}
+              onPress={() =>
+                navigatePage(admin || isOrgAdmin ? "management" : "audit")
+              }
             >
               {translate("管理中心")}
             </Button>
@@ -259,6 +263,18 @@ export function App() {
             </Avatar>
             <div className="hidden text-sm sm:block">
               <p className="font-medium">{me.display_name || me.id}</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {isOrgAdmin && (
+                  <Chip size="sm" variant="soft" color="accent">
+                    {translate("组织管理员")}
+                  </Chip>
+                )}
+                {admin && (
+                  <Chip size="sm" variant="soft">
+                    {translate("项目管理员")}
+                  </Chip>
+                )}
+              </div>
               <p className="mt-0.5 text-xs text-slate-600">
                 {roles.map(label).join(" / ")}
               </p>
@@ -319,9 +335,10 @@ export function App() {
               project &&
               !allowedNav.some((item) => item.id === page) ? (
               <ForbiddenPage />
-            ) : page === "management" && admin ? (
+            ) : page === "management" && (admin || isOrgAdmin) ? (
               <Management
                 api={api}
+                me={me}
                 projects={projects}
                 projectID={projectID}
                 reload={reloadProjects}

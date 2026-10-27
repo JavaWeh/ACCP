@@ -12,6 +12,7 @@ func TestHumanBootstrapRequiresCompleteProjectOwnership(t *testing.T) {
 		func(s *Spec) { s.Humans[0].Memberships[0].Roles = []string{"AGENT"} },
 		func(s *Spec) { s.Humans[1].Memberships[0].ProjectID = "project_unknown" },
 		func(s *Spec) { s.Humans[1].ID = s.Humans[0].ID },
+		func(s *Spec) { s.Humans[0].OrgAdmin = false },
 	} {
 		spec := DevelopmentSpec()
 		change(&spec)

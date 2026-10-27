@@ -95,6 +95,24 @@
       ],
       "additionalProperties": false
     },
+    "HumanChange": {
+      "type": "object",
+      "properties": {
+        "active": {
+          "const": false
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "required": [
+        "active",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
     "AddMember": {
       "type": "object",
       "properties": {
@@ -209,6 +227,12 @@
         "active": {
           "type": "boolean"
         },
+        "account_active": {
+          "type": "boolean"
+        },
+        "is_org_admin": {
+          "type": "boolean"
+        },
         "kind": {
           "const": "HUMAN"
         }
@@ -218,6 +242,8 @@
         "organization_id",
         "display_name",
         "active",
+        "account_active",
+        "is_org_admin",
         "kind"
       ],
       "additionalProperties": false

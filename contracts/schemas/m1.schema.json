@@ -76,13 +76,17 @@
         },
         "kind": {
           "const": "HUMAN"
+        },
+        "is_org_admin": {
+          "type": "boolean"
         }
       },
       "required": [
         "id",
         "organization_id",
         "display_name",
-        "kind"
+        "kind",
+        "is_org_admin"
       ],
       "additionalProperties": false
     },

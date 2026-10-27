@@ -27,6 +27,7 @@ async function consoleFixture(
     membership_active: true,
     account_active: true,
     active: true,
+    is_org_admin: roles.includes("ADMIN"),
     version: 1,
   };
   const otherMember = {
@@ -38,6 +39,7 @@ async function consoleFixture(
     membership_active: true,
     account_active: true,
     active: true,
+    is_org_admin: false,
     version: 1,
   };
   const task: Doc = {
@@ -139,12 +141,31 @@ async function consoleFixture(
     if (path === "/organization/members")
       return send({
         items: [
-          member,
-          otherMember,
+          {
+            id: member.id,
+            organization_id: "org_demo",
+            display_name: member.display_name,
+            active: true,
+            account_active: true,
+            is_org_admin: member.is_org_admin,
+            kind: "HUMAN",
+          },
+          {
+            id: otherMember.id,
+            organization_id: "org_demo",
+            display_name: otherMember.display_name,
+            active: true,
+            account_active: true,
+            is_org_admin: false,
+            kind: "HUMAN",
+          },
           {
             id: "user_new",
+            organization_id: "org_demo",
             display_name: "新成员",
             active: true,
+            account_active: true,
+            is_org_admin: false,
             kind: "HUMAN",
           },
         ],
@@ -954,6 +975,36 @@ test("project members add and project-level deactivate stay project-scoped", asy
   expect(fixture.posts.at(-1)).toMatchObject({
     path: "/projects/project_demo/members/user_bob/changes",
     body: { active: false, reason: "离开本项目" },
+  });
+  expect(fixture.errors).toEqual([]);
+});
+
+test("org accounts tab deactivates account for organization admins", async ({
+  page,
+}) => {
+  const fixture = await consoleFixture(page);
+  await login(page);
+  await navigate(page, "项目设置");
+  await expect(page.getByRole("button", { name: "组织账号" })).toBeVisible();
+  await page.getByRole("button", { name: "组织账号" }).click();
+  await expect(page).toHaveURL(/tab=org-accounts/);
+  const accounts = page.getByRole("grid", { name: "组织账号" });
+  await expect(accounts).toContainText("Bob");
+  await expect(
+    page.getByRole("button", { name: "停用账号 演示用户" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "停用账号 Bob" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "停用账号 Bob？" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("无法登录");
+  await expect(dialog).toContainText("这是账号级停用");
+  await dialog.getByLabel("操作原因").fill("离职");
+  await dialog.getByRole("button", { name: "停用账号", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("已停用账号 Bob")).toBeVisible();
+  expect(fixture.posts.at(-1)).toMatchObject({
+    path: "/organization/members/user_bob/changes",
+    body: { active: false, reason: "离职" },
   });
   expect(fixture.errors).toEqual([]);
 });

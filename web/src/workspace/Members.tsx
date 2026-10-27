@@ -26,6 +26,8 @@ function accountActive(m: Membership) {
 export function Members({ w }: { w: Workspace }) {
   const { translate, label } = useI18n();
   const isAdmin = w.roles.includes("ADMIN");
+  const isOrgAdmin = w.me.is_org_admin === true;
+  const orgAdminReadOnly = isOrgAdmin && !isAdmin;
   const [selected, setSelected] = useState<Membership>();
   const [adding, setAdding] = useState(false);
   const [deactivating, setDeactivating] = useState<Membership>();
@@ -85,6 +87,16 @@ export function Members({ w }: { w: Workspace }) {
           </Button>
         )}
       </div>
+      {orgAdminReadOnly && (
+        <Alert className="mb-4" role="status">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>
+              {translate("你是组织管理员，对本项目成员为只读。")}
+            </Alert.Title>
+          </Alert.Content>
+        </Alert>
+      )}
       {status && (
         <p
           role="status"

@@ -10,38 +10,56 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-var managementSchemas = []string{"CreateProject", "ProjectChange", "ProjectCommand", "RegisterHuman", "AddMember", "RegisterRepository", "Project", "Human", "AuditPage"}
+var managementSchemas = []string{"CreateProject", "ProjectChange", "ProjectCommand", "RegisterHuman", "HumanChange", "AddMember", "RegisterRepository", "Project", "Human", "HumanPage", "AuditPage"}
 
 func (s *Server) managementRoutes(routes map[string]operation) {
 	for path, op := range map[string]operation{
-		"GET /api/v1/organization/members":        {organization: true, run: organizationMembers},
-		"POST /api/v1/organization/members":       {organization: true, schema: "ManagementRegisterHuman", run: registerHuman},
-		"GET /api/v1/organization/audit-records":  {organization: true, run: organizationAudit},
-		"POST /api/v1/projects":                   {organization: true, schema: "ManagementCreateProject", run: createProject},
-		"GET /api/v1/projects/{id}":               {table: "projects", run: projectDetails},
-		"POST /api/v1/projects/{id}/changes":      {table: "projects", role: "ADMIN", conditional: true, schema: "ManagementProjectChange", run: changeProject},
-		"POST /api/v1/projects/{id}/commands":     {table: "projects", role: "ADMIN", conditional: true, archivedWrite: true, schema: "ManagementProjectCommand", run: projectCommand},
-		"POST /api/v1/projects/{id}/members":      {table: "projects", role: "ADMIN", schema: "ManagementAddMember", run: addMember},
-		"POST /api/v1/projects/{id}/repositories": {table: "projects", role: "ADMIN", schema: "ManagementRegisterRepository", run: registerRepository},
+		"GET /api/v1/organization/members":                 {organization: true, run: organizationMembers},
+		"POST /api/v1/organization/members":                {organization: true, schema: "ManagementRegisterHuman", run: registerHuman},
+		"POST /api/v1/organization/members/{user}/changes": {organization: true, orgAdminOnly: true, schema: "ManagementHumanChange", run: changeOrganizationMember},
+		"GET /api/v1/organization/audit-records":           {organization: true, run: organizationAudit},
+		"POST /api/v1/projects":                            {organization: true, schema: "ManagementCreateProject", run: createProject},
+		"GET /api/v1/projects/{id}":                        {table: "projects", run: projectDetails},
+		"POST /api/v1/projects/{id}/changes":               {table: "projects", role: "ADMIN", conditional: true, schema: "ManagementProjectChange", run: changeProject},
+		"POST /api/v1/projects/{id}/commands":              {table: "projects", role: "ADMIN", conditional: true, archivedWrite: true, schema: "ManagementProjectCommand", run: projectCommand},
+		"POST /api/v1/projects/{id}/members":               {table: "projects", role: "ADMIN", schema: "ManagementAddMember", run: addMember},
+		"POST /api/v1/projects/{id}/repositories":          {table: "projects", role: "ADMIN", schema: "ManagementRegisterRepository", run: registerRepository},
 	} {
 		routes[path] = op
 	}
 }
 
 // Organization mutations have their own journal: they must not invent a project membership.
+// Account-level deactivate is intentionally asymmetric vs registerHuman: orgAdminOnly routes
+// require is_org_admin; other organization routes accept org ADMIN or any project ADMIN.
 func (s *Server) executeOrganization(q *request, op operation) (reply, error) {
 	ctx := q.http.Context()
 	var org string
 	if err := q.tx.QueryRow(ctx, `SELECT id FROM organizations WHERE id=$1 FOR UPDATE`, q.org).Scan(&org); err != nil {
 		return reply{}, err
 	}
-	var admin string
-	err := q.tx.QueryRow(ctx, `SELECT project_id FROM memberships WHERE organization_id=$1 AND user_id=$2 AND active AND 'ADMIN'=ANY(roles) ORDER BY project_id LIMIT 1 FOR SHARE`, q.org, q.user).Scan(&admin)
+	var orgAdmin bool
+	err := q.tx.QueryRow(ctx, `SELECT is_org_admin FROM human_users WHERE id=$1 AND organization_id=$2 AND active`, q.user, q.org).Scan(&orgAdmin)
 	if err == pgx.ErrNoRows {
-		return reply{}, fail(403, "ADMIN_REQUIRED", "An active project administrator is required.")
+		return reply{}, fail(403, "FORBIDDEN", "An active human mapping is required.")
 	}
 	if err != nil {
 		return reply{}, err
+	}
+	if op.orgAdminOnly {
+		if !orgAdmin {
+			return reply{}, fail(403, "ORG_ADMIN_REQUIRED", "An organization administrator is required.")
+		}
+	} else {
+		var admin string
+		err = q.tx.QueryRow(ctx, `SELECT project_id FROM memberships WHERE organization_id=$1 AND user_id=$2 AND active AND 'ADMIN'=ANY(roles) ORDER BY project_id LIMIT 1 FOR SHARE`, q.org, q.user).Scan(&admin)
+		if err == pgx.ErrNoRows {
+			if !orgAdmin {
+				return reply{}, fail(403, "ADMIN_REQUIRED", "An active project administrator is required.")
+			}
+		} else if err != nil {
+			return reply{}, err
+		}
 	}
 	if q.http.Method != "POST" {
 		return op.run(q)
@@ -91,12 +109,16 @@ func (s *Server) executeOrganization(q *request, op operation) (reply, error) {
 	return result, q.tx.Commit(ctx)
 }
 
+func humanDoc(id, org, name string, active, orgAdmin bool) Object {
+	return Object{"id": id, "organization_id": org, "display_name": name, "active": active, "account_active": active, "is_org_admin": orgAdmin, "kind": "HUMAN"}
+}
+
 func organizationMembers(q *request) (reply, error) {
 	limit, cursor, err := pageParams(q.http)
 	if err != nil {
 		return reply{}, err
 	}
-	rows, err := q.tx.Query(q.http.Context(), `SELECT id,display_name,active FROM human_users WHERE organization_id=$1 AND id>$2 ORDER BY id LIMIT $3`, q.org, cursor, limit+1)
+	rows, err := q.tx.Query(q.http.Context(), `SELECT id,display_name,active,is_org_admin FROM human_users WHERE organization_id=$1 AND id>$2 ORDER BY id LIMIT $3`, q.org, cursor, limit+1)
 	if err != nil {
 		return reply{}, err
 	}
@@ -104,11 +126,11 @@ func organizationMembers(q *request) (reply, error) {
 	items := []Object{}
 	for rows.Next() {
 		var id, name string
-		var active bool
-		if err = rows.Scan(&id, &name, &active); err != nil {
+		var active, orgAdmin bool
+		if err = rows.Scan(&id, &name, &active, &orgAdmin); err != nil {
 			return reply{}, err
 		}
-		items = append(items, Object{"id": id, "organization_id": q.org, "display_name": name, "active": active, "kind": "HUMAN"})
+		items = append(items, humanDoc(id, q.org, name, active, orgAdmin))
 	}
 	return page(q.http, items, limit), rows.Err()
 }
@@ -129,7 +151,44 @@ func registerHuman(q *request) (reply, error) {
 	if tag.RowsAffected() != 1 {
 		return reply{}, fail(409, "IDENTITY_UNAVAILABLE", "This identity cannot be registered; use an existing authorized member if available.")
 	}
-	return reply{status: 201, resource: id, version: 1, body: Object{"id": id, "organization_id": q.org, "display_name": q.body["display_name"], "active": true, "kind": "HUMAN"}}, nil
+	return reply{status: 201, resource: id, version: 1, body: humanDoc(id, q.org, textValue(q.body, "display_name"), true, false)}, nil
+}
+
+func changeOrganizationMember(q *request) (reply, error) {
+	target := q.http.PathValue("user")
+	if q.body["active"] != false {
+		return reply{}, fail(422, "INVALID_HUMAN", "Account reactivation is not available on this path.")
+	}
+	var name string
+	var active, orgAdmin bool
+	err := q.tx.QueryRow(q.http.Context(), `SELECT display_name,active,is_org_admin FROM human_users WHERE id=$1 AND organization_id=$2 FOR UPDATE`, target, q.org).Scan(&name, &active, &orgAdmin)
+	if err == pgx.ErrNoRows {
+		return reply{}, fail(404, "NOT_FOUND", "Provisioned human not found.")
+	}
+	if err != nil {
+		return reply{}, err
+	}
+	if !active {
+		return reply{status: 200, resource: target, version: 1, body: humanDoc(target, q.org, name, false, orgAdmin)}, nil
+	}
+	if orgAdmin {
+		var others int
+		err = q.tx.QueryRow(q.http.Context(), `SELECT count(*) FROM human_users WHERE organization_id=$1 AND is_org_admin AND active AND id<>$2`, q.org, target).Scan(&others)
+		if err != nil {
+			return reply{}, err
+		}
+		if others < 1 {
+			return reply{}, fail(409, "LAST_ORG_ADMIN", "At least one active organization administrator must remain.")
+		}
+	}
+	_, err = q.tx.Exec(q.http.Context(), `UPDATE human_users SET active=false WHERE id=$1 AND organization_id=$2`, target, q.org)
+	if err != nil {
+		return reply{}, err
+	}
+	if err = revokeDelegatedSessionsEverywhere(q, target); err != nil {
+		return reply{}, err
+	}
+	return reply{status: 200, resource: target, version: 1, body: humanDoc(target, q.org, name, false, orgAdmin)}, nil
 }
 
 func createProject(q *request) (reply, error) {
@@ -315,6 +374,41 @@ func revokeManagedSessions(q *request, human string) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func revokeDelegatedSessionsEverywhere(q *request, human string) error {
+	rows, err := q.tx.Query(q.http.Context(), `UPDATE agent_sessions SET status='REVOKED',version=version+1 WHERE delegated_by_user_id=$1 AND status='ACTIVE' RETURNING id,version,project_id`, human)
+	if err != nil {
+		return err
+	}
+	type revoked struct {
+		id, project string
+		version     int64
+	}
+	items := []revoked{}
+	for rows.Next() {
+		var r revoked
+		if err = rows.Scan(&r.id, &r.version, &r.project); err != nil {
+			rows.Close()
+			return err
+		}
+		items = append(items, r)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	saved := q.project
+	for _, r := range items {
+		q.project = r.project
+		if err = emitEvent(q, "SESSION_REVOKED", r.id, r.version, Object{"session_id": r.id, "revoked_by_user_id": q.user}); err != nil {
+			q.project = saved
+			return err
+		}
+	}
+	q.project = saved
 	return nil
 }
 

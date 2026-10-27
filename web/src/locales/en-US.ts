@@ -502,6 +502,26 @@ export const enUS = {
   无法停用最后一名管理员: "Can't deactivate the last admin",
   "{name} 是本项目唯一的管理员。请先为其他成员授予管理员角色，再停用此成员。":
     "{name} is the only admin of this project. Make another member an admin first, then deactivate this member.",
+  组织账号: "Organization accounts",
+  组织角色: "Organization role",
+  组织管理员: "Organization admin",
+  项目管理员: "Project admin",
+  停用账号: "Deactivate account",
+  "停用账号 {name}": "Deactivate account {name}",
+  "停用账号 {name}？": "Deactivate account {name}?",
+  "这是账号级停用。": "This is an account-level deactivation.",
+  "停用后，{name} 将无法登录控制台，也无法调用 API；其在所有项目中的访问立即失效，并吊销其委托的 Agent/MCP 会话。此操作写入审计。":
+    "After this, {name} won't be able to sign in to the console or call the API. Access is revoked in all projects, and their delegated Agent/MCP sessions are revoked. This is recorded in the audit log.",
+  "已停用账号 {name}": "Account {name} deactivated",
+  "账号级停用仅组织管理员可操作。":
+    "Only organization admins can deactivate accounts.",
+  无法停用最后一名组织管理员: "Can't deactivate the last organization admin",
+  "{name} 是唯一的组织管理员。请先将组织管理员授予他人，再停用此账号。":
+    "{name} is the only organization admin. Grant organization admin to someone else first, then deactivate this account.",
+  "你是组织管理员，对本项目成员为只读。":
+    "You're an organization admin with read-only access to this project's members.",
+  你没有组织管理员权限: "You don't have organization admin permission",
+  搜索姓名或邮箱: "Search name or email",
   取消: "Cancel",
   管理角色: "Manage roles",
   角色: "Roles",

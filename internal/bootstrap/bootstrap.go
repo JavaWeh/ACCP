@@ -25,6 +25,7 @@ type Human struct {
 	Issuer      string       `json:"issuer"`
 	Subject     string       `json:"subject"`
 	DisplayName string       `json:"display_name"`
+	OrgAdmin    bool         `json:"is_org_admin,omitempty"`
 	Memberships []Membership `json:"memberships"`
 }
 type Repository struct {
@@ -62,6 +63,7 @@ func Validate(spec Spec) error {
 	projects := map[string]bool{}
 	admins := map[string]bool{}
 	users := map[string]bool{}
+	orgAdmins := 0
 	for _, p := range spec.Projects {
 		u, err := url.Parse(p.Repository.URL)
 		if !identifier.MatchString(p.ID) || p.Name == "" || projects[p.ID] || !identifier.MatchString(p.Repository.ID) || !identifier.MatchString(p.Repository.ProviderID) || p.Repository.DefaultBranch == "" || err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
@@ -74,6 +76,9 @@ func Validate(spec Spec) error {
 			return fmt.Errorf("invalid or duplicate human mapping")
 		}
 		users[h.ID] = true
+		if h.OrgAdmin {
+			orgAdmins++
+		}
 		seen := map[string]bool{}
 		for _, m := range h.Memberships {
 			if !projects[m.ProjectID] || seen[m.ProjectID] || len(m.Roles) == 0 {
@@ -100,6 +105,9 @@ func Validate(spec Spec) error {
 		if !admins[p] {
 			return fmt.Errorf("every project requires a human administrator")
 		}
+	}
+	if orgAdmins < 1 {
+		return fmt.Errorf("at least one organization administrator is required")
 	}
 	return nil
 }
@@ -150,7 +158,7 @@ func Apply(ctx context.Context, pool *pgxpool.Pool, spec Spec, development bool)
 				return nil, fmt.Errorf("human mapping requires HTTPS OIDC issuer")
 			}
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO human_users(id,organization_id,issuer,subject,display_name) VALUES($1,$2,$3,$4,$5)`, h.ID, spec.Organization.ID, h.Issuer, h.Subject, h.DisplayName); err != nil {
+		if _, err = tx.Exec(ctx, `INSERT INTO human_users(id,organization_id,issuer,subject,display_name,is_org_admin) VALUES($1,$2,$3,$4,$5,$6)`, h.ID, spec.Organization.ID, h.Issuer, h.Subject, h.DisplayName, h.OrgAdmin); err != nil {
 			return nil, err
 		}
 		for _, m := range h.Memberships {
@@ -177,7 +185,7 @@ func Apply(ctx context.Context, pool *pgxpool.Pool, spec Spec, development bool)
 func DevelopmentSpec() Spec {
 	member := []Membership{{ProjectID: "project_demo", Roles: []string{"MEMBER", "REVIEWER"}}}
 	return Spec{Organization: Organization{ID: "org_demo", Name: "ACCP development"}, Projects: []Project{{ID: "project_demo", Name: "Demo project", Repository: Repository{ID: "repo_demo", ProviderID: "git", URL: "https://github.com/JavaWeh/ACCP", DefaultBranch: "main"}}}, Humans: []Human{
-		{ID: "user_alice", Issuer: "urn:accp:development", Subject: "alice", DisplayName: "Alice", Memberships: []Membership{{ProjectID: "project_demo", Roles: []string{"ADMIN", "MEMBER", "REVIEWER"}}}},
+		{ID: "user_alice", Issuer: "urn:accp:development", Subject: "alice", DisplayName: "Alice", OrgAdmin: true, Memberships: []Membership{{ProjectID: "project_demo", Roles: []string{"ADMIN", "MEMBER", "REVIEWER"}}}},
 		{ID: "user_bob", Issuer: "urn:accp:development", Subject: "bob", DisplayName: "Bob", Memberships: member},
 	}}
 }

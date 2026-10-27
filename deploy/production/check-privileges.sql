@@ -10,7 +10,10 @@ DO $$ BEGIN
  IF NOT has_table_privilege(current_user,'task_contexts','DELETE') THEN
   RAISE EXCEPTION 'API missing DELETE on task_contexts; re-run deploy/production/grants.sql';
  END IF;
- IF has_column_privilege(current_user,'human_users','active','UPDATE') OR
+ IF NOT has_column_privilege(current_user,'human_users','active','UPDATE') THEN
+  RAISE EXCEPTION 'API missing UPDATE on human_users.active; re-run deploy/production/grants.sql';
+ END IF;
+ IF has_column_privilege(current_user,'human_users','is_org_admin','UPDATE') OR
     has_table_privilege(current_user,'audit_records','UPDATE') OR
     has_table_privilege(current_user,'organization_audit','DELETE') OR
     has_table_privilege(current_user,'schema_migrations','INSERT') OR

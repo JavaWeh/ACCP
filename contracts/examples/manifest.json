@@ -563,6 +563,11 @@
       "valid": true
     },
     {
+      "file": "valid/management-HumanChange.json",
+      "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/HumanChange",
+      "valid": true
+    },
+    {
       "file": "valid/management-AddMember.json",
       "schema": "https://accp.example/schemas/v0.4/management.schema.json#/$defs/AddMember",
       "valid": true

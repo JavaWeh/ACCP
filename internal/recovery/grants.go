@@ -18,6 +18,7 @@ type requiredPrivilege struct {
 // At minimum this includes DELETE on task_contexts for accp_api (D07 re-select context).
 var requiredPrivileges = []requiredPrivilege{
 	{role: "accp_api", relation: "accp.task_contexts", privilege: "DELETE"},
+	{role: "accp_api", relation: "accp.human_users", privilege: "UPDATE"},
 }
 
 const grantsFixCommand = "docker compose -f deploy/production/compose.yaml run --rm grants  # applies deploy/production/grants.sql"

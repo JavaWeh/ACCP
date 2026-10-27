@@ -74,6 +74,7 @@ func fail(status int, code, detail string) error { return problem{status, code, 
 type operation struct {
 	maintenanceWrite    bool
 	organization        bool
+	orgAdminOnly        bool
 	archivedWrite       bool
 	table, schema, role string
 	conditional         bool

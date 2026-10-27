@@ -2,5 +2,6 @@
   "id": "user_alice",
   "organization_id": "org_demo",
   "display_name": "Alice",
-  "kind": "HUMAN"
+  "kind": "HUMAN",
+  "is_org_admin": true
 }

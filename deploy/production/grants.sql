@@ -5,7 +5,9 @@ REVOKE ALL ON ALL TABLES IN SCHEMA accp FROM accp_api,accp_worker,accp_bootstrap
 GRANT SELECT ON ALL TABLES IN SCHEMA accp TO accp_api,accp_worker;
 -- PostgreSQL row locks require UPDATE on at least one column. Only identity
 -- columns are granted here; runtime roles cannot alter active/status/name.
-GRANT UPDATE(id) ON organizations,human_users TO accp_api;
+GRANT UPDATE(id) ON organizations TO accp_api;
+-- Account-level deactivate (US-14b) updates human_users.active; is_org_admin stays operator/bootstrap-only.
+GRANT UPDATE(id, active) ON human_users TO accp_api;
 GRANT UPDATE(id) ON projects TO accp_worker;
 GRANT UPDATE(id) ON runtime_state TO accp_api,accp_worker;
 GRANT SELECT,INSERT ON organizations,human_users,projects,memberships,repositories TO accp_bootstrap;

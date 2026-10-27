@@ -109,11 +109,11 @@ export function NotFoundPage({
 }
 
 /** 403 — member without sufficient role. */
-export function ForbiddenPage() {
+export function ForbiddenPage({ detail }: { detail?: string } = {}) {
   const { translate } = useI18n();
   return (
     <StatusCard title={translate("此页面需要更高权限")}>
-      {translate("请联系项目管理员确认你的访问权限。")}
+      {detail || translate("请联系项目管理员确认你的访问权限。")}
     </StatusCard>
   );
 }

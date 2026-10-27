@@ -8,8 +8,9 @@ import (
 
 func me(q *request) (reply, error) {
 	var name string
-	err := q.tx.QueryRow(q.http.Context(), `SELECT display_name FROM human_users WHERE id=$1`, q.user).Scan(&name)
-	return reply{status: 200, body: Object{"id": q.user, "organization_id": q.org, "display_name": name, "kind": "HUMAN"}}, err
+	var orgAdmin bool
+	err := q.tx.QueryRow(q.http.Context(), `SELECT display_name,is_org_admin FROM human_users WHERE id=$1`, q.user).Scan(&name, &orgAdmin)
+	return reply{status: 200, body: Object{"id": q.user, "organization_id": q.org, "display_name": name, "kind": "HUMAN", "is_org_admin": orgAdmin}}, err
 }
 func projects(q *request) (reply, error) {
 	limit, cursor, err := pageParams(q.http)
