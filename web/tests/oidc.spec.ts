@@ -48,6 +48,20 @@ test("real Keycloak PKCE login and enterprise administration with runtime databa
   await expect(
     page.getByText("已创建项目 OIDC administration acceptance"),
   ).toBeVisible();
+  // US-15: create does reload() without id, so the current project stays
+  // project_initial (seeded with https://github.com/example/orders). Switch the
+  // header project Select to the newly created project before touching members
+  // and repos, otherwise the repo registration hits that seeded URL and returns
+  // 409 REPOSITORY_EXISTS instead of the expected 已登记仓库 success.
+  await page.getByRole("combobox", { name: "当前项目" }).click();
+  await page
+    .getByRole("option", {
+      name: "OIDC administration acceptance",
+      exact: true,
+    })
+    .click();
+  // Switching navigates to the project overview; re-enter management.
+  await page.getByTestId("area-management").click();
   await page
     .getByRole("main")
     .getByRole("button", { name: "设置", exact: true })
