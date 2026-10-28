@@ -63,4 +63,25 @@ func TestCheckGrantsMissingAndComplete(t *testing.T) {
 	if err = checkGrants(ctx, url, required); err != nil {
 		t.Fatalf("expected pass after GRANT DELETE: %v", err)
 	}
+
+	// Column-level UPDATE must match grants.sql UPDATE(id, active) — not table-level UPDATE.
+	humans := quotedSchema + `.human_users`
+	if _, err = db.Exec(ctx, `CREATE TABLE `+quotedSchema+`.human_users(id text PRIMARY KEY, active boolean NOT NULL DEFAULT true)`); err != nil {
+		t.Fatal(err)
+	}
+	columnRequired := []requiredPrivilege{{role: role, relation: schema + ".human_users", privilege: "UPDATE", column: "active"}}
+	if err = checkGrants(ctx, url, columnRequired); err == nil {
+		t.Fatal("expected failure when column UPDATE(active) is missing")
+	}
+	if _, err = db.Exec(ctx, `GRANT UPDATE(id, active) ON `+humans+` TO `+quotedRole); err != nil {
+		t.Fatal(err)
+	}
+	if err = checkGrants(ctx, url, columnRequired); err != nil {
+		t.Fatalf("expected pass after GRANT UPDATE(id, active): %v", err)
+	}
+	// Table-level UPDATE must still fail closed when only columns are granted.
+	tableRequired := []requiredPrivilege{{role: role, relation: schema + ".human_users", privilege: "UPDATE"}}
+	if err = checkGrants(ctx, url, tableRequired); err == nil {
+		t.Fatal("expected table-level UPDATE check to fail when only column grants exist")
+	}
 }

@@ -36,7 +36,9 @@ Optional:
   --drill-id <uuid>      Default: discover from directory .age / report.json
   --api-port <n>         Host loopback port (default 18082)
   --postgres-image <ref> Default postgres:17
-  --skip-production-compose  Skip production compose attempt (default true on this harness)
+  --nats-image <ref>     Default nats:2.11.9-alpine (digest-matched production image when available)
+  --with-empty-jetstream Start empty JetStream/NATS + worker on the drill network (default true)
+  --skip-production-compose  Skip full production compose (OIDC/Caddy); default true — run that stack separately
   --help
 `);
 }
@@ -57,6 +59,8 @@ const { values } = parseArgs({
     'drill-id': { type: 'string' },
     'api-port': { type: 'string', default: '18082' },
     'postgres-image': { type: 'string', default: 'postgres:17' },
+    'nats-image': { type: 'string', default: 'nats:2.11.9-alpine' },
+    'with-empty-jetstream': { type: 'boolean', default: true },
     'skip-production-compose': { type: 'boolean', default: true },
     help: { type: 'boolean', default: false },
   },
@@ -79,20 +83,26 @@ const imageDigest = values.image;
 const appImage = values['app-image'];
 const postgresImage = values['postgres-image'];
 const apiPort = Math.max(1024, Math.min(65535, Number.parseInt(values['api-port'], 10) || 18082));
+const natsImage = values['nats-image'];
+const withEmptyJetstream = values['with-empty-jetstream'] !== false;
 const runId = randomUUID();
 const password = randomUUID().replace(/-/g, '');
 const rolePassword = randomUUID().replace(/-/g, '');
 const sessionKey = randomBytes(32).toString('hex');
+const natsToken = 'nats_' + randomBytes(24).toString('hex');
 const pgContainer = `accp-wp4-us16-biz-pg-${runId.slice(0, 8)}`;
 const apiContainer = `accp-wp4-us16-biz-api-${runId.slice(0, 8)}`;
+const natsContainer = `accp-wp4-us16-biz-nats-${runId.slice(0, 8)}`;
+const workerContainer = `accp-wp4-us16-biz-worker-${runId.slice(0, 8)}`;
 const createdContainers = [];
 const journalPath = join(directory, 'business-rto.jsonl');
 const summaryPath = join(directory, 'business-rto-summary.json');
 const targetUrlFile = join(directory, 'business-rto-database-url');
 const apiUrlFile = join(directory, 'business-rto-api-database-url');
+const natsTokenFile = join(directory, 'business-rto-nats-token');
 const doctorPath = join(directory, 'doctor.json');
 const grantsCheckPath = join(directory, 'grants-check.json');
-const consolePath = join(directory, 'stage-d-console.log');
+const consolePath = join(directory, 'stage-f-business-rto-console.log');
 const consoleLines = [];
 
 function resolveDrillId() {
@@ -198,7 +208,7 @@ function opsRun(args, mounts, opts = {}) {
 }
 
 function cleanupTemps() {
-  for (const name of [apiContainer, pgContainer, ...createdContainers]) {
+  for (const name of [workerContainer, apiContainer, natsContainer, pgContainer, ...createdContainers]) {
     docker(['rm', '-f', name], { allowFail: true });
   }
 }
@@ -354,8 +364,8 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
       privilege_probe: (privilegeProbe.stdout || '').trim(),
     }, null, 2) + '\n', { mode: 0o600 });
     if (check.status !== 0) {
-      // grants.sql uses column-level UPDATE(id,active); CheckGrants asks table-level UPDATE.
-      // If check-privileges.sql (column-aware) passed, treat SQL apply as pass and ops check as residual.
+      // Intended contract: grants.sql column UPDATE(id,active) + check-privileges.sql.
+      // After Stage F, accp-ops CheckGrants is column-aware; failure here is a real residual.
       if (privRun.status === 0) {
         ownershipStatus = 'pass';
         ownershipDetail = {
@@ -363,10 +373,10 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
           ownership_sql: true,
           grants_sql: true,
           check_privileges_sql: true,
-          ops_check: 'residual',
+          ops_check: 'fail',
           ops_check_error: (check.stderr || check.stdout || '').trim().slice(0, 800),
           privilege_probe: (privilegeProbe.stdout || '').trim(),
-          note: 'restore-ownership.sql + grants.sql + check-privileges.sql OK; accp-ops check residual (table-level UPDATE vs column grants)',
+          note: 'SQL grants + check-privileges.sql OK; accp-ops check still failing after column-aware fix — investigate',
         };
         residuals.push({
           gate: 'accp_ops_check',
@@ -374,7 +384,7 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
           note: ownershipDetail.note,
         });
         journal('OWNERSHIP_GRANTS', 'pass', ownershipDetail);
-        log('OWNERSHIP/GRANTS pass (SQL); accp-ops check residual — see grants-check.json');
+        log('OWNERSHIP/GRANTS pass (SQL); accp-ops check FAIL — see grants-check.json');
       } else {
         throw new Error(`accp-ops check failed and check-privileges.sql failed: check=${(check.stderr || check.stdout || '').slice(0, 800)} priv=${privOut}`);
       }
@@ -410,33 +420,83 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
     : operatorURL;
   writeFileSync(apiUrlFile, apiDBURL + '\n', { mode: 0o600 });
 
-  // --- Gate: empty JetStream / NATS ---
-  const natsGate = {
-    status: 'residual',
-    at: new Date().toISOString(),
-    reason: 'Production compose + empty JetStream volume not run on this single-machine Windows Docker Desktop drill. Feasible subset continues with API against restored DB only (no worker/NATS).',
-  };
-  gates.jetstream_nats = natsGate;
-  residuals.push({ gate: 'jetstream_nats', reason: natsGate.reason });
-  journal('JETSTREAM_NATS', 'residual', natsGate);
-  log(`NATS residual: ${natsGate.reason}`);
-
-  if (!values['skip-production-compose']) {
-    residuals.push({
-      gate: 'production_compose',
-      reason: 'Harness default skips full production compose (OIDC/Keycloak/secrets/Caddy). Pass residual.',
-    });
+  // --- Gate: empty JetStream / NATS (operations.md step 5) ---
+  writeFileSync(natsTokenFile, natsToken + '\n', { mode: 0o600 });
+  if (withEmptyJetstream) {
+    const natsStarted = new Date();
+    try {
+      docker(['rm', '-f', natsContainer], { allowFail: true });
+      // Fresh anonymous volume = empty JetStream store (do not reuse prior nats-data).
+      const natsConf = resolve('configs/nats.conf');
+      // Match deploy/production/compose.yaml nats service (empty volume = empty JetStream).
+      docker([
+        'run', '-d', '--name', natsContainer, '--network', network,
+        '--read-only', '--cap-drop=ALL', '--security-opt', 'no-new-privileges',
+        '-e', `ACCP_NATS_TOKEN=${natsToken}`,
+        '--mount', `type=bind,source=${natsConf},target=/etc/nats/accp.conf,readonly`,
+        '--mount', 'type=volume,destination=/data',
+        '--entrypoint', '/bin/sh',
+        natsImage,
+        '-ec', 'export ACCP_NATS_TOKEN="$(printenv ACCP_NATS_TOKEN)"; exec nats-server -c /etc/nats/accp.conf',
+      ]);
+      createdContainers.push(natsContainer);
+      const natsDeadline = Date.now() + 60000;
+      let natsHealthy = false;
+      while (Date.now() < natsDeadline) {
+        const hz = docker(['exec', natsContainer, 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8222/healthz'], { allowFail: true });
+        if (hz.status === 0) {
+          natsHealthy = true;
+          break;
+        }
+        sleepMs(1000);
+      }
+      if (!natsHealthy) throw new Error('NATS healthz not ready');
+      const jsz = docker(['exec', natsContainer, 'wget', '-q', '-O', '-', 'http://127.0.0.1:8222/jsz'], { allowFail: true });
+      gates.jetstream_nats = {
+        status: 'pass',
+        at: new Date().toISOString(),
+        started_at: natsStarted.toISOString(),
+        container: natsContainer,
+        image: natsImage,
+        empty_store: true,
+        note: 'Fresh volume mount at /data per operations.md empty JetStream; production compose stack exercised separately for OIDC/TLS doctor',
+        jsz_tail: (jsz.stdout || '').trim().slice(0, 400),
+      };
+      journal('JETSTREAM_NATS', 'pass', gates.jetstream_nats);
+      log('NATS empty JetStream pass');
+    } catch (error) {
+      gates.jetstream_nats = {
+        status: 'fail',
+        at: new Date().toISOString(),
+        started_at: natsStarted.toISOString(),
+        reason: String(error).slice(0, 800),
+      };
+      residuals.push({ gate: 'jetstream_nats', reason: gates.jetstream_nats.reason });
+      journal('JETSTREAM_NATS', 'fail', gates.jetstream_nats);
+      log(`NATS fail: ${error}`);
+    }
   } else {
-    journal('PRODUCTION_COMPOSE', 'skipped', {
-      reason: 'default --skip-production-compose; W0 single-machine full matrix residual',
+    gates.jetstream_nats = {
+      status: 'residual',
+      at: new Date().toISOString(),
+      reason: '--with-empty-jetstream disabled',
+    };
+    residuals.push({ gate: 'jetstream_nats', reason: gates.jetstream_nats.reason });
+    journal('JETSTREAM_NATS', 'residual', gates.jetstream_nats);
+  }
+
+  if (values['skip-production-compose']) {
+    journal('PRODUCTION_COMPOSE', 'external', {
+      reason: 'Harness skips in-process OIDC/Caddy; Stage F records separate project accp-wp4-us16 production+acceptance compose + doctor',
     });
   }
 
-  // --- Gate: redeploy / serve ---
+  // --- Gate: redeploy / serve (+ worker when JetStream up) ---
   const serveStarted = new Date();
   origin = `http://127.0.0.1:${apiPort}`;
   docker(['rm', '-f', apiContainer], { allowFail: true });
-  docker([
+  const natsURL = gates.jetstream_nats?.status === 'pass' ? `nats://${natsContainer}:4222` : '';
+  const apiArgs = [
     'run', '-d', '--name', apiContainer, '--network', network,
     '-p', `127.0.0.1:${apiPort}:8080`,
     '-e', `DATABASE_URL=${apiDBURL}`,
@@ -446,9 +506,34 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
     '-e', `ACCP_PUBLIC_URL=${origin}`,
     '-e', `ACCP_SESSION_KEY=${sessionKey}`,
     '-e', 'ACCP_DATABASE_MAX_CONNS=20',
-    appImage, 'serve',
-  ]);
+  ];
+  if (natsURL) {
+    apiArgs.push('-e', `ACCP_NATS_URL=${natsURL}`, '-e', `ACCP_NATS_TOKEN=${natsToken}`);
+  }
+  apiArgs.push(appImage, 'serve');
+  docker(apiArgs);
   createdContainers.push(apiContainer);
+
+  let workerStarted = false;
+  if (natsURL && ownershipStatus === 'pass') {
+    docker(['rm', '-f', workerContainer], { allowFail: true });
+    docker([
+      'run', '-d', '--name', workerContainer, '--network', network,
+      '-e', `DATABASE_URL=postgres://accp_worker:${rolePassword}@${pgContainer}:5432/accp_restore?sslmode=disable&options=-csearch_path%3Daccp`,
+      '-e', 'ACCP_ENV=development',
+      '-e', 'ACCP_AUTH_MODE=development',
+      '-e', `ACCP_PUBLIC_URL=${origin}`,
+      '-e', `ACCP_SESSION_KEY=${sessionKey}`,
+      '-e', `ACCP_NATS_URL=${natsURL}`,
+      '-e', `ACCP_NATS_TOKEN=${natsToken}`,
+      '-e', 'ACCP_DATABASE_MAX_CONNS=20',
+      appImage, 'worker',
+    ]);
+    createdContainers.push(workerContainer);
+    workerStarted = true;
+    sleepMs(5000);
+  }
+
   waitAPI(origin);
   gates.redeploy_serve = {
     status: 'pass',
@@ -459,11 +544,14 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
     image: imageDigest,
     app_image: appImage,
     database_role: ownershipStatus === 'pass' ? 'accp_api' : 'accp',
-    worker: 'not_started',
-    note: 'Worker not required for GET /readyz (DB+migrations only). Worker omitted with NATS residual.',
+    worker: workerStarted ? workerContainer : 'not_started',
+    nats: natsURL || 'not_started',
+    note: workerStarted
+      ? 'API+worker against restored DB with empty JetStream (development auth; not OIDC/TLS doctor matrix)'
+      : 'API only; worker omitted because JetStream gate did not pass or grants failed',
   };
   journal('REDEPLOY_SERVE', 'pass', gates.redeploy_serve);
-  log(`SERVE ready at ${origin}`);
+  log(`SERVE ready at ${origin} worker=${gates.redeploy_serve.worker}`);
 
   // --- Gate: finish-recovery / maintenance leave ---
   const finishStarted = new Date();
@@ -516,18 +604,21 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
     ...finishDetail,
   };
 
-  // --- Gate: doctor ---
+  // --- Gate: doctor (restore path = development auth; full OIDC doctor is separate prod compose evidence) ---
   const doctorStarted = new Date();
-  const doctorRun = docker([
+  const doctorArgs = [
     'run', '--rm', '--network', network,
     '-e', `DATABASE_URL=${apiDBURL}`,
     '-e', 'ACCP_ENV=development',
     '-e', 'ACCP_AUTH_MODE=development',
     '-e', `ACCP_PUBLIC_URL=${origin}`,
     '-e', `ACCP_SESSION_KEY=${sessionKey}`,
-    appImage,
-    'doctor', '-json',
-  ], { allowFail: true });
+  ];
+  if (gates.jetstream_nats?.status === 'pass') {
+    doctorArgs.push('-e', `ACCP_NATS_URL=nats://${natsContainer}:4222`, '-e', `ACCP_NATS_TOKEN=${natsToken}`);
+  }
+  doctorArgs.push(appImage, 'doctor', '-json');
+  const doctorRun = docker(doctorArgs, { allowFail: true });
   writeFileSync(doctorPath, (doctorRun.stdout || doctorRun.stderr || '') + '\n', { mode: 0o600 });
   let doctorParsed = null;
   try { doctorParsed = JSON.parse((doctorRun.stdout || '').trim().split(/\n/).pop()); } catch { /* keep raw */ }
@@ -540,10 +631,10 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
     report: doctorParsed,
     reason: doctorOk
       ? undefined
-      : 'doctor expects production OIDC + JetStream + non-elevated runtime; development drill records partial checks only (see doctor.json)',
+      : 'Restore-path doctor uses development auth (W0 seed); production_oidc/public_tls expected false. Full doctor evidence is stage-f/doctor-prod-compose.json from production+acceptance compose.',
   };
   if (!doctorOk) {
-    residuals.push({ gate: 'doctor', reason: gates.doctor.reason, checks: doctorParsed?.checks });
+    residuals.push({ gate: 'doctor_restore_path', reason: gates.doctor.reason, checks: doctorParsed?.checks });
   }
   journal('DOCTOR', gates.doctor.status, gates.doctor);
   log(`DOCTOR ${gates.doctor.status}`);
@@ -677,15 +768,22 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
   const subsetOk = requiredForSubset.every((g) => g?.status === 'pass');
   const finishOk = gates.finish_recovery_maintenance?.status === 'pass';
   const ownershipOk = gates.ownership_grants?.status === 'pass';
-  const fullProductionOk = subsetOk && finishOk && ownershipOk
-    && gates.jetstream_nats?.status === 'pass'
+  // Full production business RTO also requires OIDC/TLS doctor on production compose (recorded externally).
+  const jetstreamOk = gates.jetstream_nats?.status === 'pass';
+  const fullProductionOk = subsetOk && finishOk && ownershipOk && jetstreamOk
     && gates.doctor?.status === 'pass';
 
-  if (subsetOk && finishOk && ownershipOk) {
+  if (subsetOk && finishOk && ownershipOk && jetstreamOk) {
     tReady = new Date();
     journal('T_READY', 'recorded', {
       t_ready: tReady.toISOString(),
-      note: 'First time all attempted feasible gates passed (restore, ownership/grants, serve, finish-recovery/leave, healthz/readyz, session probe). JetStream/doctor residual → full production business RTO NOT closed.',
+      note: 'Feasible restore gates including empty JetStream passed. Full US-16 close still requires production-compose OIDC doctor (external evidence) and no residuals.',
+    });
+  } else if (subsetOk && finishOk && ownershipOk) {
+    tReady = new Date();
+    journal('T_READY', 'recorded', {
+      t_ready: tReady.toISOString(),
+      note: 'Restore subset without JetStream; see residuals',
     });
   } else if (subsetOk) {
     tReady = new Date();
@@ -732,9 +830,10 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
     },
     honesty: {
       development_login_users: ['user_alice', 'user_bob'],
-      production_compose: 'not run',
-      jetstream: 'residual',
-      doctor_full: doctorOk ? 'pass' : 'residual',
+      production_compose: 'external stage-f accp-wp4-us16 (see stage-f/)',
+      jetstream: jetstreamOk ? 'pass_empty_volume' : 'residual',
+      doctor_restore_path: doctorOk ? 'pass' : 'residual_expected_dev_auth',
+      doctor_prod_compose: 'see stage-f/doctor-prod-compose.json',
       us16_closed: false,
     },
   };
