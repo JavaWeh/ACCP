@@ -84,7 +84,7 @@
 | US-8 | 升级说明 **CI 门禁**；未过不发版 | 与 US-7 同流水线 | M2 |
 | US-9 | 干净安装/升级冒烟 | US-7、US-8 | M2 → rc.1 |
 | US-2 / US-3? | 压测；必要时连接池可配 | US-1 | M3 |
-| US-16 | 恢复演练 | US-1 | M3 |
+| US-16 | 恢复演练 | US-1 | M3（**已关闭 2026-10-28**；IdP/Q8 接受跳过） |
 
 **RC 放行【事实，PRD §11】**：M1–M3 完成且压测达标，或 Weh 书面接受差距。
 
@@ -131,7 +131,7 @@ P2-1…P2-4。~~US-14b~~ 已不在此列。目标 IdP 演练本期不做（Q8）
 2. **按 §8 清单**（人工或他员）创建 GitHub milestone/issue——**本文与 PRD 不调用 API**。
 3. **首 PR：US-13a**（重放响应头 + 集成测试）。（若已在 main，跳过。）
 4. 并行 M1：US-4、US-6；token 到位后 US-5；同时设计 **全自动** 发布 workflow（US-7）与升级说明 CI 门禁（US-8）。
-5. ~~M4 前 jack 交付 US-11b/12/13b；**M5 前增加 US-14b**（仅组织 ADMIN 可见；可写「停用后无法登录」；含新增组织 ADMIN 角色的最小可用）。~~ **M5 已完成 2026-10-27**（US-14 / US-14b / US-15；`19e3428`..`f5e63a8`）。仍开放：US-5、Stage C、chatgpt 非阻塞建议（未编码）。登录刷新保持（2026-10-27 MVP）、组织 ADMIN 授予/撤销与账号恢复（2026-10-27 Stage 3）已落地。
+5. ~~M4 前 jack 交付 US-11b/12/13b；**M5 前增加 US-14b**（仅组织 ADMIN 可见；可写「停用后无法登录」；含新增组织 ADMIN 角色的最小可用）。~~ **M5 已完成 2026-10-27**（US-14 / US-14b / US-15；`19e3428`..`f5e63a8`）。**US-16 / D04 已关闭 2026-10-28**（IdP/Q8 接受跳过）。仍开放：US-5、Stage C、chatgpt 非阻塞建议（未编码）。登录刷新保持（2026-10-27 MVP）、组织 ADMIN 授予/撤销与账号恢复（2026-10-27 Stage 3）已落地。
 
 ---
 
@@ -175,7 +175,7 @@ P2-1…P2-4。~~US-14b~~ 已不在此列。目标 IdP 演练本期不做（Q8）
 | US-9 Clean-install and upgrade smoke of RC | M2 | |
 | US-2 Load test under W0 | M3 | |
 | US-3 Configurable DB pool (if needed) | M3 | 仅压测证明必要时 |
-| US-16 Backup/restore drill at W0 scale | M3 | |
+| US-16 Backup/restore drill at W0 scale | M3 | **已关闭 2026-10-28**（[restore-drill-w0-2026-10-28.md](restore-drill-w0-2026-10-28.md)；IdP/Q8 接受跳过） |
 | US-10 Split workspace/main/tasks front-end | M4 | 先于 D08 |
 | US-11a Task list sort + composite cursor | M4 | 仅 updated_at/title |
 | US-11b Task list filter + load more UI | M4 | 「已全部加载」 |

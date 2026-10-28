@@ -6,10 +6,11 @@
 - Snapshot: `2026-10-28T09:35:06.205946Z` · incident: `2026-10-28T09:36:36.205Z`
 - Measured RPO: **89.999 s** (delivery target ≤ 3600 s) → met (**command path**)
 - Measured **command** RTO: **0.580 s** wall command path **2.999 s** (delivery target ≤ 3600 s) → met
-- Full **business** RTO: Stage D subset **20.128 s**; Stage F with empty JetStream **29.370 s**; Stage G with 50-user login sample **53.107 s** (see Stage G). Production Compose + full doctor recorded in Stage F. **US-16 / D04 remains open** (release caveat untouched; IdP/Q8 skipped).
+- Full **business** RTO: Stage D subset **20.128 s**; Stage F with empty JetStream **29.370 s**; Stage G with 50-user login sample **53.107 s** (see Stage G). Production Compose + empty JetStream + full `accp doctor` PASS + ops-check grants fix recorded in Stage F; 50/50 login sample in Stage G.
 - `accp.tasks_search_trgm` after restore: **present** (backup uses `pg_dump --extension=pg_trgm` with `--schema=accp`; no DROP INDEX workaround)
 - Evidence: `.accp-local/wp4-us16-restore-drill/` (local only) — retain `.age` + identity + `business-rto.jsonl` / `business-rto-summary.json` + `stage-g/`
 - Stage D/G harness: `scripts/business-rto-wp4-us16.mjs`
+- **Verdict: D04 / US-16 closed** (Weh 2026-10-28). Accepted skip: IdP/Q8 real-IdP multi-user drill (not executed; not claimed).
 
 ## Commands used
 
@@ -49,7 +50,7 @@ node scripts/business-rto-wp4-us16.mjs `
   --api-port 18082
 ```
 
-This note records a reproducible interrupt+retry **command-path** drill at W0-scale row counts, plus an honest **partial** business-RTO subset. It does **not** declare D04 / US-16 closed.
+This note records a reproducible interrupt+retry **command-path** drill at W0-scale row counts, plus business-RTO evidence through Stage G. Later stages (F–G) and the closeout section below close D04 / US-16 with IdP/Q8 kept as an accepted skip.
 
 ## Stage F (2026-10-28) — production Compose + empty JetStream + doctor
 
@@ -104,13 +105,13 @@ node scripts/business-rto-wp4-us16.mjs `
 | Restore-path `accp doctor` | **not ok** — expected: `production_oidc` + `public_tls_and_api` false under development auth W0 seed |
 | Full production doctor | **ok** on Compose project above |
 
-### Still residual after Stage F (superseded in part by Stage G)
+### Still residual after Stage F (superseded by Stage G + closeout)
 
 1. **48 extra development logins** — cleared in Stage G via TEST-ONLY mint (see below).
-2. **`docs/releases/` WP-4 caveat** — intentionally untouched (no release-caveat removal in this stage).
+2. **`docs/releases/` WP-4 caveat** — removed at closeout (Weh 2026-10-28).
 3. Restore-path doctor is not a substitute for the production Compose doctor (already recorded separately).
 
-**Verdict (Stage F):** Stage F cleared production Compose + empty JetStream + full doctor + ops-check mismatch. Login residual deferred to Stage G.
+**Verdict (Stage F):** Stage F cleared production Compose + empty JetStream + full doctor + ops-check mismatch. Login residual deferred to Stage G; D04/US-16 closed after Stage G + release-note update.
 
 ## Stage G (2026-10-28) — 50-user post-restore login sample + business RTO
 
@@ -188,10 +189,19 @@ node scripts/business-rto-wp4-us16.mjs `
 | Prod compose `accp-wp4-us16` | **kept up** (unchanged) |
 | IdP/Q8 | **skipped** (authorized) |
 
-### Still residual (do not claim D04 / US-16 closed)
+### Closeout (Weh 2026-10-28) — D04 / US-16 closed
 
-1. **`docs/releases/` WP-4 caveat** — intentionally untouched; no authority to remove in this stage.
-2. **IdP/Q8 target drill** — intentionally skipped (not executed; not claimed).
-3. Restore-path doctor under development auth is not the production Compose doctor (Stage F already recorded `ok:true` separately).
+Stage G cleared the 48-human development-login residual with a TEST-ONLY post-restore mint + 50/50 probe on the restore-path stack. Combined evidence for close:
 
-**Verdict:** Stage G cleared the 48-human development-login residual with a TEST-ONLY post-restore mint + 50/50 probe on the restore-path stack. Business RTO with fuller login sample is **53.107 s**. **US-16 / D04 still cannot be declared closed** while the release caveat remains and IdP/Q8 stays skipped.
+| Evidence | Result |
+|---|---|
+| Login sample | **50 / 50** (me + tasks + new session) |
+| Business RTO (empty JetStream + login sample) | **53.107 s** (≤ 3600 s) |
+| Prod Compose `accp-wp4-us16` + empty JetStream | Stage F |
+| Full `accp doctor` | **PASS** (`ok:true`, Stage F) |
+| `accp-ops check` / grants | **PASS** (column `UPDATE(human_users.active)` alignment) |
+| IdP/Q8 real-IdP multi-user drill | **accepted skip** (not executed; not claimed) |
+
+Restore-path doctor under development auth is not a substitute for the production Compose doctor (Stage F already recorded `ok:true` separately).
+
+**Verdict: D04 / US-16 closed.** WP-4 release caveat removed in `docs/releases/`. IdP/Q8 remains an accepted skip.
