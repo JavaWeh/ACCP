@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 /**
- * WP-4 / US-16 Stage D — measure FULL BUSINESS RTO from a retained Stage C .age backup.
+ * WP-4 / US-16 Stage D/F/G — measure FULL BUSINESS RTO from a retained Stage C .age backup.
  *
  * Fresh empty Postgres → accp-ops restore --isolated → optional ownership/grants →
  * development serve against restored DB → finish-recovery / maintenance leave when
- * applicable → healthz/readyz → alice development-token probe.
+ * applicable → healthz/readyz → TEST-ONLY mint of development_tokens for all
+ * restored urn:accp:development humans → login sample (GET /me, list tasks,
+ * create session) for each credential.
  *
  * Production Compose / empty JetStream / full doctor are attempted only when feasible;
  * otherwise recorded as residuals (no invented passes).
  *
- * Does NOT commit, edit docs/releases, or change product Go/UI.
+ * Does NOT commit, edit docs/releases, or change product Go/UI / server auth.
  */
 import { randomUUID, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -661,99 +663,106 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
     residuals.push({ gate: 'http_ready', reason: JSON.stringify(hzBody).slice(0, 500) });
   }
 
-  // --- Gate: new session + authenticated read ---
+  // --- Gate: mint all development humans + login sample (Stage G) ---
   const sessionStarted = new Date();
-  const credentials = JSON.parse(readFileSync(usersFile, 'utf8'));
-  const alice = credentials.find((e) => e.user_id === 'user_alice')?.token;
-  if (!alice) throw new Error('alice development token missing from source-users.json');
 
   // Confirm old agent sessions remain revoked after restore.
   const revokedCheck = docker([
-    'exec', '-u', 'postgres', pgContainer,
+    'exec', '-e', 'PGOPTIONS=-c search_path=accp', pgContainer,
     'psql', '-U', 'accp', '-d', 'accp_restore', '-tA', '-c',
-    "SELECT format('%s|%s', count(*) FILTER (WHERE status='ACTIVE'), count(*) FILTER (WHERE status='REVOKED')) FROM accp.agent_sessions;",
+    "SELECT format('%s|%s', count(*) FILTER (WHERE status='ACTIVE'), count(*) FILTER (WHERE status='REVOKED')) FROM agent_sessions;",
   ], { allowFail: true });
-  const countsLine = (revokedCheck.stdout || '').trim().split(/\r?\n/).filter(Boolean).pop() || '';
+  const countsLine = (revokedCheck.stdout || '').trim().split(/\r?\n/).filter((l) => l.includes('|')).pop() || '';
   const [activeCount, revokedCount] = countsLine.split('|').map((s) => Number.parseInt(String(s).trim(), 10));
 
-  const probe = spawnSync(process.execPath, ['-e', `
-    const origin=${JSON.stringify(origin)};
-    const token=${JSON.stringify(alice)};
-    async function main() {
-      const headers = { Authorization: 'Bearer '+token, 'Content-Type': 'application/json' };
-      const me = await fetch(origin+'/api/v1/me', { headers });
-      const meBody = await me.json().catch(()=>({}));
-      const tasks = await fetch(origin+'/api/v1/projects/project_demo/tasks', { headers });
-      const tasksBody = await tasks.json().catch(()=>({}));
-      let session = null;
-      const manifest = {
-        adapter_id: 'accp_restore_seed',
-        adapter_version: '0.1.0',
-        protocol_versions: ['0.2'],
-        client: { name: 'stage-d-probe', version: '0.1.0' },
-        capabilities: {
-          claim: true, context_read: true, artifact_report: true, heartbeat: true,
-          cancel: 'cooperative', notifications: ['poll'], auto_start: false,
-        },
-      };
-      const agentRes = await fetch(origin+'/api/v1/agents', {
-        method: 'POST', headers: { ...headers, 'Idempotency-Key': crypto.randomUUID() },
-        body: JSON.stringify({ project_id: 'project_demo', manifest }),
-      });
-      const agentBody = await agentRes.json().catch(()=>({}));
-      if (agentRes.ok) {
-        const grant = await fetch(origin+'/api/v1/agent-sessions', {
-          method: 'POST', headers: { ...headers, 'Idempotency-Key': crypto.randomUUID() },
-          body: JSON.stringify({
-            project_id: 'project_demo',
-            agent_id: agentBody.id,
-            scopes: ['tasks:read','events:read','context:read'],
-            expires_at: new Date(Date.now()+3600000).toISOString(),
-          }),
-        });
-        session = { status: grant.status, body: await grant.json().catch(()=>({})) };
-      } else {
-        session = { status: agentRes.status, body: agentBody, note: 'agent create failed; human /me + tasks still primary probe' };
-      }
-      console.log(JSON.stringify({
-        me_status: me.status,
-        me: meBody,
-        tasks_status: tasks.status,
-        task_count: Array.isArray(tasksBody.items) ? tasksBody.items.length : (Array.isArray(tasksBody) ? tasksBody.length : null),
-        tasks_preview: tasksBody,
-        new_session: session,
-      }));
-      process.exit(me.ok && tasks.ok ? 0 : 1);
-    }
-    main().catch((e)=>{ console.error(String(e)); process.exit(1); });
-  `], { windowsHide: true, encoding: 'utf8' });
-  let probeBody = {};
-  try { probeBody = JSON.parse((probe.stdout || '').trim().split(/\n/).filter(Boolean).pop()); } catch {
-    probeBody = { raw: (probe.stdout || '').slice(0, 2000), err: (probe.stderr || '').slice(0, 1000) };
+  const stageGDir = join(directory, 'stage-g');
+  mkdirSync(stageGDir, { recursive: true, mode: 0o700 });
+  const mintedUsersPath = join(stageGDir, 'minted-users.json');
+  const mintReportPath = join(stageGDir, 'mint-report.json');
+  const loginReportPath = join(stageGDir, 'login-probe.json');
+
+  const mint = spawnSync(process.execPath, [
+    resolve('scripts/mint-dev-tokens-wp4-us16.mjs'),
+    '--isolated',
+    '--pg-container', pgContainer,
+    '--database', 'accp_restore',
+    '--retained-users', usersFile,
+    '--output', mintedUsersPath,
+    '--report', mintReportPath,
+  ], { windowsHide: true, encoding: 'utf8', timeout: 120000 });
+  let mintSummary = {};
+  try { mintSummary = JSON.parse((mint.stdout || '').trim().split(/\n/).filter(Boolean).pop()); } catch {
+    mintSummary = { raw: (mint.stdout || '').slice(0, 500), err: (mint.stderr || '').slice(0, 800) };
   }
-  const newSessionOk = probeBody?.new_session?.status === 201
-    || probeBody?.new_session?.body?.session?.status === 'ACTIVE';
-  const sessionPass = probe.status === 0
-    && Number.isFinite(activeCount) && activeCount === 0
-    && (newSessionOk || probeBody?.me_status === 200);
+  journal('MINT_DEV_TOKENS', mint.status === 0 ? 'pass' : 'fail', {
+    exit_status: mint.status,
+    summary: mintSummary,
+    note: 'TEST-ONLY scripts/mint-dev-tokens-wp4-us16.mjs; credentials only under stage-g/',
+  });
+  log(`MINT_DEV_TOKENS exit=${mint.status} humans=${mintSummary.human_users} minted=${mintSummary.minted} reused=${mintSummary.reused}`);
+
+  let loginSummary = {};
+  let loginExit = 1;
+  if (mint.status === 0) {
+    const login = spawnSync(process.execPath, [
+      resolve('scripts/login-sample-probe-wp4-us16.mjs'),
+      '--isolated',
+      '--origin', origin,
+      '--users', mintedUsersPath,
+      '--report', loginReportPath,
+      '--concurrency', '6',
+    ], { windowsHide: true, encoding: 'utf8', timeout: 10 * 60 * 1000 });
+    loginExit = login.status ?? 1;
+    try { loginSummary = JSON.parse((login.stdout || '').trim().split(/\n/).filter(Boolean).pop()); } catch {
+      loginSummary = { raw: (login.stdout || '').slice(0, 500), err: (login.stderr || '').slice(0, 800) };
+    }
+  } else {
+    loginSummary = { skipped: true, reason: 'mint failed' };
+  }
+
+  let loginReport = null;
+  if (existsSync(loginReportPath)) {
+    try { loginReport = JSON.parse(readFileSync(loginReportPath, 'utf8')); } catch { loginReport = null; }
+  }
+
+  const loginPass = mint.status === 0
+    && loginExit === 0
+    && Number(loginSummary.full_pass) > 0
+    && Number(loginSummary.full_pass) === Number(loginSummary.probed)
+    && Number.isFinite(activeCount) && activeCount === 0;
+
   gates.session_and_probe = {
-    status: sessionPass ? 'pass' : 'fail',
+    status: loginPass ? 'pass' : 'fail',
     at: new Date().toISOString(),
     started_at: sessionStarted.toISOString(),
     old_agent_sessions_active: activeCount,
     old_agent_sessions_revoked: revokedCount,
-    authenticity_note: 'Development auth: alice bearer from retained source-users.json (digest in restored development_tokens). Not OIDC. Only alice/bob loginable.',
-    probe: probeBody,
+    authenticity_note: 'Development auth after restore: TEST-ONLY mint of development_tokens for all urn:accp:development humans (scripts/mint-dev-tokens-wp4-us16.mjs). Retained alice/bob tokens reused when digests still present. Not OIDC; not a production auth bypass. Prod compose Keycloak left untouched (W0 humans use development issuer).',
+    mint: mintSummary,
+    login_sample: {
+      probed: loginSummary.probed ?? loginReport?.probed ?? null,
+      me_pass: loginSummary.me_pass ?? loginReport?.me_pass ?? null,
+      tasks_pass: loginSummary.tasks_pass ?? loginReport?.tasks_pass ?? null,
+      session_pass: loginSummary.session_pass ?? loginReport?.session_pass ?? null,
+      full_pass: loginSummary.full_pass ?? loginReport?.full_pass ?? null,
+      failure_count: loginReport?.failure_count ?? null,
+      report: 'stage-g/login-probe.json',
+      mint_report: 'stage-g/mint-report.json',
+    },
   };
-  if (!sessionPass) {
+  if (!loginPass) {
     residuals.push({
       gate: 'session_and_probe',
-      reason: `probe_exit=${probe.status} active_sessions=${activeCount}`,
-      detail: probeBody,
+      reason: `mint_exit=${mint.status} login_exit=${loginExit} full_pass=${loginSummary.full_pass} probed=${loginSummary.probed} active_sessions=${activeCount}`,
+      detail: { mint: mintSummary, login: loginSummary },
     });
   }
-  journal('SESSION_PROBE', gates.session_and_probe.status, gates.session_and_probe);
-  log(`SESSION/PROBE ${gates.session_and_probe.status} active_old=${activeCount} revoked=${revokedCount}`);
+  journal('SESSION_PROBE', gates.session_and_probe.status, {
+    status: gates.session_and_probe.status,
+    login_sample: gates.session_and_probe.login_sample,
+    old_agent_sessions_active: activeCount,
+  });
+  log(`SESSION/PROBE ${gates.session_and_probe.status} full_pass=${loginSummary.full_pass}/${loginSummary.probed} active_old=${activeCount} revoked=${revokedCount}`);
 
   // --- T_ready ---
   // Honest: full business RTO only if ALL production-style gates pass.
@@ -829,11 +838,15 @@ ALTER ROLE accp_bootstrap IN DATABASE accp_restore SET search_path=accp;
       identity: `backup-identity-${drillId}`,
     },
     honesty: {
-      development_login_users: ['user_alice', 'user_bob'],
-      production_compose: 'external stage-f accp-wp4-us16 (see stage-f/)',
+      development_login_users: 'all restored urn:accp:development humans via TEST-ONLY mint (see stage-g/)',
+      login_sample_full_pass: gates.session_and_probe?.login_sample?.full_pass ?? null,
+      login_sample_probed: gates.session_and_probe?.login_sample?.probed ?? null,
+      production_compose: 'external stage-f/g accp-wp4-us16 kept up (OIDC fixture; not W0 human DB)',
       jetstream: jetstreamOk ? 'pass_empty_volume' : 'residual',
       doctor_restore_path: doctorOk ? 'pass' : 'residual_expected_dev_auth',
       doctor_prod_compose: 'see stage-f/doctor-prod-compose.json',
+      idp_q8: 'intentionally skipped',
+      release_caveat: 'docs/releases/ untouched',
       us16_closed: false,
     },
   };
