@@ -722,6 +722,8 @@ export const zhCN = {
   查看项目列表: "查看项目列表",
   "{title}，项目 {project}": "{title}，项目 {project}",
   "无法加载「我的工作」": "无法加载「我的工作」",
+  部分项目未能加载: "部分项目未能加载",
+  重试失败项: "重试失败项",
 } as const;
 
 export type MessageKey = keyof typeof zhCN;

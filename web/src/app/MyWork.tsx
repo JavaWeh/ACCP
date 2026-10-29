@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { Alert } from "@heroui/react";
 import { useI18n } from "../i18n";
 import { Icon } from "../icons";
 import { Button, Empty, Message } from "../ui";
@@ -40,7 +41,7 @@ export function taskHref(item: WorkTaskItem): string {
 export function approvalHref(item: WorkApprovalItem): string {
   return `/projects/${encodeURIComponent(item.project_id)}/approvals`;
 }
-type WorkQueue = {
+export type WorkQueue = {
   groups: {
     review: { items: WorkTaskItem[] };
     approval: { items: WorkApprovalItem[] };
@@ -50,12 +51,45 @@ type WorkQueue = {
 };
 
 /**
+ * Pure view-state decision for the page (extracted so the partial-failure
+ * decision is unit-testable without React). Priority: once a load has
+ * succeeded (`data` present) an error is a *partial* failure that keeps the
+ * groups on screen; only an error with no prior data (and not mid-retry) is a
+ * whole-page failure.
+ */
+export function myWorkViewState({
+  data,
+  error,
+  loading,
+}: {
+  data: WorkQueue | undefined;
+  error: unknown;
+  loading: boolean;
+}): "loading" | "full-error" | "empty" | "ready" | "partial-error" {
+  if (data) {
+    if (error !== undefined) return "partial-error";
+    const total =
+      data.groups.review.items.length +
+      data.groups.approval.items.length +
+      data.groups.blocked.items.length;
+    return total === 0 ? "empty" : "ready";
+  }
+  if (error !== undefined && !loading) return "full-error";
+  return "loading";
+}
+
+/**
  * Cross-project "my work" page (F2 / US-19). A single aggregated endpoint
  * (`GET /me/work`, membership-filtered server-side) feeds three fixed groups:
- * review → approval → blocked. There is no partial-project failure to surface
- * (decision D-5): a load error degrades to a whole-page retry, and a 401 is
- * handled by the shared OIDC expiry flow (api.onExpired) that swaps in the
- * login screen, so no session-expired UI is duplicated here.
+ * review → approval → blocked.
+ *
+ * Failure handling (decision D-5, revised): the first load failing with no
+ * prior data shows a whole-page retry. But once a load has succeeded, any
+ * later refresh/poll/retry failure keeps the last good groups on screen and
+ * surfaces a partial-failure warning Alert ("部分项目未能加载" + "重试失败项")
+ * instead of wiping the page. A 401 is still handled by the shared OIDC expiry
+ * flow (api.onExpired) that swaps in the login screen, so no session-expired
+ * UI is duplicated here.
  */
 export function MyWork({
   api,
@@ -68,18 +102,24 @@ export function MyWork({
   const [data, setData] = useState<WorkQueue>();
   const [error, setError] = useState<unknown>();
   const [loading, setLoading] = useState(true);
+  // Mirror of `data` so the memoized refresh (deps [api]) can tell "already
+  // loaded once" from "first load" without re-creating itself each render.
+  const dataRef = useRef<WorkQueue | undefined>(undefined);
 
   const refresh = useCallback(
     async (silent: boolean) => {
       if (!silent) setLoading(true);
       try {
         const queue = await api.call<WorkQueue>("/me/work");
+        dataRef.current = queue;
         setData(queue);
         setError(undefined);
       } catch (e) {
-        // A background poll keeps the last good data; only the first load (or an
-        // explicit retry) surfaces the whole-page error state.
-        if (!silent) setError(e);
+        // Once we have prior data, any failure (silent poll, explicit retry, or
+        // non-silent refresh) becomes a partial failure that keeps the last
+        // good groups and raises the banner. A silent poll with no data yet is
+        // ignored — the first load is always non-silent and owns loading/error.
+        if (!silent || dataRef.current) setError(e);
       } finally {
         if (!silent) setLoading(false);
       }
@@ -102,6 +142,7 @@ export function MyWork({
       data.groups.approval.items.length +
       data.groups.blocked.items.length
     : 0;
+  const state = myWorkViewState({ data, error, loading });
 
   function Row({
     href,
@@ -188,7 +229,20 @@ export function MyWork({
           {translate("汇总你在各项目中待处理的事项。")}
         </p>
       </div>
-      {loading && !data ? (
+      {state === "partial-error" && (
+        <Alert status="warning" role="status" aria-live="polite">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{translate("部分项目未能加载")}</Alert.Title>
+            <div className="mt-3">
+              <Button variant="primary" onPress={() => void refresh(false)}>
+                {translate("重试失败项")}
+              </Button>
+            </div>
+          </Alert.Content>
+        </Alert>
+      )}
+      {state === "loading" ? (
         <div role="status" aria-busy="true" className="space-y-4">
           {[0, 1, 2].map((group) => (
             <div
@@ -207,7 +261,7 @@ export function MyWork({
             </div>
           ))}
         </div>
-      ) : error && !data ? (
+      ) : state === "full-error" ? (
         <div role="alert" className="space-y-3">
           <p className="text-lg font-semibold">
             {translate("无法加载「我的工作」")}

@@ -747,4 +747,6 @@ export const enUS = {
   查看项目列表: "View projects",
   "{title}，项目 {project}": "{title}, project {project}",
   "无法加载「我的工作」": "Couldn't load My work",
+  部分项目未能加载: "Some projects couldn't be loaded",
+  重试失败项: "Retry failed projects",
 } satisfies Record<MessageKey, MessageValue>;
