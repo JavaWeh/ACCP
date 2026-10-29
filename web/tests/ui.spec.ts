@@ -547,7 +547,11 @@ test.describe("safe task retries", () => {
       const warning = page
         .getByRole("status")
         .filter({ hasText: "请求超时，暂不确定是否已保存" });
-      await expect(warning).toBeVisible({ timeout: 20000 });
+      // The warning only appears once api.ts's AbortSignal.timeout(20000) fires
+      // and React renders; a 20s expectation races the abort at the very tip of
+      // that window (pre-existing flake, D-5 residual §15.2/§16). Give the abort
+      // room past 20s. test.setTimeout(60000) above still bounds the case.
+      await expect(warning).toBeVisible({ timeout: 30000 });
       await expect(warning).toHaveAttribute("aria-live", "polite");
       await expect(warning).toContainText("重试是安全的，不会重复创建。");
       await expect(page.getByRole("alert")).toHaveCount(0);
@@ -701,6 +705,97 @@ test.describe("safe task retries", () => {
       .locator("form")
       .evaluate((form: HTMLFormElement) => form.requestSubmit());
     expect(fixture.posts).toHaveLength(1);
+    expect(fixture.errors).toEqual([]);
+  });
+});
+
+test.describe("my work partial failure", () => {
+  // Covers the D-5 partial-failure Alert in full React (previously residual
+  // e2e, see §15.2/§16/§17 of .handoff/f1f2-impl.md): once a first load has
+  // succeeded, a later poll/retry failure keeps the last-good groups and
+  // raises the warning Alert「部分项目未能加载」+「重试失败项」instead of
+  // wiping the page to the whole-page error「无法加载「我的工作」」. The
+  // pure view-state decision is unit-tested in mywork.spec.ts.
+  const reviewItem = {
+    project_id: "project_demo",
+    project_name: "演示项目",
+    task_id: "task_demo",
+    title: "跨项目待评审任务",
+    status: "IN_REVIEW",
+    waiting_since: "2026-10-29T00:00:00Z",
+  };
+  const goodQueue = {
+    groups: {
+      review: { items: [reviewItem] },
+      approval: { items: [] },
+      blocked: { items: [] },
+    },
+    checked_at: "2026-10-29T00:00:00Z",
+  };
+
+  test("a poll failure after a first load keeps groups and raises the retry banner", async ({
+    page,
+  }) => {
+    // MyWork polls on a 10s cadence; the banner only appears after that real
+    // interval fires, so allow headroom beyond the default 30s case timeout.
+    test.setTimeout(60000);
+    const fixture = await consoleFixture(page);
+    // Install the /me/work override BEFORE login/navigation so the first paint
+    // gets a valid WorkQueue (the consoleFixture catch-all would answer with
+    // `{ items: [] }`, which has no `groups` and would crash the render).
+    // Playwright runs the most recently registered handler first, so this wins.
+    let fail = false;
+    await page.route("**/api/v1/me/work", (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      if (fail) {
+        return route.fulfill({
+          status: 500,
+          json: {
+            code: "UNAVAILABLE",
+            detail: "聚合暂时不可用",
+            trace_id: "mywork-trace",
+          },
+        });
+      }
+      return route.fulfill({ status: 200, json: goodQueue });
+    });
+    await login(page);
+    // SPA-navigate via the sidebar entry (dev-login sessions do not survive a
+    // full reload, so page.goto would bounce back to the login screen).
+    await page.getByTestId("nav-mywork").click();
+    await expect(
+      page.getByRole("heading", { name: "我的工作", exact: true }),
+    ).toBeVisible();
+    const row = page.getByRole("link", { name: /跨项目待评审任务/ });
+    await expect(row).toBeVisible();
+
+    // The next poll fails: the last-good groups stay and the banner appears.
+    fail = true;
+    const banner = page
+      .getByRole("status")
+      .filter({ hasText: "部分项目未能加载" });
+    await expect(banner).toBeVisible({ timeout: 15000 });
+    const retry = banner.getByRole("button", {
+      name: "重试失败项",
+      exact: true,
+    });
+    await expect(retry).toBeVisible();
+    // Prior data retained; not wiped to the whole-page error.
+    await expect(row).toBeVisible();
+    await expect(
+      page.getByText("无法加载「我的工作」", { exact: true }),
+    ).toHaveCount(0);
+
+    // Retrying while the endpoint still fails stays partial (groups + banner).
+    await retry.click();
+    await expect(banner).toBeVisible();
+    await expect(row).toBeVisible();
+
+    // A successful retry clears the banner while keeping the groups.
+    fail = false;
+    await retry.click();
+    await expect(banner).toHaveCount(0);
+    await expect(row).toBeVisible();
     expect(fixture.errors).toEqual([]);
   });
 });

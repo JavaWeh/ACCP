@@ -3,10 +3,12 @@
 // functions and tested directly here. In particular the partial-failure
 // decision (keep last good groups + banner when a refresh fails with prior
 // data, vs. whole-page error only on first load) is unit-tested below. The
-// full React render of the warning Alert, the three-group render order
-// (review → approval → blocked), and the 10s poll remain residual e2e (they
-// need React + a live api.call and a browser); those are exercised by the
-// managed-server ui specs.
+// full React render of the warning Alert「部分项目未能加载」+「重试失败项」
+// (prior data retained after a successful first load then a failed poll/retry)
+// is now covered e2e in ui.spec.ts ("my work partial failure") and is no
+// longer residual. The three-group render order (review → approval → blocked)
+// and the 10s poll cadence remain residual e2e (they need React + a live
+// api.call and a browser); those are exercised by the managed-server ui specs.
 import { expect, test } from "@playwright/test";
 import {
   approvalHref,
