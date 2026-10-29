@@ -2462,6 +2462,143 @@
         "next_cursor"
       ],
       "additionalProperties": false
+    },
+    "CreateComment": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "mentions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "uniqueItems": true
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EditComment": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Comment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "organization_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "task_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "author_user_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+        },
+        "author_name": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "mentions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_.:-]{1,127}$"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "edited": {
+          "type": "boolean"
+        },
+        "deleted": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "organization_id",
+        "project_id",
+        "task_id",
+        "author_user_id",
+        "author_name",
+        "body",
+        "mentions",
+        "edited",
+        "deleted",
+        "created_at",
+        "updated_at"
+      ],
+      "additionalProperties": false
+    },
+    "CommentPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Comment"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
     }
   }
 }

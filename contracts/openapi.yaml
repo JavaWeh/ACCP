@@ -650,6 +650,147 @@ paths:
         '409': {$ref: '#/components/responses/Problem'}
         default: {$ref: '#/components/responses/Problem'}
       x-accp-milestone: M4
+  /tasks/{id}/comments:
+    get:
+      operationId: listComments
+      tags: [Tasks]
+      summary: List a task's advisory comments
+      description: Chronological (oldest-first) discussion thread for a task. Comments are advisory only and never change task, approval, Run or owner state. Any active project member may read the thread; a non-member is a 404.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 100}
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: One page of comments, oldest first.
+          content:
+            application/json:
+              schema: {$ref: ./schemas/domain.schema.json#/$defs/CommentPage}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+      x-accp-milestone: M7
+    post:
+      operationId: createComment
+      tags: [Tasks]
+      summary: Post an advisory comment with optional @mentions
+      description: Records a discussion note on the task. The request carries only a body, optional member mentions and an optional reason; it accepts no status or version field, so a comment can never drive a state transition. Each mention must name an active project member and produces a COMMENT_MENTION notification for that member.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: ./schemas/domain.schema.json#/$defs/CreateComment}
+      responses:
+        '201':
+          description: The created comment.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
+          content:
+            application/json:
+              schema: {$ref: ./schemas/domain.schema.json#/$defs/Comment}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+      x-accp-milestone: M7
+  /tasks/{id}/comments/{cid}/edit:
+    post:
+      operationId: editComment
+      tags: [Tasks]
+      summary: Edit your own comment
+      description: The author revises their comment body; the comment is marked edited. Only the author may edit; the task is never touched.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: cid
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: ./schemas/domain.schema.json#/$defs/EditComment}
+      responses:
+        '200':
+          description: The updated comment.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
+          content:
+            application/json:
+              schema: {$ref: ./schemas/domain.schema.json#/$defs/Comment}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+      x-accp-milestone: M7
+  /tasks/{id}/comments/{cid}/delete:
+    post:
+      operationId: deleteComment
+      tags: [Tasks]
+      summary: Soft-delete a comment
+      description: The author, or a project ADMIN, soft-deletes a comment (tombstone, body cleared). Hard deletes are not offered and the task is never touched.
+      x-accp-actors: [HUMAN]
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: cid
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: The soft-deleted comment tombstone.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
+          content:
+            application/json:
+              schema: {$ref: ./schemas/domain.schema.json#/$defs/Comment}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        default: {$ref: '#/components/responses/Problem'}
+      x-accp-milestone: M7
   /tasks/{id}/dependencies:
     post:
       operationId: createDependency

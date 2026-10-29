@@ -10,6 +10,7 @@ import { Button, Badge, Message } from "../ui";
 import { TaskOverviewPanel } from "./TaskOverviewPanel";
 import { TaskEvidencePanel } from "./TaskEvidencePanel";
 import { TaskHistoryPanel } from "./TaskHistoryPanel";
+import { TaskComments } from "./TaskComments";
 import { routePath } from "../routing";
 
 export function TaskDetail({
@@ -237,6 +238,11 @@ export function TaskDetail({
           </>
         )}
       </div>
+      {/* Advisory comments are a fixed block below the Tabs (O-W13), kept out of
+          the status action area so they are never mistaken for a transition. */}
+      {task && (
+        <TaskComments w={w} taskID={id} archived={Boolean(task.archived)} />
+      )}
     </section>
   );
 }

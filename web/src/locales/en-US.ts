@@ -800,4 +800,23 @@ export const enUS = {
   修订: "Revision",
   "可登记 GitHub 或 GitLab 仓库。":
     "You can register a GitHub or GitLab repository.",
+  评论: "Comments",
+  "评论仅为建议性讨论，不会改变任务状态。":
+    "Comments are advisory only and never change task status.",
+  任务评论: "Task comments",
+  还没有评论: "No comments yet",
+  无法加载评论: "Couldn't load comments",
+  "写下建议或问题… 输入 @ 可提及成员":
+    "Write a suggestion… Type @ to mention a member",
+  发送评论: "Post comment",
+  评论已发送: "Comment posted",
+  无法发送评论: "Couldn't post comment",
+  你没有权限评论: "You don't have permission to comment",
+  已编辑: "Edited",
+  编辑: "Edit",
+  删除: "Delete",
+  提及成员: "Mention member",
+  没有可提及的成员: "No members to mention",
+  无法加载成员: "Couldn't load members",
+  无法提及无效成员: "Can't mention an invalid member",
 } satisfies Record<MessageKey, MessageValue>;

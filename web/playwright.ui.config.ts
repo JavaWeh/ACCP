@@ -12,6 +12,7 @@ export default defineConfig({
     "notifications.spec.ts",
     "audit.spec.ts",
     "gitProviders.spec.ts",
+    "comments.spec.ts",
   ],
   timeout: 30000,
   workers: 1,
