@@ -717,5 +717,22 @@ export const enUS = {
   该仓库已登记: "This repository is already registered",
   此项目还没有登记仓库: "No repositories registered for this project",
   "已登记仓库 {url}": "Registered repository {url}",
+  "连接状态：实时": "Connection: live",
+  实时: "Live",
+  "连接状态：正在重新连接": "Connection: reconnecting",
+  "正在重新连接…": "Reconnecting…",
+  "连接状态：定时刷新": "Connection: scheduled refresh",
+  定时刷新: "Scheduled refresh",
+  "连接状态：需要重新登录": "Connection: sign-in required",
+  需重新登录: "Sign in required",
+  "实时不可用，已改用定时刷新（每 10 秒）。":
+    "Live updates unavailable. Refreshing every 10 seconds.",
+  "正在重新连接实时通道…": "Reconnecting to the live channel…",
+  "数据将通过定时刷新保持同步。": "Data stays in sync via scheduled refresh.",
+  "登录已过期。请重新登录以继续接收更新。":
+    "Your session expired. Sign in again to keep receiving updates.",
+  重新登录: "Sign in again",
+  已连接实时更新: "Live updates connected",
+  "上次更新：{time}": "Last updated: {time}",
   任务: "Task",
 } satisfies Record<MessageKey, MessageValue>;

@@ -14,6 +14,10 @@ const paths: Record<string, string> = {
   audit: "M3 11a9 9 0 1 1 2 7 M3 4v7h7 M12 7v5l3 2",
   arrow: "M5 12h14 M13 6l6 6-6 6",
   plus: "M12 5v14 M5 12h14",
+  signal: "M5 12.55a9 9 0 0 1 14 0 M8.5 15.5a5 5 0 0 1 7 0 M12 18.5h.01",
+  reconnect: "M21 12a9 9 0 1 1-2.64-6.36 M21 4v4h-4",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 7v5l3 2",
+  alert: "M12 3 2 20h20z M12 10v4 M12 17h.01",
 };
 export function Icon({
   name,

@@ -223,6 +223,7 @@ export function useProjectData({
     projectUnavailable,
     reloadProjects,
     refresh,
+    refreshChanges,
     resetProjectData,
   };
 }

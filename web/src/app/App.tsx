@@ -19,7 +19,9 @@ import {
   Tools,
 } from "./lazyPages";
 import { CopyLink } from "../CopyLink";
-import { sanitizeReturnTo } from "../returnTo";
+import { buildReturnTo, sanitizeReturnTo } from "../returnTo";
+import { ConnectionStatus } from "./ConnectionStatus";
+import { useEventStream, type ConnectionState } from "./useEventStream";
 import { LoginScreen } from "./LoginScreen";
 import { ForbiddenPage, InvalidLinkPage, NotFoundPage } from "./LinkStatus";
 import { Overview } from "./Overview";
@@ -93,6 +95,7 @@ export function App() {
     projectUnavailable,
     reloadProjects,
     refresh,
+    refreshChanges,
     resetProjectData,
   } = useProjectData({
     api,
@@ -102,6 +105,15 @@ export function App() {
     setAuthError,
     navigate,
     route,
+  });
+
+  const [connection, setConnection] = useState<ConnectionState>("polling");
+  useEventStream({
+    api,
+    projectID,
+    enabled: !!(token && me),
+    onEvents: refreshChanges,
+    onStatus: setConnection,
   });
 
   const [restoringProject, setRestoringProject] = useState(false);
@@ -259,6 +271,15 @@ export function App() {
               ))}
             </Select>
           </div>
+          <ConnectionStatus
+            status={connection}
+            lastUpdated={updated}
+            onReauthenticate={() =>
+              manager
+                ?.signinRedirect({ state: { returnTo: buildReturnTo() } })
+                .catch(setAuthError)
+            }
+          />
           <div className="flex shrink-0 items-center gap-3">
             <LanguageSwitcher />
             <Avatar size="sm" color="accent" aria-hidden="true">
