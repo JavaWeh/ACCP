@@ -117,6 +117,7 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Option
 	})
 	routes := map[string]operation{
 		"GET /api/v1/me":                                                 {run: me},
+		"GET /api/v1/me/work":                                            {run: myWork},
 		"GET /api/v1/projects":                                           {run: projects},
 		"GET /api/v1/projects/{id}/members":                              {table: "projects", run: members},
 		"POST /api/v1/projects/{id}/members/{user}/changes":              {table: "projects", schema: "MembershipChange", role: "ADMIN", conditional: true, run: changeMember},

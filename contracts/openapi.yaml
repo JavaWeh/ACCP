@@ -2757,6 +2757,32 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+  /me/work:
+    get:
+      operationId: getMyWork
+      tags:
+        - Identity
+      summary: Aggregate the caller's actionable items across all projects
+      description: Returns the caller's review, approval, and blocked items across every project in which they hold an active membership. Items are filtered server-side by membership, so archived projects and project-scoped deactivations contribute nothing. Approval items are visible only where the caller is REVIEWER or ADMIN.
+      x-accp-milestone: M1
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters: []
+      responses:
+        "200":
+          description: The caller's cross-project work queue.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m1.schema.json#/$defs/WorkQueue
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
   /projects:
     get:
       operationId: listProjects
