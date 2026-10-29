@@ -85,6 +85,7 @@ type operation struct {
 	queryProject        bool
 	fenced              bool
 	grant               bool
+	personal            bool
 }
 
 func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Options) (*Server, error) {
@@ -118,6 +119,10 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Option
 	routes := map[string]operation{
 		"GET /api/v1/me":                                                 {run: me},
 		"GET /api/v1/me/work":                                            {run: myWork},
+		"GET /api/v1/me/notifications":                                   {run: listNotifications},
+		"GET /api/v1/me/notifications/summary":                           {run: notificationSummary},
+		"POST /api/v1/me/notifications/read-all":                         {personal: true, run: markAllNotificationsRead},
+		"POST /api/v1/me/notifications/{id}/read":                        {personal: true, run: markNotificationRead},
 		"GET /api/v1/projects":                                           {run: projects},
 		"GET /api/v1/projects/{id}/members":                              {table: "projects", run: members},
 		"POST /api/v1/projects/{id}/members/{user}/changes":              {table: "projects", schema: "MembershipChange", role: "ADMIN", conditional: true, run: changeMember},
@@ -216,6 +221,20 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 	}
 	if op.organization {
 		return s.executeOrganization(q, op)
+	}
+	// User-scoped personal operations (the /me/notifications ledger) carry no
+	// project, so they skip the project/membership gate, the per-project
+	// idempotency record, and the project audit journal. A mark-read write is
+	// naturally idempotent and only ever touches the caller's own rows.
+	if op.personal {
+		result, err := op.run(q)
+		if err != nil {
+			return empty, err
+		}
+		if err = tx.Commit(r.Context()); err != nil {
+			return empty, err
+		}
+		return result, nil
 	}
 	if op.table != "" || op.bodyProject || op.queryProject || q.session != nil {
 		switch {

@@ -9,6 +9,7 @@ export default defineConfig({
     "event-stream.spec.ts",
     "routing.spec.ts",
     "mywork.spec.ts",
+    "notifications.spec.ts",
   ],
   timeout: 30000,
   workers: 1,

@@ -27,8 +27,13 @@ func emitEvent(q *request, kind, aggregate string, version int64, detail Object)
 	if err := q.server.schemas["M2Event"].Validate(canonical); err != nil {
 		return fmt.Errorf("invalid generated event %s: %w", kind, err)
 	}
-	_, err := q.tx.Exec(q.http.Context(), `INSERT INTO outbox_events(id,project_id,organization_id,event) VALUES($1,$2,$3,$4)`, event["id"], q.project, q.org, data)
-	return err
+	if _, err := q.tx.Exec(q.http.Context(), `INSERT INTO outbox_events(id,project_id,organization_id,event) VALUES($1,$2,$3,$4)`, event["id"], q.project, q.org, data); err != nil {
+		return err
+	}
+	// Project the event onto per-user notification ledgers in the same
+	// transaction, so a recipient's unread badge can never disagree with the
+	// event feed it summarizes (F3 / US-20).
+	return projectNotifications(q, kind, detail)
 }
 func recordAudit(q *request, action, resource string, version int64) error {
 	kind := "HUMAN"

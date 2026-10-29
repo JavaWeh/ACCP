@@ -20,6 +20,8 @@ const paths: Record<string, string> = {
   alert: "M12 3 2 20h20z M12 10v4 M12 17h.01",
   mywork:
     "M3 7h18v13H3z M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M3 12h18 M10 12v2h4v-2",
+  bell: "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0",
+  check: "M4 12l5 5L20 6",
 };
 export function Icon({
   name,

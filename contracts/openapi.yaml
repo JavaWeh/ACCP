@@ -2783,6 +2783,201 @@ paths:
           $ref: "#/components/responses/Problem"
         default:
           $ref: "#/components/responses/Problem"
+  /me/notifications:
+    get:
+      operationId: listMyNotifications
+      tags:
+        - Identity
+      summary: List the caller's in-app notifications
+      description: Returns the caller's notifications newest-first within a seven-day retention window, as a per-user projection of the project event feed. Optional unread=true narrows to unread items. Read state is per user and durable. This is a polled view, never a realtime channel.
+      x-accp-milestone: M4
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - *a5
+        - *a4
+        - name: unread
+          in: query
+          description: When true, return only unread notifications.
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: The caller's recent notifications.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - type
+                        - project_id
+                        - project_name
+                        - title
+                        - occurred_at
+                        - deep_link
+                        - read
+                      properties:
+                        id:
+                          type: string
+                        type:
+                          type: string
+                          enum:
+                            - TASK_ASSIGNED
+                            - REVIEW_REQUIRED
+                            - APPROVAL_PENDING
+                            - TASK_BLOCKED
+                            - COMMENT_MENTION
+                        project_id:
+                          type: string
+                        project_name:
+                          type: string
+                        title:
+                          type: string
+                        occurred_at:
+                          type: string
+                          format: date-time
+                        deep_link:
+                          type: string
+                        read:
+                          type: boolean
+                  next_cursor:
+                    type:
+                      - string
+                      - "null"
+                    description: Opaque continuation bound to this collection.
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /me/notifications/summary:
+    get:
+      operationId: getMyNotificationSummary
+      tags:
+        - Identity
+      summary: Count the caller's unread notifications
+      description: Returns the caller's unread notification count within the seven-day retention window. The console renders 99+ past a hundred, but the server reports the exact count below that threshold.
+      x-accp-milestone: M4
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters: []
+      responses:
+        "200":
+          description: The caller's unread notification count.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - unread_count
+                properties:
+                  unread_count:
+                    type: integer
+                    minimum: 0
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /me/notifications/read-all:
+    post:
+      operationId: markAllMyNotificationsRead
+      tags:
+        - Identity
+      summary: Mark the caller's notifications read
+      description: Marks the caller's unread notifications read, optionally only those at or before an RFC3339 instant, and returns the remaining unread count. User-scoped and naturally idempotent; no project audit record is written.
+      x-accp-milestone: M4
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: before
+          in: query
+          description: Only mark notifications read at or before this RFC3339 instant.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: The caller's remaining unread count.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - unread_count
+                properties:
+                  unread_count:
+                    type: integer
+                    minimum: 0
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /me/notifications/{id}/read:
+    post:
+      operationId: markMyNotificationRead
+      tags:
+        - Identity
+      summary: Mark one notification read
+      description: Marks one of the caller's own notifications read. Idempotent; a missing or foreign notification is a 404 so one user cannot probe or mutate another's ledger.
+      x-accp-milestone: M4
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Scoped resource identifier.
+          schema: *a1
+      responses:
+        "200":
+          description: The notification is read.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - read
+                properties:
+                  id:
+                    type: string
+                  read:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
   /projects:
     get:
       operationId: listProjects

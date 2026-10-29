@@ -22,6 +22,7 @@ import {
 import { CopyLink } from "../CopyLink";
 import { buildReturnTo, sanitizeReturnTo } from "../returnTo";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { NotificationBell } from "./NotificationBell";
 import { useEventStream, type ConnectionState } from "./useEventStream";
 import { LoginScreen } from "./LoginScreen";
 import { ForbiddenPage, InvalidLinkPage, NotFoundPage } from "./LinkStatus";
@@ -299,6 +300,7 @@ export function App() {
                 .catch(setAuthError)
             }
           />
+          <NotificationBell api={api} onOpen={goHref} />
           <div className="flex shrink-0 items-center gap-3">
             <LanguageSwitcher />
             <Avatar size="sm" color="accent" aria-hidden="true">
