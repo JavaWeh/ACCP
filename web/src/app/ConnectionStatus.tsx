@@ -16,25 +16,25 @@ const META: Record<ConnectionState, StatusMeta> = {
     icon: "signal",
     dot: "bg-emerald-500",
     labelKey: "实时",
-    ariaKey: "连接状态：实时",
+    ariaKey: "实时连接：实时",
   },
   reconnecting: {
     icon: "reconnect",
     dot: "bg-amber-500",
     labelKey: "正在重新连接…",
-    ariaKey: "连接状态：正在重新连接",
+    ariaKey: "实时连接：正在重新连接",
   },
   polling: {
     icon: "clock",
     dot: "bg-slate-400",
     labelKey: "定时刷新",
-    ariaKey: "连接状态：定时刷新",
+    ariaKey: "实时连接：定时刷新",
   },
   auth_expired: {
     icon: "alert",
     dot: "bg-rose-500",
     labelKey: "需重新登录",
-    ariaKey: "连接状态：需要重新登录",
+    ariaKey: "实时连接：需要重新登录",
   },
 };
 
