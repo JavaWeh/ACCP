@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/JavaWeh/ACCP/internal/auth"
+	"github.com/JavaWeh/ACCP/internal/gitprovider"
 	"github.com/jackc/pgx/v5"
 )
 
-var managementSchemas = []string{"CreateProject", "ProjectChange", "ProjectCommand", "RegisterHuman", "HumanChange", "AddMember", "RegisterRepository", "Project", "Human", "HumanPage", "AuditPage"}
+var managementSchemas = []string{"CreateProject", "ProjectChange", "ProjectCommand", "RegisterHuman", "HumanChange", "AddMember", "RegisterRepository", "TestPull", "Project", "Human", "HumanPage", "AuditPage"}
 
 func (s *Server) managementRoutes(routes map[string]operation) {
 	for path, op := range map[string]operation{
@@ -28,6 +29,7 @@ func (s *Server) managementRoutes(routes map[string]operation) {
 		"POST /api/v1/projects/{id}/commands":                     {table: "projects", role: "ADMIN", conditional: true, archivedWrite: true, schema: "ManagementProjectCommand", run: projectCommand},
 		"POST /api/v1/projects/{id}/members":                      {table: "projects", role: "ADMIN", schema: "ManagementAddMember", run: addMember},
 		"POST /api/v1/projects/{id}/repositories":                 {table: "projects", role: "ADMIN", schema: "ManagementRegisterRepository", run: registerRepository},
+		"POST /api/v1/projects/{id}/repositories/{rid}/test-pull": {table: "projects", role: "ADMIN", schema: "ManagementTestPull", maintenanceWrite: true, archivedWrite: true, probe: true, run: testRepositoryPull},
 	} {
 		routes[path] = op
 	}
@@ -365,30 +367,70 @@ func addMember(q *request) (reply, error) {
 }
 
 func registerRepository(q *request) (reply, error) {
-	u, err := url.Parse(textValue(q.body, "url"))
-	if err != nil || u.Scheme != "https" || !strings.EqualFold(u.Host, "github.com") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return reply{}, fail(422, "INVALID_REPOSITORY", "Use an HTTPS github.com owner/repository URL without credentials or query.")
+	provider := textValue(q.body, "provider_id")
+	if provider == "" {
+		provider = "github"
 	}
-	parts := strings.Split(strings.Trim(strings.TrimSuffix(u.Path, ".git"), "/"), "/")
-	if len(parts) != 2 || !repositoryPart(parts[0]) || !repositoryPart(parts[1]) {
-		return reply{}, fail(422, "INVALID_REPOSITORY", "Use a GitHub owner and repository path.")
+	branch := strings.TrimSpace(textValue(q.body, "default_branch"))
+	if branch == "" || strings.ContainsAny(branch, "\x00\r\n") {
+		return reply{}, fail(422, "INVALID_BRANCH", "A default branch is required.")
 	}
-	canonical := "https://github.com/" + strings.ToLower(strings.Join(parts, "/"))
+	display := strings.TrimSpace(textValue(q.body, "display_name"))
+	if len(display) > 200 || strings.ContainsAny(display, "\x00\r\n") {
+		return reply{}, fail(422, "INVALID_DISPLAY_NAME", "The display name is invalid.")
+	}
+	var canonical, sealed string
+	switch provider {
+	case "github":
+		u, err := url.Parse(textValue(q.body, "url"))
+		if err != nil || u.Scheme != "https" || !strings.EqualFold(u.Host, "github.com") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+			return reply{}, fail(422, "INVALID_REPOSITORY", "Use an HTTPS github.com owner/repository URL without credentials or query.")
+		}
+		parts := strings.Split(strings.Trim(strings.TrimSuffix(u.Path, ".git"), "/"), "/")
+		if len(parts) != 2 || !repositoryPart(parts[0]) || !repositoryPart(parts[1]) {
+			return reply{}, fail(422, "INVALID_REPOSITORY", "Use a GitHub owner and repository path.")
+		}
+		canonical = "https://github.com/" + strings.ToLower(strings.Join(parts, "/"))
+	case "gitlab":
+		normalized, err := gitprovider.NormalizeGitLab(textValue(q.body, "url"))
+		if err != nil {
+			return reply{}, fail(422, "INVALID_REPOSITORY", "Use a full HTTPS GitLab URL or a group/project short path.")
+		}
+		canonical = normalized
+		// A new GitLab repository requires a read-only token; it is encrypted
+		// at rest and stored out of the document so it is never echoed back.
+		token := textValue(q.body, "access_token")
+		if strings.TrimSpace(token) == "" {
+			return reply{}, fail(422, "ACCESS_TOKEN_REQUIRED", "A read-only GitLab access token is required.")
+		}
+		if q.server.signer == nil {
+			return reply{}, fail(503, "GIT_CREDENTIAL_UNAVAILABLE", "The server is not configured to store repository credentials.")
+		}
+		sealed, err = q.server.signer.SealSecret("repo_access_token", token)
+		if err != nil {
+			return reply{}, err
+		}
+	default:
+		return reply{}, fail(422, "UNSUPPORTED_PROVIDER", "Supported providers are github and gitlab.")
+	}
 	var exists bool
-	err = q.tx.QueryRow(q.http.Context(), `SELECT EXISTS(SELECT 1 FROM repositories WHERE project_id=$1 AND lower(rtrim(regexp_replace(document->>'url','\.git$',''),'/'))=$2)`, q.project, canonical).Scan(&exists)
+	err := q.tx.QueryRow(q.http.Context(), `SELECT EXISTS(SELECT 1 FROM repositories WHERE project_id=$1 AND lower(rtrim(regexp_replace(document->>'url','\.git$',''),'/'))=lower($2))`, q.project, canonical).Scan(&exists)
 	if err != nil {
 		return reply{}, err
 	}
 	if exists {
 		return reply{}, fail(409, "REPOSITORY_EXISTS", "Repository is already registered in this project.")
 	}
-	branch := strings.TrimSpace(textValue(q.body, "default_branch"))
-	if branch == "" || strings.ContainsAny(branch, "\x00\r\n") {
-		return reply{}, fail(422, "INVALID_BRANCH", "A default branch is required.")
+	doc := Object{"id": newID("repo"), "project_id": q.project, "organization_id": q.org, "provider_id": provider, "url": canonical, "default_branch": branch}
+	if display != "" {
+		doc["display_name"] = display
 	}
-	doc := Object{"id": newID("repo"), "project_id": q.project, "organization_id": q.org, "provider_id": "github", "url": canonical, "default_branch": branch}
 	data, _ := json.Marshal(doc)
-	_, err = q.tx.Exec(q.http.Context(), `INSERT INTO repositories(id,project_id,organization_id,document) VALUES($1,$2,$3,$4)`, doc["id"], q.project, q.org, data)
+	var tokenArg any
+	if sealed != "" {
+		tokenArg = sealed
+	}
+	_, err = q.tx.Exec(q.http.Context(), `INSERT INTO repositories(id,project_id,organization_id,document,access_token) VALUES($1,$2,$3,$4,$5)`, doc["id"], q.project, q.org, data, tokenArg)
 	return reply{status: 201, body: doc, resource: textValue(doc, "id"), version: 1}, err
 }
 

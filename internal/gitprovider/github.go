@@ -30,6 +30,40 @@ type Evidence struct {
 type Provider interface {
 	Verify(context.Context, Reference) (Evidence, error)
 }
+
+// Prober backs the console's read-only "test pull" action. It resolves a
+// revision (defaulting to the repository's default branch head when empty) and
+// returns the content digest of either the resolved commit diff or, when a
+// path is given, the file at that commit. Failures are classified without ever
+// echoing the credential.
+type Prober interface {
+	Probe(ctx context.Context, repositoryURL, defaultBranch, path, revision string) (digest, resolved string, err error)
+}
+
+// ProbeError carries a stable, token-free classification for a failed probe.
+type ProbeError struct{ Code string }
+
+func (e *ProbeError) Error() string { return e.Code }
+
+const (
+	ProbeAuth     = "AUTH"
+	ProbeNotFound = "NOT_FOUND"
+	ProbeNetwork  = "NETWORK"
+)
+
+func classifyStatus(status int) string {
+	switch {
+	case status == 200:
+		return ""
+	case status == 401 || status == 403:
+		return ProbeAuth
+	case status == 404:
+		return ProbeNotFound
+	default:
+		return ProbeNetwork
+	}
+}
+
 type GitHub struct {
 	Token  string
 	Client *http.Client
@@ -163,6 +197,55 @@ func (g *GitHub) Verify(ctx context.Context, r Reference) (Evidence, error) {
 		}
 	}
 	return result, nil
+}
+
+// Probe performs a read-only connectivity check with the server's GitHub
+// credential and returns a content digest in the same scheme as Verify.
+func (g *GitHub) Probe(ctx context.Context, repositoryURL, defaultBranch, path, revision string) (string, string, error) {
+	repo, e := Repository(repositoryURL)
+	if e != nil {
+		return "", "", &ProbeError{ProbeNotFound}
+	}
+	rev := revision
+	if rev == "" {
+		branch := defaultBranch
+		if branch == "" {
+			branch = "HEAD"
+		}
+		b, status, e := g.request(ctx, "GET", repo+"/commits/"+url.PathEscape(branch), "application/vnd.github+json", nil)
+		if e != nil {
+			return "", "", &ProbeError{ProbeNetwork}
+		}
+		if code := classifyStatus(status); code != "" {
+			return "", "", &ProbeError{code}
+		}
+		var c struct {
+			SHA string `json:"sha"`
+		}
+		if json.Unmarshal(b, &c) != nil || !revisionPattern.MatchString(c.SHA) {
+			return "", "", &ProbeError{ProbeNotFound}
+		}
+		rev = c.SHA
+	}
+	if !revisionPattern.MatchString(rev) {
+		return "", "", &ProbeError{ProbeNotFound}
+	}
+	if path != "" {
+		_, digest, e := g.FetchFile(ctx, repositoryURL, path, rev)
+		if e != nil {
+			return "", "", &ProbeError{ProbeNotFound}
+		}
+		return digest, rev, nil
+	}
+	b, status, e := g.request(ctx, "GET", repo+"/commits/"+rev, "application/vnd.github.diff", nil)
+	if e != nil {
+		return "", "", &ProbeError{ProbeNetwork}
+	}
+	if code := classifyStatus(status); code != "" {
+		return "", "", &ProbeError{code}
+	}
+	sum := sha256.Sum256(b)
+	return "sha256:" + hex.EncodeToString(sum[:]), rev, nil
 }
 
 // Merge always uses GitHub's atomic head-SHA precondition. Unknown transport outcomes must be reconciled.

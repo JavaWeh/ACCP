@@ -172,15 +172,31 @@
     "RegisterRepository": {
       "type": "object",
       "properties": {
+        "provider_id": {
+          "type": "string",
+          "enum": [
+            "github",
+            "gitlab"
+          ]
+        },
         "url": {
           "type": "string",
-          "format": "uri",
+          "minLength": 1,
           "maxLength": 2048
         },
         "default_branch": {
           "type": "string",
           "minLength": 1,
           "maxLength": 200
+        },
+        "display_name": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "access_token": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
         },
         "reason": {
           "type": "string",
@@ -193,6 +209,20 @@
         "default_branch",
         "reason"
       ],
+      "additionalProperties": false
+    },
+    "TestPull": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "revision": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
       "additionalProperties": false
     },
     "Project": {

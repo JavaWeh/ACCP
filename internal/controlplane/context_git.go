@@ -8,32 +8,40 @@ import (
 )
 
 // registeredGitSource binds a document to one of this project's registered
-// GitHub repositories. No caller-supplied host or credential reaches the
-// provider, and the source path cannot switch repositories at sync time.
-func registeredGitSource(q *request, canonical string) (string, string, error) {
+// repositories (GitHub or GitLab). No caller-supplied host or credential
+// reaches the provider, and the source path cannot switch repositories at sync
+// time. The matched repository document is returned so the caller can select
+// the right provider and build a provider-correct permalink.
+func registeredGitSource(q *request, canonical string) (Object, string, error) {
 	rows, err := q.tx.Query(q.http.Context(), `SELECT document FROM repositories WHERE project_id=$1 AND organization_id=$2`, q.project, q.org)
 	if err != nil {
-		return "", "", err
+		return nil, "", err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var data []byte
 		if err = rows.Scan(&data); err != nil {
-			return "", "", err
+			return nil, "", err
 		}
 		var repository Object
 		if err = json.Unmarshal(data, &repository); err != nil {
-			return "", "", err
+			return nil, "", err
 		}
-		path, pathErr := gitprovider.SourcePath(canonical, textValue(repository, "url"), textValue(repository, "default_branch"))
+		var path string
+		var pathErr error
+		if textValue(repository, "provider_id") == "gitlab" {
+			path, pathErr = gitprovider.GitLabSourcePath(canonical, textValue(repository, "url"), textValue(repository, "default_branch"))
+		} else {
+			path, pathErr = gitprovider.SourcePath(canonical, textValue(repository, "url"), textValue(repository, "default_branch"))
+		}
 		if pathErr == nil {
-			return textValue(repository, "url"), path, nil
+			return repository, path, nil
 		}
 	}
 	if err = rows.Err(); err != nil {
-		return "", "", err
+		return nil, "", err
 	}
-	return "", "", fail(422, "INVALID_GIT_SOURCE", "Use a document URL in a registered GitHub repository's default branch.")
+	return nil, "", fail(422, "INVALID_GIT_SOURCE", "Use a document URL in a registered repository's default branch.")
 }
 
 func syncGitContext(q *request) (reply, error) {
@@ -48,17 +56,15 @@ func syncGitContext(q *request) (reply, error) {
 	if !ok || source["kind"] != "GIT" {
 		return reply{}, fail(409, "INVALID_SOURCE", "This Context does not have a Git source.")
 	}
-	repository, path, err := registeredGitSource(q, textValue(source, "canonical_uri"))
+	repo, path, err := registeredGitSource(q, textValue(source, "canonical_uri"))
 	if err != nil {
 		return reply{}, err
 	}
-	provider, ok := q.server.options.GitProvider.(gitprovider.FileProvider)
-	if !ok {
-		if q.server.options.GitProvider != nil {
-			return reply{}, fail(503, "GIT_SOURCE_UNAVAILABLE", "The configured Git provider cannot read source files.")
-		}
-		provider = &gitprovider.GitHub{}
+	provider, err := q.gitFileProvider(repo)
+	if err != nil {
+		return reply{}, err
 	}
+	repository := textValue(repo, "url")
 	revision := textValue(q.body, "source_revision")
 	var exists bool
 	if err = q.tx.QueryRow(q.http.Context(), `SELECT EXISTS(SELECT 1 FROM context_versions WHERE context_id=$1 AND document->>'source_revision'=$2)`, parent["id"], revision).Scan(&exists); err != nil {
@@ -79,11 +85,15 @@ func syncGitContext(q *request) (reply, error) {
 	if _, err = q.tx.Exec(q.http.Context(), `INSERT INTO context_contents(id,project_id,organization_id,content,media_type,digest) VALUES($1,$2,$3,$4,$5,$6)`, contentID, q.project, q.org, content, mediaType, digest); err != nil {
 		return reply{}, err
 	}
+	blobPath := "/blob/"
+	if textValue(repo, "provider_id") == "gitlab" {
+		blobPath = "/-/blob/"
+	}
 	doc := Object{
 		"id": newID("cv"), "context_id": parent["id"], "organization_id": q.org, "project_id": q.project,
 		"source_revision": revision, "content_uri": "urn:accp:content:" + contentID,
 		"content_digest": digest, "media_type": mediaType, "change_summary": q.body["change_summary"],
-		"source_permalink": repository + "/blob/" + revision + "/" + path, "source_verified_at": now(),
+		"source_permalink": repository + blobPath + revision + "/" + path, "source_verified_at": now(),
 		"status": "CANDIDATE", "version": int64(1), "created_by": Object{"kind": "HUMAN", "user_id": q.user},
 	}
 	data, _ := json.Marshal(doc)

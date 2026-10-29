@@ -92,6 +92,7 @@ type operation struct {
 	fenced              bool
 	grant               bool
 	personal            bool
+	probe               bool
 }
 
 func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Options) (*Server, error) {
@@ -288,6 +289,16 @@ func (s *Server) execute(w http.ResponseWriter, r *http.Request, op operation, t
 		if write && projectStatus == "ARCHIVED" && !op.archivedWrite {
 			return empty, fail(409, "PROJECT_ARCHIVED", "Restore the project before writing; historical data is read-only.")
 		}
+	}
+	// Probe operations (the read-only repository "test pull") are POSTs that
+	// touch no state: they skip the idempotency record and the audit journal,
+	// and the transaction simply rolls back on return.
+	if op.probe {
+		result, err := op.run(q)
+		if err != nil {
+			return empty, err
+		}
+		return result, nil
 	}
 	var key, digest, route string
 	if write {

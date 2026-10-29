@@ -234,6 +234,54 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/management.schema.json#/$defs/RegisterRepository
+  /projects/{id}/repositories/{rid}/test-pull:
+    post:
+      operationId: testProjectRepositoryPull
+      tags:
+        - Identity
+      summary: Read-only repository test pull
+      description: Project ADMIN read-only probe. Resolves the revision (defaulting to the default branch head) and returns a content digest in the same scheme as evidence verification, or a stable classification (AUTH, NOT_FOUND, NETWORK). The stored access token is never echoed, and no state is written.
+      x-accp-milestone: M7
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID; requires ADMIN membership.
+          schema:
+            type: string
+        - name: rid
+          in: path
+          required: true
+          description: Repository ID in this project.
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/management.schema.json#/$defs/TestPull
+      responses:
+        "200":
+          description: Probe result. ok=true carries content_digest and revision; ok=false carries a classification code.
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "422":
+          $ref: "#/components/responses/Problem"
   /projects/{id}/tasks:
     post:
       operationId: createTask

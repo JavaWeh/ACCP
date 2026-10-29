@@ -75,9 +75,9 @@ func verifyArtifact(q *request) (reply, error) {
 	if e != nil {
 		return reply{}, e
 	}
-	provider := q.server.options.GitProvider
-	if provider == nil {
-		provider = &gitprovider.GitHub{}
+	provider, e := q.gitProvider(repo)
+	if e != nil {
+		return reply{}, e
 	}
 	evidence, verifyErr := provider.Verify(q.http.Context(), gitprovider.Reference{RepositoryURL: textValue(repo, "url"), URI: textValue(doc, "uri"), Kind: textValue(doc, "kind"), Revision: textValue(doc, "immutable_revision"), Digest: textValue(doc, "content_digest")})
 	record := Object{"id": newID("verification"), "artifact_id": doc["id"], "organization_id": q.org, "project_id": q.project, "artifact_version": doc["version"], "verified_by_user_id": q.user, "created_at": now(), "status": "VERIFIED"}

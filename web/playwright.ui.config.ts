@@ -11,6 +11,7 @@ export default defineConfig({
     "mywork.spec.ts",
     "notifications.spec.ts",
     "audit.spec.ts",
+    "gitProviders.spec.ts",
   ],
   timeout: 30000,
   workers: 1,

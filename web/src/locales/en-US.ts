@@ -782,4 +782,22 @@ export const enUS = {
     "Exports are redacted and exclude secrets and private context bodies.",
   没有符合条件的记录: "No records match your filters",
   组织审计: "Organization audit",
+  提供方: "Provider",
+  "支持完整 HTTPS 地址或 group/project 短路径":
+    "Full HTTPS URL or a group/project short path",
+  "访问令牌（只读）": "Access token (read-only)",
+  "仅 GitLab 需要；不回显已保存的令牌":
+    "Required for GitLab only; the saved token is never shown",
+  "显示名称（可选）": "Display name (optional)",
+  "试拉（只读）": "Test pull (read-only)",
+  "试拉中…": "Testing pull…",
+  试拉成功: "Test pull succeeded",
+  "试拉出错，请重试": "Test pull failed, please retry",
+  "试拉失败：鉴权失败": "Test pull failed: authentication error",
+  "试拉失败：仓库或路径未找到":
+    "Test pull failed: repository or path not found",
+  "试拉失败：网络错误": "Test pull failed: network error",
+  修订: "Revision",
+  "可登记 GitHub 或 GitLab 仓库。":
+    "You can register a GitHub or GitLab repository.",
 } satisfies Record<MessageKey, MessageValue>;
