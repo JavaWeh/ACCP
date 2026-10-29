@@ -62,6 +62,12 @@ type reply struct {
 	resource string
 	version  int64
 	replayed bool
+	// File-download replies (audit export) set contentType and raw; respond
+	// then writes raw bytes verbatim with an attachment Content-Disposition
+	// instead of JSON-encoding body.
+	contentType string
+	download    string
+	raw         []byte
 }
 type problem struct {
 	status       int
@@ -147,6 +153,7 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Option
 		"POST /api/v1/projects/{id}/contents":                            {table: "projects", schema: "UploadContent", role: "MEMBER", run: uploadContent},
 		"GET /api/v1/contents/{id}":                                      {table: "context_contents", run: getContent},
 		"GET /api/v1/projects/{id}/audit-records":                        {table: "projects", role: "REVIEWER", run: listAudit},
+		"GET /api/v1/projects/{id}/audit-records/export":                 {table: "projects", role: "ADMIN", run: exportProjectAudit},
 	}
 	s.extendRoutes(routes)
 	s.deliveryRoutes(routes)
@@ -376,6 +383,15 @@ func decode(w http.ResponseWriter, r *http.Request, required bool) (Object, erro
 }
 
 func respond(w http.ResponseWriter, result reply) {
+	if result.contentType != "" {
+		w.Header().Set("Content-Type", result.contentType)
+		if result.download != "" {
+			w.Header().Set("Content-Disposition", `attachment; filename="`+result.download+`"`)
+		}
+		w.WriteHeader(result.status)
+		_, _ = w.Write(result.raw)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	if result.replayed {
 		w.Header().Set("Idempotency-Replayed", "true")

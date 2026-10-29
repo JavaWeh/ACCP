@@ -104,6 +104,37 @@ export class API {
     });
     return data as T;
   }
+  // Fetch a file response (redacted audit export) as a Blob, carrying the
+  // bearer token the browser cannot attach to a plain anchor. Errors surface as
+  // ApiError just like call(), so the UI shows the same "retry" affordance.
+  async download(path: string): Promise<{ blob: Blob; filename: string }> {
+    const res = await fetch(`/api/v1${path}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${this.token}` },
+      redirect: "error",
+      signal: AbortSignal.timeout(30000),
+    });
+    if (res.status === 401) this.onExpired();
+    if (!res.ok) {
+      let data: { code?: string; detail?: string; trace_id?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        // Non-JSON error body; fall back to status-only reporting.
+      }
+      throw new ApiError(
+        res.status,
+        data.code ?? "ERROR",
+        data.detail ?? "",
+        data.trace_id ?? "",
+      );
+    }
+    const blob = await res.blob();
+    const match = /filename="?([^"]+)"?/.exec(
+      res.headers.get("Content-Disposition") ?? "",
+    );
+    return { blob, filename: match?.[1] ?? "audit-export" };
+  }
   async all<T = Doc>(path: string): Promise<T[]> {
     const result: T[] = [];
     let cursor = "";

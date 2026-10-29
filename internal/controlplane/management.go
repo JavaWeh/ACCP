@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -15,16 +16,18 @@ var managementSchemas = []string{"CreateProject", "ProjectChange", "ProjectComma
 
 func (s *Server) managementRoutes(routes map[string]operation) {
 	for path, op := range map[string]operation{
-		"GET /api/v1/organization/members":                 {organization: true, run: organizationMembers},
-		"POST /api/v1/organization/members":                {organization: true, schema: "ManagementRegisterHuman", run: registerHuman},
-		"POST /api/v1/organization/members/{user}/changes": {organization: true, orgAdminOnly: true, schema: "ManagementHumanChange", run: changeOrganizationMember},
-		"GET /api/v1/organization/audit-records":           {organization: true, run: organizationAudit},
-		"POST /api/v1/projects":                            {organization: true, schema: "ManagementCreateProject", run: createProject},
-		"GET /api/v1/projects/{id}":                        {table: "projects", run: projectDetails},
-		"POST /api/v1/projects/{id}/changes":               {table: "projects", role: "ADMIN", conditional: true, schema: "ManagementProjectChange", run: changeProject},
-		"POST /api/v1/projects/{id}/commands":              {table: "projects", role: "ADMIN", conditional: true, archivedWrite: true, schema: "ManagementProjectCommand", run: projectCommand},
-		"POST /api/v1/projects/{id}/members":               {table: "projects", role: "ADMIN", schema: "ManagementAddMember", run: addMember},
-		"POST /api/v1/projects/{id}/repositories":          {table: "projects", role: "ADMIN", schema: "ManagementRegisterRepository", run: registerRepository},
+		"GET /api/v1/organization/members":                        {organization: true, run: organizationMembers},
+		"POST /api/v1/organization/members":                       {organization: true, schema: "ManagementRegisterHuman", run: registerHuman},
+		"POST /api/v1/organization/members/{user}/changes":        {organization: true, orgAdminOnly: true, schema: "ManagementHumanChange", run: changeOrganizationMember},
+		"GET /api/v1/organization/audit-records":                  {organization: true, run: organizationAudit},
+		"GET /api/v1/organization/execution-audit-records":        {organization: true, orgAdminOnly: true, run: organizationExecutionAudit},
+		"GET /api/v1/organization/execution-audit-records/export": {organization: true, orgAdminOnly: true, run: exportOrganizationAudit},
+		"POST /api/v1/projects":                                   {organization: true, schema: "ManagementCreateProject", run: createProject},
+		"GET /api/v1/projects/{id}":                               {table: "projects", run: projectDetails},
+		"POST /api/v1/projects/{id}/changes":                      {table: "projects", role: "ADMIN", conditional: true, schema: "ManagementProjectChange", run: changeProject},
+		"POST /api/v1/projects/{id}/commands":                     {table: "projects", role: "ADMIN", conditional: true, archivedWrite: true, schema: "ManagementProjectCommand", run: projectCommand},
+		"POST /api/v1/projects/{id}/members":                      {table: "projects", role: "ADMIN", schema: "ManagementAddMember", run: addMember},
+		"POST /api/v1/projects/{id}/repositories":                 {table: "projects", role: "ADMIN", schema: "ManagementRegisterRepository", run: registerRepository},
 	} {
 		routes[path] = op
 	}
@@ -467,12 +470,44 @@ func revokeDelegatedSessionsEverywhere(q *request, human string) error {
 	return nil
 }
 
+// organizationAudit serves the organization-management journal
+// (membership/session/denial actions in organization_audit). It accepts the
+// filters this table supports — actor (actor_id), action, and from/to
+// (recorded_at); the task and project filters apply only to the execution
+// journal (see organizationExecutionAudit) and are ignored here.
 func organizationAudit(q *request) (reply, error) {
 	limit, cursor, err := pageParams(q.http)
 	if err != nil {
 		return reply{}, err
 	}
-	rows, err := q.tx.Query(q.http.Context(), `SELECT id,actor_id,action,resource_id,result,reason,trace_id,recorded_at FROM organization_audit WHERE organization_id=$1 AND id>$2 ORDER BY id LIMIT $3`, q.org, cursor, limit+1)
+	f := &auditFilter{}
+	f.bind("organization_id=$%d", q.org)
+	f.bind("id>$%d", cursor)
+	query := q.http.URL.Query()
+	if v := query.Get("actor"); v != "" {
+		f.bind("actor_id=$%d", v)
+	}
+	if v := query.Get("action"); v != "" {
+		f.bind("action=$%d", v)
+	}
+	if v := query.Get("from"); v != "" {
+		t, perr := parseAuditTime(v, false)
+		if perr != nil {
+			return reply{}, perr
+		}
+		f.bind("recorded_at>=$%d", t)
+	}
+	if v := query.Get("to"); v != "" {
+		t, perr := parseAuditTime(v, true)
+		if perr != nil {
+			return reply{}, perr
+		}
+		f.bind("recorded_at<=$%d", t)
+	}
+	limitArg := len(f.args) + 1
+	f.args = append(f.args, limit+1)
+	sql := `SELECT id,actor_id,action,resource_id,result,reason,trace_id,recorded_at FROM organization_audit WHERE ` + strings.Join(f.where, " AND ") + fmt.Sprintf(" ORDER BY id LIMIT $%d", limitArg)
+	rows, err := q.tx.Query(q.http.Context(), sql, f.args...)
 	if err != nil {
 		return reply{}, err
 	}

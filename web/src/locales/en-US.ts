@@ -763,4 +763,23 @@ export const enUS = {
   审批待处理: "Approval pending",
   任务已阻塞: "Task blocked",
   评论中提到了你: "You were mentioned in a comment",
+  "查看操作者、责任人、执行依据和审核结果。导出内容已经脱敏。":
+    "Review who acted, who is accountable, the basis, and the outcome. Exports are redacted.",
+  全部项目: "All projects",
+  执行人: "Actor",
+  "任务 ID": "Task ID",
+  动作: "Action",
+  从: "From",
+  至: "To",
+  应用筛选: "Apply filters",
+  导出: "Export",
+  "导出为 JSONL": "Export JSONL",
+  "导出为 CSV": "Export CSV",
+  "正在导出…": "Exporting…",
+  "已开始下载脱敏审计（{format}）":
+    "Download started: redacted audit ({format})",
+  "导出文件已脱敏，不含密钥与私有正文。":
+    "Exports are redacted and exclude secrets and private context bodies.",
+  没有符合条件的记录: "No records match your filters",
+  组织审计: "Organization audit",
 } satisfies Record<MessageKey, MessageValue>;

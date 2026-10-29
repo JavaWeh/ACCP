@@ -6,8 +6,10 @@ import { OrgAccounts } from "./OrgAccounts";
 import { ForbiddenPage } from "./app/LinkStatus";
 import { ProjectsPanel } from "./ProjectsPanel";
 import { RepositoriesPanel } from "./RepositoriesPanel";
+import { AuditRecords } from "./workspace/AuditRecords";
 
-type Tab = "settings" | "org-accounts" | "projects" | "repositories";
+type Tab =
+  "settings" | "org-accounts" | "org-audit" | "projects" | "repositories";
 
 function readManagementTab(
   isOrgAdmin: boolean,
@@ -17,6 +19,7 @@ function readManagementTab(
 ): Tab {
   const tab = new URLSearchParams(location.search).get("tab");
   if (tab === "org-accounts") return "org-accounts";
+  if (tab === "org-audit" && isOrgAdmin) return "org-audit";
   if (tab === "projects" && canProjects) return "projects";
   if (tab === "repositories" && canRepos) return "repositories";
   if (tab === "settings" && canSettings) return "settings";
@@ -125,6 +128,9 @@ export function Management({
   if (tab === "org-accounts" && !isOrgAdmin) {
     return <ForbiddenPage detail={t("账号级停用仅组织管理员可操作。")} />;
   }
+  if (tab === "org-audit" && !isOrgAdmin) {
+    return <ForbiddenPage />;
+  }
   if (tab === "repositories" && !projectAdmin) {
     return <ForbiddenPage />;
   }
@@ -140,6 +146,7 @@ export function Management({
     { id: "projects", label: t("项目"), show: canProjects },
     { id: "repositories", label: t("仓库"), show: projectAdmin },
     { id: "org-accounts", label: t("组织账号"), show: isOrgAdmin },
+    { id: "org-audit", label: t("组织审计"), show: isOrgAdmin },
   ];
 
   return (
@@ -161,6 +168,14 @@ export function Management({
       {error !== undefined && <Message error={error} />}
       {tab === "org-accounts" ? (
         <OrgAccounts api={api} me={me} />
+      ) : tab === "org-audit" ? (
+        <AuditRecords
+          api={api}
+          listPath="/organization/execution-audit-records"
+          exportPath="/organization/execution-audit-records/export"
+          canExport={isOrgAdmin}
+          projects={projects}
+        />
       ) : tab === "projects" ? (
         <ProjectsPanel
           api={api}
