@@ -116,7 +116,13 @@ export function Tasks({
     const onPopState = () => {
       const route = readRoute(location.pathname);
       // Do not rewrite URL on invalid/other pages (US-12 O4 keeps the address).
-      if (route.invalid || route.page !== "tasks" || route.taskID) return;
+      if (
+        route.kind === "work" ||
+        route.invalid ||
+        route.page !== "tasks" ||
+        route.taskID
+      )
+        return;
       const { query: parsed, normalized } = readQueryFromLocation();
       if (normalized) writeTaskListUrl(parsed, "replace");
       if (!taskListSearchEquals(parsed, queryRef.current)) {

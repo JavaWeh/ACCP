@@ -57,6 +57,14 @@ export function createTranslator(locale: Locale) {
     second: "2-digit",
     hour12: false,
   });
+  const relativeTime = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const relativeUnits: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["year", 31536000],
+    ["month", 2592000],
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60],
+  ];
   function translate(key: MessageKey, parameters: Parameters = {}): string {
     const message = catalogs[locale][key] ?? zhCN[key];
     const template =
@@ -87,6 +95,20 @@ export function createTranslator(locale: Locale) {
     number: (value: number) => numbers.format(value),
     stamp: (value?: string) => formatDate(value, dateTime),
     time: (value?: string) => formatDate(value, clock),
+    // Largest-unit relative time (e.g. "2 hours ago") for the work queue wait
+    // column; pairs with an absolute <time dateTime> for the exact instant.
+    relative: (value?: string) => {
+      if (!value) return "—";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "—";
+      const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+      const magnitude = Math.abs(seconds);
+      for (const [unit, size] of relativeUnits) {
+        if (magnitude >= size)
+          return relativeTime.format(Math.round(seconds / size), unit);
+      }
+      return relativeTime.format(seconds, "second");
+    },
   };
 }
 

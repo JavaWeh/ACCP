@@ -735,4 +735,16 @@ export const enUS = {
   已连接实时更新: "Live updates connected",
   "上次更新：{time}": "Last updated: {time}",
   任务: "Task",
+  我的工作: "My work",
+  "汇总你在各项目中待处理的事项。": "Items waiting on you across projects.",
+  待评审: "To review",
+  待审批: "To approve",
+  "阻塞 / 需关注": "Blocked / needs attention",
+  打开: "Open",
+  本组暂无事项: "Nothing in this group",
+  "各项目中暂时没有需要你处理的事项。":
+    "No items need your action across projects right now.",
+  查看项目列表: "View projects",
+  "{title}，项目 {project}": "{title}, project {project}",
+  "无法加载「我的工作」": "Couldn't load My work",
 } satisfies Record<MessageKey, MessageValue>;

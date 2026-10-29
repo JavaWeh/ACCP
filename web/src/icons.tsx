@@ -18,6 +18,8 @@ const paths: Record<string, string> = {
   reconnect: "M21 12a9 9 0 1 1-2.64-6.36 M21 4v4h-4",
   clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 7v5l3 2",
   alert: "M12 3 2 20h20z M12 10v4 M12 17h.01",
+  mywork:
+    "M3 7h18v13H3z M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M3 12h18 M10 12v2h4v-2",
 };
 export function Icon({
   name,

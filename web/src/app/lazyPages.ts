@@ -36,3 +36,6 @@ export const Audit = lazy(() =>
 export const Tools = lazy(() =>
   import("../workspace").then((m) => ({ default: m.Tools })),
 );
+export const MyWork = lazy(() =>
+  import("./MyWork").then((m) => ({ default: m.MyWork })),
+);

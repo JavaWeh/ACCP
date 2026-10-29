@@ -17,6 +17,7 @@ import {
   Members,
   Audit,
   Tools,
+  MyWork,
 } from "./lazyPages";
 import { CopyLink } from "../CopyLink";
 import { buildReturnTo, sanitizeReturnTo } from "../returnTo";
@@ -48,7 +49,10 @@ export function App() {
   ];
 
   const [route, setRoute] = useState<Route>(() => readRoute(location.pathname));
-  const page = route.page;
+  const workView = route.kind === "work";
+  const projectRoute = route.kind === "work" ? undefined : route;
+  const page: PageID = projectRoute?.page ?? "overview";
+  const taskID = projectRoute?.taskID;
   const navigate = useCallback((next: Route, replace = false) => {
     const path = routePath(next);
     if (replace) history.replaceState(null, "", path);
@@ -185,11 +189,24 @@ export function App() {
             className="h-9 w-auto max-w-full lg:h-12"
           />
         </a>
+        <div className="px-3 pb-3 lg:px-4">
+          <Button
+            data-testid="nav-mywork"
+            variant="ghost"
+            aria-label={translate("我的工作")}
+            aria-current={workView ? "page" : undefined}
+            className={`h-11 w-full justify-start gap-3 rounded-lg px-3 text-sm ${workView ? "bg-indigo-50 font-semibold text-indigo-700" : "text-slate-600"}`}
+            onPress={() => navigate({ kind: "work" })}
+          >
+            <Icon name="mywork" />
+            <span>{translate("我的工作")}</span>
+          </Button>
+        </div>
         <div className="flex gap-2 px-3 pb-3 lg:grid lg:px-4">
           <Button
             data-testid="area-workspace"
             variant={managementArea ? "ghost" : "outline"}
-            aria-current={!managementArea ? "page" : undefined}
+            aria-current={!managementArea && !workView ? "page" : undefined}
             className="min-w-0 flex-1"
             onPress={() => navigatePage("overview")}
           >
@@ -199,7 +216,7 @@ export function App() {
             <Button
               data-testid="area-management"
               variant={managementArea ? "outline" : "ghost"}
-              aria-current={managementArea ? "page" : undefined}
+              aria-current={managementArea && !workView ? "page" : undefined}
               className="min-w-0 flex-1"
               onPress={() =>
                 navigatePage(admin || isOrgAdmin ? "management" : "audit")
@@ -218,8 +235,10 @@ export function App() {
               <Button
                 variant="ghost"
                 aria-label={item.title}
-                aria-current={page === item.id ? "page" : undefined}
-                className={`h-11 shrink-0 snap-start justify-start gap-3 rounded-lg px-3 text-sm lg:w-full ${page === item.id ? "bg-indigo-50 font-semibold text-indigo-700" : "text-slate-600"}`}
+                aria-current={
+                  !workView && page === item.id ? "page" : undefined
+                }
+                className={`h-11 shrink-0 snap-start justify-start gap-3 rounded-lg px-3 text-sm lg:w-full ${!workView && page === item.id ? "bg-indigo-50 font-semibold text-indigo-700" : "text-slate-600"}`}
                 onClick={() => navigatePage(item.id)}
               >
                 <Icon
@@ -311,169 +330,196 @@ export function App() {
           </div>
         </header>
         <main className="workspace mx-auto w-full max-w-[1600px] min-w-0 flex-1 px-5 py-7 sm:px-8 lg:p-10">
-          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="mb-2 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-600">
-                <span>
-                  {translate("工作空间")} / {project?.name || translate("项目")}
-                </span>
-                {project?.status === "ARCHIVED" && (
-                  <Chip color="warning" size="sm" variant="soft">
-                    {translate("已归档")}
-                  </Chip>
-                )}
-              </p>
-              <h1 className="text-3xl font-semibold tracking-tight">
-                {nav.find((n) => n.id === page)?.title}
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="hidden text-xs text-slate-600 sm:block">
-                {updated
-                  ? translate("更新于 {time}", { time: time(updated) })
-                  : translate("正在同步")}
-              </span>
-              <CopyLink />
-              <Button
-                variant="outline"
-                size="sm"
-                onPress={() => refresh().catch(setError)}
-              >
-                <Icon name="audit" className="size-4" />
-                {translate("刷新")}
-              </Button>
-            </div>
-          </div>
-          {error !== undefined && <Message error={error} />}{" "}
-          <Suspense
-            fallback={
-              <div
-                className="flex items-center justify-center gap-3 py-24 text-slate-600"
-                role="status"
-              >
-                <Spinner />
-                {translate("正在读取项目数据…")}
+          {workView ? (
+            <Suspense
+              fallback={
+                <div
+                  className="flex items-center justify-center gap-3 py-24 text-slate-600"
+                  role="status"
+                >
+                  <Spinner />
+                  {translate("正在读取项目数据…")}
+                </div>
+              }
+            >
+              {route.invalid ? (
+                <InvalidLinkPage projectID="" onBack={goHref} />
+              ) : (
+                <MyWork api={api} onOpen={goHref} />
+              )}
+            </Suspense>
+          ) : (
+            <>
+              <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="mb-2 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-600">
+                    <span>
+                      {translate("工作空间")} /{" "}
+                      {project?.name || translate("项目")}
+                    </span>
+                    {project?.status === "ARCHIVED" && (
+                      <Chip color="warning" size="sm" variant="soft">
+                        {translate("已归档")}
+                      </Chip>
+                    )}
+                  </p>
+                  <h1 className="text-3xl font-semibold tracking-tight">
+                    {nav.find((n) => n.id === page)?.title}
+                  </h1>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="hidden text-xs text-slate-600 sm:block">
+                    {updated
+                      ? translate("更新于 {time}", { time: time(updated) })
+                      : translate("正在同步")}
+                  </span>
+                  <CopyLink />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onPress={() => refresh().catch(setError)}
+                  >
+                    <Icon name="audit" className="size-4" />
+                    {translate("刷新")}
+                  </Button>
+                </div>
               </div>
-            }
-          >
-            {route.invalid ? (
-              <InvalidLinkPage projectID={route.projectID} onBack={goHref} />
-            ) : projectUnavailable ? (
-              <NotFoundPage
-                backHref="/"
-                backLabel={translate("返回首页")}
-                onBack={goHref}
-              />
-            ) : loaded &&
-              project &&
-              !allowedNav.some((item) => item.id === page) ? (
-              <ForbiddenPage />
-            ) : page === "management" && (admin || isOrgAdmin) ? (
-              <Management
-                api={api}
-                me={me}
-                projects={projects}
-                projectID={projectID}
-                reload={reloadProjects}
-              />
-            ) : !projects.length ? (
-              <Empty title={translate("尚无可访问项目")}>
-                {translate("请联系管理员配置项目成员关系。")}
-              </Empty>
-            ) : !loaded ? (
-              <div
-                className="flex items-center justify-center gap-3 py-24 text-slate-600"
-                role="status"
+              {error !== undefined && <Message error={error} />}{" "}
+              <Suspense
+                fallback={
+                  <div
+                    className="flex items-center justify-center gap-3 py-24 text-slate-600"
+                    role="status"
+                  >
+                    <Spinner />
+                    {translate("正在读取项目数据…")}
+                  </div>
+                }
               >
-                <Spinner />
-                {translate("正在读取项目数据…")}
-              </div>
-            ) : (
-              workspace && (
-                <>
-                  {project?.status === "ARCHIVED" && (
-                    <div className="mb-6 flex flex-wrap items-start gap-3">
-                      <Alert
-                        status="warning"
-                        className="min-w-0 flex-1"
-                        role="status"
-                      >
-                        <Alert.Indicator />
-                        <Alert.Content>
-                          <Alert.Title>
-                            {translate("项目已归档，只读")}
-                          </Alert.Title>
-                          <Alert.Description>
-                            {translate("项目已归档，历史记录只读。")}
-                          </Alert.Description>
-                        </Alert.Content>
-                      </Alert>
-                      {admin && (
-                        <Button
-                          className="shrink-0"
-                          size="sm"
-                          onPress={() => setRestoringProject(true)}
-                        >
-                          {translate("恢复项目")}
-                        </Button>
+                {route.invalid ? (
+                  <InvalidLinkPage
+                    projectID={projectRoute?.projectID ?? ""}
+                    onBack={goHref}
+                  />
+                ) : projectUnavailable ? (
+                  <NotFoundPage
+                    backHref="/"
+                    backLabel={translate("返回首页")}
+                    onBack={goHref}
+                  />
+                ) : loaded &&
+                  project &&
+                  !allowedNav.some((item) => item.id === page) ? (
+                  <ForbiddenPage />
+                ) : page === "management" && (admin || isOrgAdmin) ? (
+                  <Management
+                    api={api}
+                    me={me}
+                    projects={projects}
+                    projectID={projectID}
+                    reload={reloadProjects}
+                  />
+                ) : !projects.length ? (
+                  <Empty title={translate("尚无可访问项目")}>
+                    {translate("请联系管理员配置项目成员关系。")}
+                  </Empty>
+                ) : !loaded ? (
+                  <div
+                    className="flex items-center justify-center gap-3 py-24 text-slate-600"
+                    role="status"
+                  >
+                    <Spinner />
+                    {translate("正在读取项目数据…")}
+                  </div>
+                ) : (
+                  workspace && (
+                    <>
+                      {project?.status === "ARCHIVED" && (
+                        <div className="mb-6 flex flex-wrap items-start gap-3">
+                          <Alert
+                            status="warning"
+                            className="min-w-0 flex-1"
+                            role="status"
+                          >
+                            <Alert.Indicator />
+                            <Alert.Content>
+                              <Alert.Title>
+                                {translate("项目已归档，只读")}
+                              </Alert.Title>
+                              <Alert.Description>
+                                {translate("项目已归档，历史记录只读。")}
+                              </Alert.Description>
+                            </Alert.Content>
+                          </Alert>
+                          {admin && (
+                            <Button
+                              className="shrink-0"
+                              size="sm"
+                              onPress={() => setRestoringProject(true)}
+                            >
+                              {translate("恢复项目")}
+                            </Button>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
-                  {restoringProject && project && api && (
-                    <RestoreProjectDialog
-                      api={api}
-                      project={project}
-                      close={() => setRestoringProject(false)}
-                      onDone={async () => {
-                        setRestoringProject(false);
-                        await reloadProjects();
-                      }}
-                    />
-                  )}
-                  {page === "overview" && (
-                    <Overview
-                      w={workspace}
-                      navigate={navigatePage}
-                      openTask={(id) =>
-                        navigate({ projectID, page: "tasks", taskID: id })
-                      }
-                    />
-                  )}{" "}
-                  {page === "tasks" &&
-                    (route.taskID ? (
-                      <TaskDetail
-                        key={route.taskID}
-                        w={workspace}
-                        id={route.taskID}
-                        close={() => navigate({ projectID, page: "tasks" })}
-                      />
-                    ) : (
-                      <Tasks
-                        w={workspace}
-                        onOpenTask={(id) =>
-                          navigate({ projectID, page: "tasks", taskID: id })
-                        }
-                      />
-                    ))}{" "}
-                  {page === "contexts" && <Contexts w={workspace} />}{" "}
-                  {page === "artifacts" && <Artifacts w={workspace} />}{" "}
-                  {page === "approvals" && reviewer && (
-                    <Approvals w={workspace} />
-                  )}{" "}
-                  {page === "agents" && (admin || roles.includes("MEMBER")) && (
-                    <Agents w={workspace} />
-                  )}{" "}
-                  {page === "members" && <Members w={workspace} />}{" "}
-                  {page === "audit" && reviewer && <Audit w={workspace} />}{" "}
-                  {page === "tools" && admin && <Tools w={workspace} />}
-                  {page === "operations" && admin && (
-                    <Operations w={workspace} />
-                  )}
-                  {page === "help" && <Help />}
-                </>
-              )
-            )}
-          </Suspense>
+                      {restoringProject && project && api && (
+                        <RestoreProjectDialog
+                          api={api}
+                          project={project}
+                          close={() => setRestoringProject(false)}
+                          onDone={async () => {
+                            setRestoringProject(false);
+                            await reloadProjects();
+                          }}
+                        />
+                      )}
+                      {page === "overview" && (
+                        <Overview
+                          w={workspace}
+                          navigate={navigatePage}
+                          openTask={(id) =>
+                            navigate({ projectID, page: "tasks", taskID: id })
+                          }
+                        />
+                      )}{" "}
+                      {page === "tasks" &&
+                        (taskID ? (
+                          <TaskDetail
+                            key={taskID}
+                            w={workspace}
+                            id={taskID}
+                            close={() => navigate({ projectID, page: "tasks" })}
+                          />
+                        ) : (
+                          <Tasks
+                            w={workspace}
+                            onOpenTask={(id) =>
+                              navigate({ projectID, page: "tasks", taskID: id })
+                            }
+                          />
+                        ))}{" "}
+                      {page === "contexts" && <Contexts w={workspace} />}{" "}
+                      {page === "artifacts" && <Artifacts w={workspace} />}{" "}
+                      {page === "approvals" && reviewer && (
+                        <Approvals w={workspace} />
+                      )}{" "}
+                      {page === "agents" &&
+                        (admin || roles.includes("MEMBER")) && (
+                          <Agents w={workspace} />
+                        )}{" "}
+                      {page === "members" && <Members w={workspace} />}{" "}
+                      {page === "audit" && reviewer && <Audit w={workspace} />}{" "}
+                      {page === "tools" && admin && <Tools w={workspace} />}
+                      {page === "operations" && admin && (
+                        <Operations w={workspace} />
+                      )}
+                      {page === "help" && <Help />}
+                    </>
+                  )
+                )}
+              </Suspense>
+            </>
+          )}
         </main>
         <footer className="px-6 py-6 text-center text-xs text-slate-600">
           {translate("ACCP · 每一次交付，都有上下文与责任记录。")}

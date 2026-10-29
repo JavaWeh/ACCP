@@ -45,10 +45,20 @@ export function useProjectData({
   const [loaded, setLoaded] = useState(false);
   const [updated, setUpdated] = useState("");
   const [projectUnavailable, setProjectUnavailable] = useState(false);
+  // The work route (/me/work) carries no project scope, so narrow once here and
+  // keep the current selection without redirecting into a project shell.
+  const routeKind = route.kind;
+  const routeInvalid = route.invalid;
+  const routeProjectID = route.kind === "work" ? "" : route.projectID;
   useEffect(() => {
-    if (route.invalid) return;
+    if (routeInvalid) return;
     if (!projects.length) return;
-    if (!route.projectID) {
+    if (routeKind === "work") {
+      if (projectUnavailable) setProjectUnavailable(false);
+      if (!projectID && projects[0]) setProjectID(projects[0].id);
+      return;
+    }
+    if (!routeProjectID) {
       if (projectUnavailable) setProjectUnavailable(false);
       if (!projectID && projects[0]) {
         setProjectID(projects[0].id);
@@ -56,12 +66,13 @@ export function useProjectData({
       }
       return;
     }
-    const known = projects.some((project) => project.id === route.projectID);
+    const known = projects.some((project) => project.id === routeProjectID);
     setProjectUnavailable(!known);
-    if (known && route.projectID !== projectID) setProjectID(route.projectID);
+    if (known && routeProjectID !== projectID) setProjectID(routeProjectID);
   }, [
-    route.projectID,
-    route.invalid,
+    routeProjectID,
+    routeInvalid,
+    routeKind,
     projectID,
     projects,
     projectUnavailable,
@@ -87,6 +98,13 @@ export function useProjectData({
           setMe(human);
           setProjects(list);
           const requested = readRoute(location.pathname);
+          if (requested.kind === "work") {
+            // Deep link into /me/work: keep a selected project for the chrome
+            // (project switcher, SSE) but stay on the cross-project view.
+            setProjectUnavailable(false);
+            setProjectID(list[0]?.id || "");
+            return;
+          }
           if (requested.invalid) {
             setProjectUnavailable(false);
             const chrome =

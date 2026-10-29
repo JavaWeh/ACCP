@@ -14,13 +14,22 @@ export const pages = [
 ] as const;
 
 export type PageID = (typeof pages)[number];
-export type Route = {
+/** Project-scoped route (`/projects/:id/...`); `kind` defaults to "project". */
+export type ProjectRoute = {
+  kind?: "project";
   projectID: string;
   page: PageID;
   taskID?: string;
   /** Unknown page segment, decode failure, or extra path parts (O4). */
   invalid?: boolean;
 };
+/** Cross-project "my work" route (`/me/work`), with no project scope (F2). */
+export type WorkRoute = {
+  kind: "work";
+  /** Unknown `/me/...` segment — reuses the invalid-link page pattern. */
+  invalid?: boolean;
+};
+export type Route = ProjectRoute | WorkRoute;
 
 function segment(value: string): string {
   try {
@@ -36,6 +45,12 @@ function pathOnly(pathname: string): string {
 
 export function readRoute(pathname: string): Route {
   const parts = pathOnly(pathname).split("/").filter(Boolean);
+  if (parts[0] === "me") {
+    if (parts[1] === "work" && parts.length === 2) return { kind: "work" };
+    return { kind: "work", invalid: true };
+  }
+  // Project routes omit `kind` (it defaults to "project") so object-equality
+  // assertions in tests match the historical shape; only work routes tag `kind`.
   if (parts[0] !== "projects" || !parts[1])
     return { projectID: "", page: "overview" };
   const projectID = segment(parts[1]);
@@ -57,6 +72,7 @@ export function readRoute(pathname: string): Route {
 }
 
 export function routePath(route: Route): string {
+  if (route.kind === "work") return "/me/work";
   if (!route.projectID) return "/";
   const root = `/projects/${encodeURIComponent(route.projectID)}`;
   return route.taskID && route.page === "tasks"
