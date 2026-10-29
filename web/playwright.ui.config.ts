@@ -7,6 +7,8 @@ export default defineConfig({
     "diff.spec.ts",
     "returnTo.spec.ts",
     "event-stream.spec.ts",
+    "routing.spec.ts",
+    "mywork.spec.ts",
   ],
   timeout: 30000,
   workers: 1,
