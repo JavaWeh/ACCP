@@ -186,7 +186,7 @@ func validateMentions(q *request) ([]string, error) {
 		return nil, fail(400, "INVALID_MENTION", "Each mention must be a member id.")
 	}
 	if len(ids) == 0 {
-		return nil, nil
+		return []string{}, nil
 	}
 	var count int
 	err := q.tx.QueryRow(q.http.Context(), `SELECT count(*) FROM memberships m JOIN human_users u ON u.id=m.user_id AND u.organization_id=m.organization_id WHERE m.project_id=$1 AND m.organization_id=$2 AND m.active AND u.active AND m.user_id=ANY($3)`, q.project, q.org, ids).Scan(&count)
@@ -207,7 +207,7 @@ func validateMentions(q *request) ([]string, error) {
 func mentionIDs(raw any) ([]string, bool) {
 	list, ok := raw.([]any)
 	if !ok {
-		return nil, true
+		return []string{}, true
 	}
 	seen := map[string]bool{}
 	ids := []string{}

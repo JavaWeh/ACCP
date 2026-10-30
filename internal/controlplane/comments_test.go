@@ -61,7 +61,9 @@ func TestCreateCommentSchemaRejectsStatusFields(t *testing.T) {
 // order, and a non-string element is rejected so a malformed mentions array
 // never reaches the membership check.
 func TestMentionIDsDeduplicatesAndRejectsNonStrings(t *testing.T) {
-	if ids, ok := mentionIDs(nil); !ok || len(ids) != 0 {
+	// Absent mentions must yield a non-nil empty slice so createComment binds a
+	// SQL '{}' and not NULL against task_comments.mentions (NOT NULL DEFAULT '{}').
+	if ids, ok := mentionIDs(nil); !ok || ids == nil || len(ids) != 0 {
 		t.Fatalf("absent mentions: got %v ok=%v", ids, ok)
 	}
 	ids, ok := mentionIDs([]any{"user_a", "user_b", "user_a"})
