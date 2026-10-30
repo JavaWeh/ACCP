@@ -13,6 +13,14 @@ DO $$ BEGIN
  IF NOT has_column_privilege(current_user,'human_users','active','UPDATE') THEN
   RAISE EXCEPTION 'API missing UPDATE on human_users.active; re-run deploy/production/grants.sql';
  END IF;
+ IF NOT has_table_privilege(current_user,'notifications','INSERT') OR
+    NOT has_table_privilege(current_user,'notifications','UPDATE') THEN
+  RAISE EXCEPTION 'API missing INSERT/UPDATE on notifications; re-run deploy/production/grants.sql';
+ END IF;
+ IF NOT has_table_privilege(current_user,'task_comments','INSERT') OR
+    NOT has_table_privilege(current_user,'task_comments','UPDATE') THEN
+  RAISE EXCEPTION 'API missing INSERT/UPDATE on task_comments; re-run deploy/production/grants.sql';
+ END IF;
  IF has_column_privilege(current_user,'human_users','is_org_admin','UPDATE') OR
     has_table_privilege(current_user,'audit_records','UPDATE') OR
     has_table_privilege(current_user,'organization_audit','DELETE') OR

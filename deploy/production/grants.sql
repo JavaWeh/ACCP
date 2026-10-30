@@ -15,9 +15,13 @@ GRANT SELECT ON schema_migrations TO accp_bootstrap;
 GRANT INSERT ON human_users,projects,memberships,repositories,organization_idempotency,organization_audit,
  context_contents,contexts,context_versions,tasks,task_contexts,idempotency_records,audit_records,outbox_events,
  agents,agent_sessions,assignments,task_dependencies,task_runs,context_snapshots,snapshot_entries,
- artifact_contents,artifacts,run_reports,artifact_reviews,task_reviews,artifact_verifications,tool_policies,tool_invocations,approvals TO accp_api;
+ artifact_contents,artifacts,run_reports,artifact_reviews,task_reviews,artifact_verifications,tool_policies,tool_invocations,approvals,
+ notifications,task_comments TO accp_api;
+-- F3 notifications: mark-read updates read_at. F11 task_comments: edit/soft-delete updates the row.
+-- Neither is granted DELETE (comments soft-delete; notifications age out at read time).
 GRANT UPDATE ON projects,memberships,organization_idempotency,contexts,context_versions,tasks,idempotency_records,
- outbox_events,agent_sessions,assignments,task_dependencies,task_runs,artifacts,tool_policies,tool_invocations,approvals TO accp_api;
+ outbox_events,agent_sessions,assignments,task_dependencies,task_runs,artifacts,tool_policies,tool_invocations,approvals,
+ notifications,task_comments TO accp_api;
 GRANT DELETE ON task_dependencies,task_contexts TO accp_api;
 GRANT INSERT ON audit_records,outbox_events,event_inbox,event_feed,event_failures,worker_health TO accp_worker;
 GRANT UPDATE ON tasks,task_runs,task_dependencies,tool_invocations,approvals,outbox_events,event_failures,worker_health TO accp_worker;
