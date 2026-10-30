@@ -1,9 +1,10 @@
 import { useI18n } from "../i18n";
 import { Icon } from "../icons";
 import { Card, ToggleButton, ToggleButtonGroup } from "@heroui/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Workspace } from "../main";
 import type { Doc } from "../api";
+import { readApprovalFocus } from "../routing";
 import {
   Button,
   Select,
@@ -27,6 +28,38 @@ export function Approvals({ w }: { w: Workspace }) {
   const [invocation, setInvocation] = useState<Doc>();
   const [filter, setFilter] = useState("PENDING");
   const [error, setError] = useState<unknown>();
+  const [focusID, setFocusID] = useState("");
+  const consumed = useRef("");
+
+  // O-W11: consume `?approval=:id` deep link — open the target approval's Modal
+  // and (below) scroll its card into view. Runs once the row is loaded so a
+  // transient empty `w.approvals` doesn't drop the link.
+  useEffect(() => {
+    if (!reviewer(w)) return;
+    const id = readApprovalFocus(location.search);
+    if (!id || consumed.current === id) return;
+    const target = w.approvals.find((a) => a.id === id);
+    if (!target) return;
+    consumed.current = id;
+    history.replaceState(history.state, "", location.pathname + location.hash);
+    if (target.status !== "PENDING") setFilter("all");
+    setFocusID(id);
+    void open(target);
+  }, [w.approvals]);
+
+  // Scroll the focused card into view once it renders (filter may need to flip
+  // to "all" first). Clears focus so later filter changes don't re-scroll.
+  useEffect(() => {
+    if (!focusID) return;
+    const el = document.querySelector(
+      `[data-approval-id="${CSS.escape(focusID)}"]`,
+    );
+    if (el) {
+      el.scrollIntoView({ block: "center" });
+      setFocusID("");
+    }
+  }, [focusID, filter, w.approvals]);
+
   if (!reviewer(w))
     return (
       <Empty title={translate("审批由审核人处理")}>
@@ -70,7 +103,7 @@ export function Approvals({ w }: { w: Workspace }) {
         </Empty>
       ) : (
         rows.map((a) => (
-          <Card className="approval-card" key={a.id}>
+          <Card className="approval-card" key={a.id} data-approval-id={a.id}>
             <div className="approval-icon">
               <Icon name="approvals" />
             </div>

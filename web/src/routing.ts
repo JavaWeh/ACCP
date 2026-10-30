@@ -71,6 +71,14 @@ export function readRoute(pathname: string): Route {
   return { projectID, page };
 }
 
+/**
+ * Approval deep-link focus id from `location.search` (`?approval=:id`, O-W11).
+ * `readRoute` ignores the query, so the approvals view consumes it directly.
+ */
+export function readApprovalFocus(search: string): string {
+  return new URLSearchParams(search).get("approval") || "";
+}
+
 export function routePath(route: Route): string {
   if (route.kind === "work") return "/me/work";
   if (!route.projectID) return "/";

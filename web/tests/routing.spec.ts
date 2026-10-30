@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { readRoute, routePath } from "../src/routing";
+import { readApprovalFocus, readRoute, routePath } from "../src/routing";
 
 test("readRoute recognizes the /me/work cross-project route", () => {
   expect(readRoute("/me/work")).toEqual({ kind: "work" });
@@ -53,4 +53,15 @@ test("routePath round-trips project routes", () => {
   expect(routePath({ projectID: "a/b", page: "overview" })).toBe(
     "/projects/a%2Fb/overview",
   );
+});
+
+test("readApprovalFocus extracts the approval deep-link id (O-W11)", () => {
+  // Backend emits /projects/:p/approvals?approval=:id; the view consumes it.
+  expect(readApprovalFocus("?approval=ap-7")).toBe("ap-7");
+  expect(readApprovalFocus("?foo=1&approval=ap-9&bar=2")).toBe("ap-9");
+  // Percent-encoded ids decode; other queries and empties yield no focus.
+  expect(readApprovalFocus("?approval=ap%2F8")).toBe("ap/8");
+  expect(readApprovalFocus("?tab=all")).toBe("");
+  expect(readApprovalFocus("")).toBe("");
+  expect(readApprovalFocus("?approval=")).toBe("");
 });
