@@ -19,7 +19,7 @@ func TestCommentsAreAdvisoryAndNeverChangeTaskState(t *testing.T) {
 	wantStatus, wantVersion := textValue(before, "status"), number(before, "version")
 
 	// A plain comment is created and the task is untouched.
-	first := f.expect(f.call("alice", "POST", taskPath+"/comments", "c-first", "", Object{"body": "Please add an integration test."}), 201, "Comment")
+	first := f.expect(f.call("alice", "POST", taskPath+"/comments", "c-first-1", "", Object{"body": "Please add an integration test."}), 201, "Comment")
 	if first["edited"] != false || first["deleted"] != false {
 		t.Fatalf("new comment flags: %v", first)
 	}
@@ -61,7 +61,7 @@ func TestCommentsAreAdvisoryAndNeverChangeTaskState(t *testing.T) {
 
 	// Only the author may edit; a non-author gets a 404, and the task is untouched.
 	f.expect(f.call("bob", "POST", taskPath+"/comments/"+textValue(first, "id")+"/edit", "c-badedit", "", Object{"body": "hijack"}), 404, "")
-	edited := f.expect(f.call("alice", "POST", taskPath+"/comments/"+textValue(first, "id")+"/edit", "c-edit", "", Object{"body": "Please add an integration test and a unit test."}), 200, "Comment")
+	edited := f.expect(f.call("alice", "POST", taskPath+"/comments/"+textValue(first, "id")+"/edit", "c-edit-01", "", Object{"body": "Please add an integration test and a unit test."}), 200, "Comment")
 	if edited["edited"] != true {
 		t.Fatalf("edited flag not set: %v", edited)
 	}
@@ -69,8 +69,8 @@ func TestCommentsAreAdvisoryAndNeverChangeTaskState(t *testing.T) {
 
 	// A project ADMIN (alice) can soft-delete any comment; the body is cleared
 	// and the tombstone remains, still without touching the task.
-	bobComment := f.expect(f.call("bob", "POST", taskPath+"/comments", "c-bob", "", Object{"body": "I will take this."}), 201, "Comment")
-	deleted := f.expect(f.call("alice", "POST", taskPath+"/comments/"+textValue(bobComment, "id")+"/delete", "c-del", "", nil), 200, "Comment")
+	bobComment := f.expect(f.call("bob", "POST", taskPath+"/comments", "c-bob-001", "", Object{"body": "I will take this."}), 201, "Comment")
+	deleted := f.expect(f.call("alice", "POST", taskPath+"/comments/"+textValue(bobComment, "id")+"/delete", "c-del-001", "", nil), 200, "Comment")
 	if deleted["deleted"] != true || textValue(deleted, "body") != "" {
 		t.Fatalf("soft delete did not tombstone: %v", deleted)
 	}
@@ -94,6 +94,6 @@ func TestCommentsRejectNonMembers(t *testing.T) {
 	id := textValue(task, "id")
 	// carol is not a member of project_demo.
 	f.expect(f.call("carol", "GET", "/tasks/"+id+"/comments", "", "", nil), 404, "")
-	f.expect(f.call("carol", "POST", "/tasks/"+id+"/comments", "cn-post", "", Object{"body": "intruder"}), 404, "")
+	f.expect(f.call("carol", "POST", "/tasks/"+id+"/comments", "cn-post-1", "", Object{"body": "intruder"}), 404, "")
 	f.expect(f.call("", "GET", "/tasks/"+id+"/comments", "", "", nil), 401, "")
 }
