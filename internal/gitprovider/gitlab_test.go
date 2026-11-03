@@ -3,11 +3,14 @@ package gitprovider
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // gitlabStub routes GitLab REST calls to canned responses, asserting the
@@ -139,6 +142,96 @@ func TestNormalizeGitLabShortPathAndFullURL(t *testing.T) {
 		if _, err := NormalizeGitLab(bad); err == nil {
 			t.Fatalf("NormalizeGitLab accepted %q", bad)
 		}
+	}
+}
+
+// TestGitLabLiveFixture is the F6 live acceptance check against the private
+// GitLab fixture repository. With a real read-only token it probes the moving
+// main tip, then probes and fetches sample/context.txt pinned to an immutable
+// commit, asserting sha256:-prefixed digests and non-empty UTF-8 text. With an
+// invalid token it must surface an auth-classified failure that returns no
+// partial content and never echoes the token. It is skipped unless
+// ACCP_GITLAB_TOKEN is set so CI without the secret stays green.
+func TestGitLabLiveFixture(t *testing.T) {
+	token := os.Getenv("ACCP_GITLAB_TOKEN")
+	if token == "" {
+		t.Skip("set ACCP_GITLAB_TOKEN to run the live F6 private GitLab fixture check")
+	}
+	const (
+		repo = "https://gitlab.com/javaweh/accp-sync-fixture"
+		path = "sample/context.txt"
+		sha  = "26fac5d4e8e3b52420b154e5c637f330c2ff313f"
+	)
+	ctx := context.Background()
+	live := &GitLab{Token: token}
+
+	// Scenario 1: probe the moving main tip -> sha256 digest + immutable SHA.
+	tipDigest, tipSHA, err := live.Probe(ctx, repo, "main", "", "")
+	if err != nil {
+		t.Fatalf("probe main tip failed: %v", err)
+	}
+	if !strings.HasPrefix(tipDigest, "sha256:") {
+		t.Fatalf("tip digest not sha256-prefixed: %q", tipDigest)
+	}
+	if !revisionPattern.MatchString(tipSHA) {
+		t.Fatalf("tip SHA not an immutable commit: %q", tipSHA)
+	}
+
+	// Scenario 2: probe the pinned file -> sha256 digest at the pinned commit.
+	probeDigest, probeSHA, err := live.Probe(ctx, repo, "main", path, sha)
+	if err != nil {
+		t.Fatalf("probe pinned file failed: %v", err)
+	}
+	if probeSHA != sha {
+		t.Fatalf("probe did not pin SHA: got %q want %q", probeSHA, sha)
+	}
+	if !strings.HasPrefix(probeDigest, "sha256:") {
+		t.Fatalf("probe digest not sha256-prefixed: %q", probeDigest)
+	}
+
+	// Scenario 3: fetch the pinned file -> non-empty UTF-8 text, matching digest.
+	content, digest, err := live.FetchFile(ctx, repo, path, sha)
+	if err != nil {
+		t.Fatalf("fetch pinned file failed: %v", err)
+	}
+	if content == "" || !utf8.ValidString(content) {
+		t.Fatalf("content empty or not valid UTF-8 (len=%d)", len(content))
+	}
+	if !strings.HasPrefix(digest, "sha256:") {
+		t.Fatalf("fetch digest not sha256-prefixed: %q", digest)
+	}
+	if digest != probeDigest {
+		t.Fatalf("probe/fetch digest disagree: probe=%q fetch=%q", probeDigest, digest)
+	}
+	t.Logf("live fixture pinned digest %s at %s", digest, sha)
+
+	// Scenario 4: invalid token -> auth-classified error, no partial content, no leak.
+	const badToken = "glpat-invalid-token-for-f6"
+	bad := &GitLab{Token: badToken}
+	content, digest, err = bad.FetchFile(ctx, repo, path, sha)
+	if err == nil {
+		t.Fatal("invalid token unexpectedly succeeded")
+	}
+	if content != "" || digest != "" {
+		t.Fatalf("partial content returned on auth failure: content=%q digest=%q", content, digest)
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "authentication") {
+		t.Fatalf("auth failure not readable: %v", err)
+	}
+	if strings.Contains(err.Error(), badToken) {
+		t.Fatal("fetch error message leaked the token")
+	}
+	// Probe must likewise classify the invalid token as AUTH without leaking it.
+	_, _, perr := bad.Probe(ctx, repo, "main", "", "")
+	if perr == nil {
+		t.Fatal("invalid-token probe unexpectedly succeeded")
+	}
+	var pe *ProbeError
+	if !errors.As(perr, &pe) || pe.Code != ProbeAuth {
+		t.Fatalf("probe did not classify invalid token as AUTH: %v", perr)
+	}
+	if strings.Contains(perr.Error(), badToken) {
+		t.Fatal("probe error leaked the token")
 	}
 }
 
