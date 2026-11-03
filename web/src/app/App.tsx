@@ -490,6 +490,7 @@ export function App() {
                             key={taskID}
                             w={workspace}
                             id={taskID}
+                            live={updated}
                             close={() => navigate({ projectID, page: "tasks" })}
                           />
                         ) : (

@@ -4514,6 +4514,42 @@ paths:
           application/json:
             schema:
               $ref: ./schemas/m3.schema.json#/$defs/InvocationRequest
+    get:
+      operationId: m3Listruntooloperations
+      tags:
+        - Governance
+      summary: List run tool operations
+      description: List a Run's tool operations in a read-only, time-ordered projection for reviewers. Authorization and project boundary are checked by the server; UNKNOWN results are never retried here.
+      x-accp-milestone: M3
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Opaque authorized resource ID.
+          schema: *a2
+      responses:
+        "200":
+          description: Operation succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/m3.schema.json#/$defs/InvocationPage
+        "403":
+          description: Current identity or scope is not authorized.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
+        "404":
+          description: Run not found within this organization or project.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./schemas/domain.schema.json#/$defs/Problem
   /projects/{id}/tool-invocations:
     get:
       operationId: m3Listprojecttooloperations

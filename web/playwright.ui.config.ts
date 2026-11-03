@@ -13,6 +13,7 @@ export default defineConfig({
     "audit.spec.ts",
     "gitProviders.spec.ts",
     "comments.spec.ts",
+    "toolTimeline.spec.ts",
   ],
   timeout: 30000,
   workers: 1,

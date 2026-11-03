@@ -10,16 +10,20 @@ import { Button, Badge, Message } from "../ui";
 import { TaskOverviewPanel } from "./TaskOverviewPanel";
 import { TaskEvidencePanel } from "./TaskEvidencePanel";
 import { TaskHistoryPanel } from "./TaskHistoryPanel";
+import { TaskToolTimeline } from "./TaskToolTimeline";
 import { TaskComments } from "./TaskComments";
 import { routePath } from "../routing";
+import { reviewer } from "../workspace/reviewer";
 
 export function TaskDetail({
   w,
   id,
+  live,
   close,
 }: {
   w: Workspace;
   id: string;
+  live?: string;
   close: () => void;
 }) {
   const { translate } = useI18n();
@@ -197,6 +201,9 @@ export function TaskDetail({
                   { id: "overview", name: translate("任务与执行") },
                   { id: "evidence", name: translate("成果与验收") },
                   { id: "history", name: translate("报告与记录") },
+                  ...(reviewer(w)
+                    ? [{ id: "tools", name: translate("工具时间线") }]
+                    : []),
                 ].map((t) => (
                   <Tabs.Tab key={t.id} id={t.id}>
                     {t.name}
@@ -234,6 +241,9 @@ export function TaskDetail({
                 reports={reports}
                 reviews={reviews}
               />
+              {reviewer(w) && (
+                <TaskToolTimeline w={w} runID={run?.id} live={live} />
+              )}
             </Tabs>
           </>
         )}

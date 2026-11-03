@@ -819,4 +819,26 @@ export const enUS = {
   没有可提及的成员: "No members to mention",
   无法加载成员: "Couldn't load members",
   无法提及无效成员: "Can't mention an invalid member",
+  工具时间线: "Tool timeline",
+  工具调用时间线: "Tool invocation timeline",
+  "按时间顺序展示本次运行的工具调用状态，实时更新；此处仅供查看，不包含执行或重试操作。":
+    "A read-only, time-ordered view of this run's tool invocations that updates live; it carries no execute or retry controls.",
+  "未能确认外部执行结果，需人工对账。":
+    "The external result couldn't be confirmed and needs manual reconciliation.",
+  "执行进程中断，结果待核对。":
+    "The execution process was interrupted; the result is unconfirmed.",
+  "授权或绑定在执行前发生变化，操作已取消。":
+    "Authority or binding changed before execution, so the operation was canceled.",
+  尚无执行记录: "No runs yet",
+  "任务开始执行后，这里会显示该运行的工具调用。":
+    "Once the task starts running, its tool invocations appear here.",
+  "下单 {time}": "Requested {time}",
+  "开始 {time}": "Started {time}",
+  "完成 {time}": "Completed {time}",
+  需人工对账: "Needs manual reconciliation",
+  前往审批: "Go to approval",
+  查看关联审批: "View linked approval",
+  本次运行暂无工具调用: "No tool invocations for this run yet",
+  "当代理发起受治理的工具操作后，会按时间顺序出现在这里。":
+    "When the agent requests a governed tool operation, it appears here in order.",
 } satisfies Record<MessageKey, MessageValue>;
