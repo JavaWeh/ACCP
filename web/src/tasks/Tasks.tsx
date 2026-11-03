@@ -16,9 +16,11 @@ import {
 } from "react";
 import { ApiError, type Doc, type Page } from "../api";
 import type { Workspace } from "../main";
-import { Button, Input, Select, Badge, Empty, Message } from "../ui";
+import { Button, Input, Select, Badge, Empty, Message, Checkbox } from "../ui";
 import { columns } from "./constants";
 import { CreateTask } from "./CreateTask";
+import { SavedViews } from "./SavedViews";
+import { BulkTransfer } from "./BulkTransfer";
 import { readRoute } from "../routing";
 import {
   DEFAULT_TASK_LIST_QUERY,
@@ -75,6 +77,8 @@ export function Tasks({
   const [appendError, setAppendError] = useState(false);
   const [cursorWarning, setCursorWarning] = useState(false);
   const [announce, setAnnounce] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
   const focusTitleId = useRef<string | null>(null);
   const requestGen = useRef(0);
   const invalidCursorRetried = useRef(false);
@@ -243,6 +247,22 @@ export function Tasks({
     });
   }, [items, loading]);
 
+  // Filter/sort or project change resets the selection; a plain refresh (same
+  // query object identity) keeps it so bulk retry can target failed items.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [w.project.id, query]);
+
+  // Drop selected ids that are no longer in the loaded list (e.g. after reload).
+  useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      const ids = new Set(items.map((t) => t.id));
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [items]);
+
   const onSortField = (field: SortField) => {
     patchQuery({
       sort: field,
@@ -284,7 +304,23 @@ export function Tasks({
   const showRefreshChrome = refreshing && items.length > 0;
   const appendLoading = loading && intent.mode === "append";
   const canCreate = w.roles.includes("MEMBER") || w.roles.includes("ADMIN");
+  const canBulk = canCreate;
   const filtersOn = hasActiveFilters(query);
+
+  const selectedTasks = items.filter((t) => selected.has(t.id));
+  const allSelected = items.length > 0 && selectedTasks.length === items.length;
+  const someSelected = selectedTasks.length > 0 && !allSelected;
+  const toggleOne = (id: string, on: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const toggleAll = (on: boolean) => {
+    setSelected(on ? new Set(items.map((t) => t.id)) : new Set());
+  };
 
   const ariaSort = (
     field: SortField,
@@ -412,7 +448,31 @@ export function Tasks({
           <ToggleButton id="desc">↓ {translate("降序")}</ToggleButton>
           <ToggleButton id="asc">↑ {translate("升序")}</ToggleButton>
         </ToggleButtonGroup>
+        <div className="ml-auto">
+          <SavedViews
+            w={w}
+            query={query}
+            canSave={canBulk}
+            onApplyView={(search) =>
+              applyQuery(parseTaskListSearch(search).query, "push")
+            }
+          />
+        </div>
       </div>
+
+      {canBulk && selectedTasks.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <span className="text-sm font-medium text-slate-700">
+            {translate("已选择 {count} 项", { count: selectedTasks.length })}
+          </span>
+          <Button variant="primary" onPress={() => setBulkOpen(true)}>
+            {translate("批量移交负责人")}
+          </Button>
+          <Button variant="ghost" onPress={() => toggleAll(false)}>
+            {translate("取消选择")}
+          </Button>
+        </div>
+      )}
 
       {cursorWarning && (
         <Alert role="status" status="warning" className="my-4 break-words">
@@ -520,6 +580,18 @@ export function Tasks({
             <Table.ScrollContainer className="scroll-pt-24">
               <Table.Content aria-label={translate("任务列表")}>
                 <Table.Header>
+                  {canBulk && (
+                    <Table.Column>
+                      <Checkbox
+                        aria-label={translate("全选")}
+                        isSelected={allSelected}
+                        isIndeterminate={someSelected}
+                        onChange={(on: boolean) => toggleAll(on)}
+                      >
+                        <span className="sr-only">{translate("全选")}</span>
+                      </Checkbox>
+                    </Table.Column>
+                  )}
                   <Table.Column isRowHeader aria-sort={ariaSort("title")}>
                     <button
                       type="button"
@@ -556,6 +628,23 @@ export function Tasks({
                 <Table.Body>
                   {items.map((task) => (
                     <Table.Row key={task.id} id={task.id}>
+                      {canBulk && (
+                        <Table.Cell>
+                          <Checkbox
+                            aria-label={translate("选择任务「{title}」", {
+                              title: task.title,
+                            })}
+                            isSelected={selected.has(task.id)}
+                            onChange={(on: boolean) => toggleOne(task.id, on)}
+                          >
+                            <span className="sr-only">
+                              {translate("选择任务「{title}」", {
+                                title: task.title,
+                              })}
+                            </span>
+                          </Checkbox>
+                        </Table.Cell>
+                      )}
                       <Table.Cell>
                         <a
                           id={`task-title-${task.id}`}
@@ -661,6 +750,18 @@ export function Tasks({
           checkList={() => {
             setCreating(false);
             applyQuery({ ...DEFAULT_TASK_LIST_QUERY }, "replace");
+          }}
+        />
+      )}
+
+      {bulkOpen && (
+        <BulkTransfer
+          w={w}
+          tasks={selectedTasks}
+          close={() => setBulkOpen(false)}
+          onApplied={(_succeeded, failed) => {
+            setSelected(new Set(failed));
+            startFirst({ refresh: true });
           }}
         />
       )}

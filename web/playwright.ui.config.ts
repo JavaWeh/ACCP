@@ -14,6 +14,7 @@ export default defineConfig({
     "gitProviders.spec.ts",
     "comments.spec.ts",
     "toolTimeline.spec.ts",
+    "savedViews.spec.ts",
   ],
   timeout: 30000,
   workers: 1,
