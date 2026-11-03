@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-var managementSchemas = []string{"CreateProject", "ProjectChange", "ProjectCommand", "RegisterHuman", "HumanChange", "AddMember", "RegisterRepository", "TestPull", "Project", "Human", "HumanPage", "AuditPage"}
+var managementSchemas = []string{"CreateProject", "ProjectChange", "ProjectCommand", "RegisterHuman", "HumanChange", "AddMember", "RegisterRepository", "TestPull", "Project", "Human", "HumanPage", "AuditPage", "CreateWebhook", "WebhookChange", "Webhook", "WebhookPage"}
 
 func (s *Server) managementRoutes(routes map[string]operation) {
 	for path, op := range map[string]operation{

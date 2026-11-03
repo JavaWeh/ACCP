@@ -16,13 +16,17 @@ GRANT INSERT ON human_users,projects,memberships,repositories,organization_idemp
  context_contents,contexts,context_versions,tasks,task_contexts,idempotency_records,audit_records,outbox_events,
  agents,agent_sessions,assignments,task_dependencies,task_runs,context_snapshots,snapshot_entries,
  artifact_contents,artifacts,run_reports,artifact_reviews,task_reviews,artifact_verifications,tool_policies,tool_invocations,approvals,
- notifications,task_comments TO accp_api;
+ notifications,task_comments,webhook_endpoints TO accp_api;
 -- F3 notifications: mark-read updates read_at. F11 task_comments: edit/soft-delete updates the row.
 -- Neither is granted DELETE (comments soft-delete; notifications age out at read time).
+-- F5 webhook_endpoints: the API creates/changes/rotates/enables and deletes endpoints
+-- (DELETE cascades to webhook_deliveries via the FK, which needs no child DELETE grant).
 GRANT UPDATE ON projects,memberships,organization_idempotency,contexts,context_versions,tasks,idempotency_records,
  outbox_events,agent_sessions,assignments,task_dependencies,task_runs,artifacts,tool_policies,tool_invocations,approvals,
- notifications,task_comments TO accp_api;
-GRANT DELETE ON task_dependencies,task_contexts TO accp_api;
-GRANT INSERT ON audit_records,outbox_events,event_inbox,event_feed,event_failures,worker_health TO accp_worker;
-GRANT UPDATE ON tasks,task_runs,task_dependencies,tool_invocations,approvals,outbox_events,event_failures,worker_health TO accp_worker;
+ notifications,task_comments,webhook_endpoints TO accp_api;
+GRANT DELETE ON task_dependencies,task_contexts,webhook_endpoints TO accp_api;
+GRANT INSERT ON audit_records,outbox_events,event_inbox,event_feed,event_failures,worker_health,webhook_deliveries TO accp_worker;
+-- F5 fan-out advances webhook_endpoints.delivered_sequence; dispatch records
+-- delivery status/backoff on webhook_deliveries.
+GRANT UPDATE ON tasks,task_runs,task_dependencies,tool_invocations,approvals,outbox_events,event_failures,worker_health,webhook_endpoints,webhook_deliveries TO accp_worker;
 GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA accp TO accp_api,accp_worker,accp_bootstrap;

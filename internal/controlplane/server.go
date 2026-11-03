@@ -45,6 +45,15 @@ type Options struct {
 	AuthMode     string
 	OIDCIssuer   string
 	OIDCClientID string
+	// WebhookAllowlist is the operator-configured set of host suffixes an
+	// outbound webhook URL may target (ACCP_WEBHOOK_ALLOWLIST). An empty list
+	// rejects every URL: outbound delivery is unavailable until an operator
+	// supplies a value, which is the safe default per docs/governance.md.
+	WebhookAllowlist []string
+	// WebhookInsecure relaxes the delivery-time private-IP block so integration
+	// tests can POST to a loopback httptest.Server. It is a test seam only and
+	// is never set from configuration or the environment.
+	WebhookInsecure bool
 }
 type request struct {
 	tx                        pgx.Tx
@@ -163,6 +172,7 @@ func New(pool *pgxpool.Pool, authenticator auth.Authenticator, options ...Option
 	s.extendRoutes(routes)
 	s.deliveryRoutes(routes)
 	s.managementRoutes(routes)
+	s.webhookRoutes(routes)
 	s.operationsRoutes(routes)
 	for pattern, op := range routes {
 		s.mux.HandleFunc(pattern, s.handle(op))

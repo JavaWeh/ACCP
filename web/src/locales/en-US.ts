@@ -863,4 +863,36 @@ export const enUS = {
   "将把选中的 {count} 个任务移交给同一位负责人。":
     "The selected {count} tasks will be transferred to the same owner.",
   "移交中…": "Transferring…",
+  Webhook: "Webhooks",
+  "地址被拒绝：仅允许 HTTPS、允许列表内且非内网地址":
+    "Address rejected: only HTTPS hosts on the allowlist that are not internal.",
+  "服务未配置签名密钥，无法创建 webhook":
+    "The server has no signing key configured, so a webhook cannot be created.",
+  "启用或停用 webhook": "Enable or disable the webhook",
+  "已停用该 webhook": "The webhook has been disabled",
+  "已启用该 webhook": "The webhook has been enabled",
+  "已删除该 webhook": "The webhook has been deleted",
+  "此项目还没有配置 webhook": "This project has no webhooks yet",
+  "签名密钥（仅显示一次）": "Signing secret (shown once)",
+  "请立即复制保存；离开后将无法再次查看。":
+    "Copy and store it now; it cannot be shown again after you leave.",
+  我已保存: "I've saved it",
+  "＋ 新建 webhook": "＋ New webhook",
+  "可向允许列表内的 HTTPS 地址推送已签名、已脱敏的事件通知。":
+    "Push signed, redacted event notifications to an HTTPS address on the allowlist.",
+  已启用: "Enabled",
+  最近投递: "Last delivery",
+  尚无投递记录: "No deliveries yet",
+  停用: "Disable",
+  轮换密钥: "Rotate secret",
+  "新建 webhook": "New webhook",
+  请至少选择一个事件类型: "Select at least one event type",
+  "已创建 webhook": "Webhook created",
+  "推送地址（HTTPS）": "Delivery URL (HTTPS)",
+  主机需在运维配置的允许列表内:
+    "The host must be on the operator-configured allowlist",
+  订阅事件: "Subscribed events",
+  需要验收: "Review required",
+  审批已决定: "Approval decided",
+  任务受阻: "Task blocked",
 } satisfies Record<MessageKey, MessageValue>;

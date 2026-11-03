@@ -46,4 +46,7 @@ export const labelKeys: Record<string, MessageKey> = {
   HIGH: "需人工审批",
   PROJECT_STANDARD: "项目规范",
   SUCCESS: "成功",
+  REVIEW_REQUIRED: "需要验收",
+  APPROVAL_DECIDED: "审批已决定",
+  TASK_BLOCKED: "任务受阻",
 };

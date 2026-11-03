@@ -16,10 +16,27 @@ type Execution struct {
 	SessionKeys                                   map[string][]byte
 	ActiveKeyID                                   string
 	PublicURL, NATSURL, NATSToken, EventNamespace string
+	// WebhookAllowlist is the comma-separated set of host suffixes an outbound
+	// webhook URL may target (ACCP_WEBHOOK_ALLOWLIST). Empty disables outbound
+	// delivery: every URL is rejected until an operator opts hosts in.
+	WebhookAllowlist []string
+}
+
+// webhookAllowlist splits a comma-separated host-suffix allowlist, trimming
+// blanks and a leading dot on each entry.
+func webhookAllowlist(raw string) []string {
+	hosts := []string{}
+	for _, part := range strings.Split(raw, ",") {
+		host := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(part), "."))
+		if host != "" {
+			hosts = append(hosts, host)
+		}
+	}
+	return hosts
 }
 
 func LoadExecution() (Execution, error) {
-	c := Execution{PublicURL: strings.TrimRight(os.Getenv("ACCP_PUBLIC_URL"), "/"), NATSURL: os.Getenv("ACCP_NATS_URL"), NATSToken: os.Getenv("ACCP_NATS_TOKEN"), EventNamespace: os.Getenv("ACCP_EVENT_NAMESPACE")}
+	c := Execution{PublicURL: strings.TrimRight(os.Getenv("ACCP_PUBLIC_URL"), "/"), NATSURL: os.Getenv("ACCP_NATS_URL"), NATSToken: os.Getenv("ACCP_NATS_TOKEN"), EventNamespace: os.Getenv("ACCP_EVENT_NAMESPACE"), WebhookAllowlist: webhookAllowlist(os.Getenv("ACCP_WEBHOOK_ALLOWLIST"))}
 	key, err := hex.DecodeString(os.Getenv("ACCP_SESSION_KEY"))
 	if os.Getenv("ACCP_SESSION_KEYS") == "" && (err != nil || len(key) != 32) {
 		return c, fmt.Errorf("ACCP_SESSION_KEY must be a persistent 32-byte key encoded as 64 hex characters")

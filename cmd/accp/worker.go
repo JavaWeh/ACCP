@@ -18,7 +18,7 @@ func work(ctx context.Context, pool *pgxpool.Pool, c config.Execution) error {
 	if err != nil {
 		return err
 	}
-	server, err := controlplane.New(pool, nil, controlplane.Options{SessionKey: c.SessionKey, SessionKeys: c.SessionKeys, ActiveKeyID: c.ActiveKeyID, PublicURL: c.PublicURL, Tools: tools})
+	server, err := controlplane.New(pool, nil, controlplane.Options{SessionKey: c.SessionKey, SessionKeys: c.SessionKeys, ActiveKeyID: c.ActiveKeyID, PublicURL: c.PublicURL, Tools: tools, WebhookAllowlist: c.WebhookAllowlist})
 	if err != nil {
 		return err
 	}
@@ -65,6 +65,12 @@ func work(ctx context.Context, pool *pgxpool.Pool, c config.Execution) error {
 				slog.Warn("tool reconciliation deferred")
 			}
 			toolCancel()
+			hookStep, hookCancel := context.WithTimeout(ctx, 20*time.Second)
+			if err = server.DeliverWebhooks(hookStep); err != nil {
+				healthy = false
+				slog.Warn("webhook delivery deferred")
+			}
+			hookCancel()
 			if healthy {
 				healthCtx, done := context.WithTimeout(ctx, 2*time.Second)
 				_, _ = pool.Exec(healthCtx, `UPDATE worker_health SET governance_at=now() WHERE id='default'`)

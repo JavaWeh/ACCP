@@ -6,10 +6,16 @@ import { OrgAccounts } from "./OrgAccounts";
 import { ForbiddenPage } from "./app/LinkStatus";
 import { ProjectsPanel } from "./ProjectsPanel";
 import { RepositoriesPanel } from "./RepositoriesPanel";
+import { WebhooksPanel } from "./WebhooksPanel";
 import { AuditRecords } from "./workspace/AuditRecords";
 
 type Tab =
-  "settings" | "org-accounts" | "org-audit" | "projects" | "repositories";
+  | "settings"
+  | "org-accounts"
+  | "org-audit"
+  | "projects"
+  | "repositories"
+  | "webhooks";
 
 function readManagementTab(
   isOrgAdmin: boolean,
@@ -22,6 +28,7 @@ function readManagementTab(
   if (tab === "org-audit" && isOrgAdmin) return "org-audit";
   if (tab === "projects" && canProjects) return "projects";
   if (tab === "repositories" && canRepos) return "repositories";
+  if (tab === "webhooks" && canRepos) return "webhooks";
   if (tab === "settings" && canSettings) return "settings";
   if (canProjects && !canSettings) return "projects";
   if (canSettings) return "settings";
@@ -134,6 +141,9 @@ export function Management({
   if (tab === "repositories" && !projectAdmin) {
     return <ForbiddenPage />;
   }
+  if (tab === "webhooks" && !projectAdmin) {
+    return <ForbiddenPage />;
+  }
 
   const reason = (
     <Field label={t("操作原因")}>
@@ -145,6 +155,7 @@ export function Management({
     { id: "settings", label: t("设置"), show: administrator },
     { id: "projects", label: t("项目"), show: canProjects },
     { id: "repositories", label: t("仓库"), show: projectAdmin },
+    { id: "webhooks", label: t("Webhook"), show: projectAdmin },
     { id: "org-accounts", label: t("组织账号"), show: isOrgAdmin },
     { id: "org-audit", label: t("组织审计"), show: isOrgAdmin },
   ];
@@ -191,6 +202,8 @@ export function Management({
             await done();
           }}
         />
+      ) : tab === "webhooks" && project ? (
+        <WebhooksPanel api={api} project={project} />
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="rounded-xl border bg-white p-6">

@@ -102,7 +102,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	handler, err := controlplane.New(pool, verifier, controlplane.Options{SessionKey: execution.SessionKey, SessionKeys: execution.SessionKeys, ActiveKeyID: execution.ActiveKeyID, PublicURL: execution.PublicURL, GitProvider: &gitprovider.GitHub{Token: os.Getenv("ACCP_GITHUB_TOKEN")}, Tools: tools, WebDirectory: os.Getenv("ACCP_WEB_DIR"), AuthMode: cfg.AuthMode, OIDCIssuer: cfg.Issuer, OIDCClientID: cfg.ClientID})
+	handler, err := controlplane.New(pool, verifier, controlplane.Options{SessionKey: execution.SessionKey, SessionKeys: execution.SessionKeys, ActiveKeyID: execution.ActiveKeyID, PublicURL: execution.PublicURL, GitProvider: &gitprovider.GitHub{Token: os.Getenv("ACCP_GITHUB_TOKEN")}, Tools: tools, WebDirectory: os.Getenv("ACCP_WEB_DIR"), AuthMode: cfg.AuthMode, OIDCIssuer: cfg.Issuer, OIDCClientID: cfg.ClientID, WebhookAllowlist: execution.WebhookAllowlist})
 	if err != nil {
 		return fmt.Errorf("contract initialization failed: %w", err)
 	}
