@@ -18,7 +18,7 @@
 
 ACCP（Agent Collaboration Control Plane）是面向研发团队的 AI 协作管理平台。团队在浏览器中管理任务、共享项目资料、审核成果与审批工具操作；Agent 通过 Bridge 接入，领取任务、获取上下文并提交成果。每项任务由人类负责人最终验收。
 
-[快速开始](#快速开始) · [技术栈](#技术栈) · [使用指南](docs/web-console-guide.md) · [私有部署](docs/production-deployment.md) · [接入 Agent](docs/m2-execution.md#使用-local-bridge-和-go-sdk) · [参与贡献](CONTRIBUTING.md) · [开源致谢](#开源致谢)
+[官网](https://accpkit.com) · [快速开始](#快速开始) · [技术栈](#技术栈) · [使用指南](docs/web-console-guide.md) · [私有部署](docs/production-deployment.md) · [接入 Agent](docs/m2-execution.md#使用-local-bridge-和-go-sdk) · [参与贡献](CONTRIBUTING.md) · [开源致谢](#开源致谢)
 
 ## 为什么使用 ACCP
 

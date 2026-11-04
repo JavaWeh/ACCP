@@ -18,7 +18,7 @@
 
 ACCP (Agent Collaboration Control Plane) is an AI collaboration platform for software teams. Teams use the browser to manage tasks, share project context, review deliverables, and approve tool operations. Agents connect through a Bridge to claim tasks, read context, and submit results. A human owner makes the final acceptance decision for every task.
 
-[Quick start](#quick-start) · [Technology stack](#technology-stack) · [Console guide (Chinese)](docs/web-console-guide.md) · [Private deployment (Chinese)](docs/production-deployment.md) · [Connect an agent (Chinese)](docs/m2-execution.md#使用-local-bridge-和-go-sdk) · [Contributing](#contributing) · [Open source acknowledgments](#open-source-acknowledgments)
+[Official site](https://accpkit.com) · [Quick start](#quick-start) · [Technology stack](#technology-stack) · [Console guide (Chinese)](docs/web-console-guide.md) · [Private deployment (Chinese)](docs/production-deployment.md) · [Connect an agent (Chinese)](docs/m2-execution.md#使用-local-bridge-和-go-sdk) · [Contributing](#contributing) · [Open source acknowledgments](#open-source-acknowledgments)
 
 ## Why use ACCP?
 
