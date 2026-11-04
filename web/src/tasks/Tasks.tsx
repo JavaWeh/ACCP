@@ -583,6 +583,7 @@ export function Tasks({
                   {canBulk && (
                     <Table.Column>
                       <Checkbox
+                        slot={null}
                         aria-label={translate("全选")}
                         isSelected={allSelected}
                         isIndeterminate={someSelected}
@@ -631,6 +632,7 @@ export function Tasks({
                       {canBulk && (
                         <Table.Cell>
                           <Checkbox
+                            slot={null}
                             aria-label={translate("选择任务「{title}」", {
                               title: task.title,
                             })}
