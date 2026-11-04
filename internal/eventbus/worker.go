@@ -60,6 +60,18 @@ func New(ctx context.Context, pool *pgxpool.Pool, url, token, namespace string, 
 	return &Worker{pool: pool, nc: nc, js: js, consumer: consumer, validate: validate, subject: subject, consumerID: namespace + "/event_feed"}, nil
 }
 func (w *Worker) Close() { w.nc.Close() }
+
+// Per-tick drain bounds. Processing one outbox row (and one feed message) per
+// 250ms tick caps delivery at ~4/s, so under W0 backlog a specific event waits
+// seconds behind the queue — the measured Event-visibility P95 regression.
+// Draining empties the ready work each tick instead; the advisory locks still
+// serialize relay (1094927185) and feed allocation (1094927186), and the bounds
+// keep a single tick from starving the health write or ctx cancellation.
+const (
+	relayBatchMax   = 256
+	consumeBatchMax = 256
+)
+
 func (w *Worker) Run(ctx context.Context) error {
 	ticker := time.NewTicker(250 * time.Millisecond)
 	lastHealth := time.Time{}
@@ -70,17 +82,19 @@ func (w *Worker) Run(ctx context.Context) error {
 			return nil
 		case <-ticker.C:
 		}
-		step, cancel := context.WithTimeout(ctx, 5*time.Second)
 		healthy := w.nc.IsConnected()
-		if err := w.RelayOne(step); err != nil && ctx.Err() == nil {
+		step, cancel := context.WithTimeout(ctx, 5*time.Second)
+		if err := w.relayBatch(step); err != nil && ctx.Err() == nil {
 			healthy = false
 			slog.Warn("event relay deferred", "error_type", fmt.Sprintf("%T", err))
 		}
 		cancel()
-		if err := w.ConsumeOne(ctx); err != nil && ctx.Err() == nil {
+		step, cancel = context.WithTimeout(ctx, 5*time.Second)
+		if err := w.consumeBatch(step); err != nil && ctx.Err() == nil {
 			healthy = false
 			slog.Warn("event consume deferred", "error_type", fmt.Sprintf("%T", err))
 		}
+		cancel()
 		if healthy && time.Since(lastHealth) > 5*time.Second {
 			healthCtx, done := context.WithTimeout(ctx, 2*time.Second)
 			_, err := w.pool.Exec(healthCtx, `INSERT INTO worker_health(id,event_at) VALUES('default',now()) ON CONFLICT(id) DO UPDATE SET event_at=now()`)
@@ -91,15 +105,58 @@ func (w *Worker) Run(ctx context.Context) error {
 		}
 	}
 }
+
+// relayBatch publishes due outbox rows until none remain, a row defers (backoff
+// or not yet due), or the per-tick budget/deadline is reached. Each row keeps
+// its own transaction and advisory lock, so semantics match a single RelayOne.
+func (w *Worker) relayBatch(ctx context.Context) error {
+	for n := 0; n < relayBatchMax && ctx.Err() == nil; n++ {
+		progressed, err := w.relayOne(ctx)
+		if err != nil {
+			return err
+		}
+		if !progressed {
+			return nil
+		}
+	}
+	return nil
+}
+
+// consumeBatch persists ready feed messages until the stream is drained or the
+// per-tick budget/deadline is reached. It fetches one unacked message at a time,
+// so the consumer's MaxAckPending:1 contract is unchanged.
+func (w *Worker) consumeBatch(ctx context.Context) error {
+	for n := 0; n < consumeBatchMax && ctx.Err() == nil; n++ {
+		progressed, err := w.consumeOne(ctx)
+		if err != nil {
+			return err
+		}
+		if !progressed {
+			return nil
+		}
+	}
+	return nil
+}
+
+// RelayOne publishes a single due outbox row. Retained for integration tests;
+// Run drains via relayBatch.
 func (w *Worker) RelayOne(ctx context.Context) error {
+	_, err := w.relayOne(ctx)
+	return err
+}
+
+// relayOne returns progressed=true only when a row was delivered and committed.
+// A deferred head (empty queue, not-due, backoff, or lost lock) returns false so
+// the batch stops without flagging the worker unhealthy.
+func (w *Worker) relayOne(ctx context.Context) (bool, error) {
 	tx, err := w.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer tx.Rollback(ctx)
 	var locked bool
 	if err = tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(1094927185)`).Scan(&locked); err != nil || !locked {
-		return err
+		return false, err
 	}
 	var id string
 	var data []byte
@@ -107,10 +164,10 @@ func (w *Worker) RelayOne(ctx context.Context) error {
 	var due bool
 	err = tx.QueryRow(ctx, `SELECT id,event,replay_version,attempts,next_attempt_at<=now() FROM outbox_events WHERE delivered_at IS NULL ORDER BY sequence LIMIT 1 FOR UPDATE`).Scan(&id, &data, &replay, &attempt, &due)
 	if err == pgx.ErrNoRows {
-		return nil
+		return false, nil
 	}
 	if err != nil || !due {
-		return err
+		return false, err
 	}
 	_, err = w.js.Publish(ctx, w.subject, data, jetstream.WithMsgID(fmt.Sprintf("%s:%d", id, replay)))
 	if err != nil {
@@ -119,37 +176,54 @@ func (w *Worker) RelayOne(ctx context.Context) error {
 		recordCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 		defer cancel()
 		if _, e := tx.Exec(recordCtx, `UPDATE outbox_events SET attempts=attempts+1,last_error_code='PUBLISH_UNCONFIRMED',next_attempt_at=now()+$2::interval WHERE id=$1`, id, fmt.Sprintf("%f seconds", delay.Seconds())); e != nil {
-			return e
+			return false, e
 		}
-		return tx.Commit(recordCtx)
+		// Head row is now backed off; stop draining this tick without flagging unhealthy.
+		return false, tx.Commit(recordCtx)
 	}
 	_, err = tx.Exec(ctx, `UPDATE outbox_events SET delivered_at=now(),attempts=attempts+1,last_error_code=NULL WHERE id=$1`, id)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return tx.Commit(ctx)
+	if err = tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }
+
+// ConsumeOne persists a single delivered message. Retained for integration
+// tests; Run drains via consumeBatch.
 func (w *Worker) ConsumeOne(ctx context.Context) error {
+	_, err := w.consumeOne(ctx)
+	return err
+}
+
+// consumeOne returns progressed=true when a message was persisted-and-acked or
+// durably recorded-and-terminated. An empty fetch returns false so the batch
+// stops; a Nak returns the error so Run can defer and retry next tick.
+func (w *Worker) consumeOne(ctx context.Context) (bool, error) {
 	batch, err := w.consumer.FetchNoWait(1)
 	if err != nil {
-		return err
+		return false, err
 	}
+	processed := false
 	for msg := range batch.Messages() {
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return false, ctx.Err()
 		}
 		step, cancel := context.WithTimeout(ctx, 5*time.Second)
 		err = w.persist(step, msg.Data())
 		cancel()
 		if err == nil {
 			if err = msg.DoubleAck(ctx); err != nil {
-				return err
+				return false, err
 			}
+			processed = true
 			continue
 		}
 		metadata, e := msg.Metadata()
 		if e != nil {
-			return e
+			return false, e
 		}
 		if metadata.NumDelivered >= 5 {
 			// Failure must be durable before terminating delivery. A DB outage never discards intent.
@@ -158,13 +232,14 @@ func (w *Worker) ConsumeOne(ctx context.Context) error {
 			cancel()
 			if e == nil {
 				_ = msg.Term()
+				processed = true
 				continue
 			}
 		}
 		_ = msg.NakWithDelay(time.Second)
-		return err
+		return false, err
 	}
-	return batch.Error()
+	return processed, batch.Error()
 }
 func (w *Worker) persist(ctx context.Context, data []byte) error {
 	var event map[string]any

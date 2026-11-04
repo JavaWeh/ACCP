@@ -282,6 +282,311 @@ paths:
           $ref: "#/components/responses/Problem"
         "422":
           $ref: "#/components/responses/Problem"
+  /projects/{id}/webhooks:
+    get:
+      operationId: listProjectWebhooks
+      tags:
+        - Identity
+      summary: List outbound webhook endpoints
+      description: >
+        Project ADMIN lists the registered signed webhook endpoints (F5 outbound
+        notifications, v1.2). Each item carries the subscribed event types, enabled
+        state and the latest delivery status; the signing secret is never returned
+        by this list.
+      x-accp-milestone: M7
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID; requires ADMIN membership.
+          schema:
+            type: string
+            minLength: 1
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: A page of webhook endpoints without signing secrets.
+          headers:
+            ETag:
+              description: Quoted resource version when returning a versioned entity.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/management.schema.json#/$defs/WebhookPage
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createProjectWebhook
+      tags:
+        - Identity
+      summary: Register an outbound webhook endpoint
+      description: >
+        Project ADMIN registers a signed HTTPS endpoint (F5 outbound notifications,
+        v1.2). The target URL is validated against the configured allowlist and SSRF
+        rules. The signing secret is generated server-side and echoed in cleartext
+        exactly once in this response; it is never returned again by list or change.
+      x-accp-milestone: M7
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID; requires ADMIN membership.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/management.schema.json#/$defs/CreateWebhook
+      responses:
+        "201":
+          description: The registered webhook, including its signing secret for this response only.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
+            ETag:
+              description: Quoted resource version when applicable.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/management.schema.json#/$defs/Webhook
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /projects/{id}/webhooks/{wid}/changes:
+    post:
+      operationId: changeProjectWebhook
+      tags:
+        - Identity
+      summary: Change an outbound webhook endpoint
+      description: >
+        Project ADMIN updates a webhook's URL, subscribed event types or enabled
+        flag (F5 outbound notifications, v1.2). The current version is checked via
+        If-Match, and a changed URL is re-validated against the allowlist and SSRF
+        rules. The signing secret is never returned.
+      x-accp-milestone: M7
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID; requires ADMIN membership.
+          schema:
+            type: string
+            minLength: 1
+        - name: wid
+          in: path
+          required: true
+          description: Webhook endpoint ID in this project.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/management.schema.json#/$defs/WebhookChange
+      responses:
+        "200":
+          description: The updated webhook endpoint without its signing secret.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
+            ETag:
+              description: Quoted resource version when applicable.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/management.schema.json#/$defs/Webhook
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "412":
+          $ref: "#/components/responses/Problem"
+        "428":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /projects/{id}/webhooks/{wid}/rotate-secret:
+    post:
+      operationId: rotateProjectWebhookSecret
+      tags:
+        - Identity
+      summary: Rotate an outbound webhook signing secret
+      description: >
+        Project ADMIN rotates a webhook's signing secret (F5 outbound notifications,
+        v1.2). A new secret is generated server-side and echoed in cleartext exactly
+        once in this response; the previous secret stops signing immediately.
+      x-accp-milestone: M7
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID; requires ADMIN membership.
+          schema:
+            type: string
+            minLength: 1
+        - name: wid
+          in: path
+          required: true
+          description: Webhook endpoint ID in this project.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: The webhook, including its newly rotated signing secret for this response only.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
+            ETag:
+              description: Quoted resource version when applicable.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/management.schema.json#/$defs/Webhook
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /projects/{id}/webhooks/{wid}/delete:
+    post:
+      operationId: deleteProjectWebhook
+      tags:
+        - Identity
+      summary: Delete an outbound webhook endpoint
+      description: >
+        Project ADMIN unregisters a webhook endpoint (F5 outbound notifications,
+        v1.2). Deletion cascades to the endpoint's pending deliveries. The response
+        is a small tombstone carrying the deleted ID and status.
+      x-accp-milestone: M7
+      x-accp-actors:
+        - HUMAN
+      security:
+        - HumanBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID; requires ADMIN membership.
+          schema:
+            type: string
+            minLength: 1
+        - name: wid
+          in: path
+          required: true
+          description: Webhook endpoint ID in this project.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: The deleted webhook tombstone.
+          headers:
+            Idempotency-Replayed:
+              $ref: "#/components/headers/IdempotencyReplayed"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [DELETED]
+                required:
+                  - id
+                  - status
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        default:
+          $ref: "#/components/responses/Problem"
   /projects/{id}/tasks:
     post:
       operationId: createTask
