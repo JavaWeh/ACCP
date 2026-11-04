@@ -7,7 +7,7 @@ import {
   serializeSavedViews,
   upsertSavedView,
   type SavedView,
-} from "../src/tasks/savedViews";
+} from "../src/tasks/savedViewModel";
 import { bulkSummary, runBulk } from "../src/tasks/bulkActions";
 
 test("parseSavedViews tolerates corruption and drops bad entries", () => {

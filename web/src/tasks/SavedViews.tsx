@@ -14,7 +14,7 @@ import {
   upsertSavedView,
   writeSavedViews,
   type SavedView,
-} from "./savedViews";
+} from "./savedViewModel";
 
 export function SavedViews({
   w,
