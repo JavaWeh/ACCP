@@ -118,5 +118,8 @@ echo '{"id":"task_cafde1d3e90739e179fb3f8dac3c14e8"}' \
 
 ## 8. 验收证据
 
-一次性 CLI 握手 + 只读工具调用的可复跑记录见
-[`.handoff/wave-f9-cli-adapter.md`](../.handoff/wave-f9-cli-adapter.md)。
+一次性 CLI 握手 + 只读工具调用可复跑：
+
+```bash
+scripts/cli-adapter-acceptance.sh   # needs ACCP_URL + ACCP_SESSION_TOKEN + ACCP_ADAPTER_MANIFEST + ACCP_DEMO_TASK_ID
+```
