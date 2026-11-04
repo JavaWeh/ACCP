@@ -27,7 +27,9 @@ test("sortInvocations breaks ties on id and does not mutate input", () => {
 });
 
 test("approvalLink deep-links to the project approval centre (O-W11)", () => {
-  expect(approvalLink("p1", "ap-7")).toBe("/projects/p1/approvals?approval=ap-7");
+  expect(approvalLink("p1", "ap-7")).toBe(
+    "/projects/p1/approvals?approval=ap-7",
+  );
   // Reserved characters in both ids are percent-encoded.
   expect(approvalLink("a/b", "ap/8")).toBe(
     "/projects/a%2Fb/approvals?approval=ap%2F8",

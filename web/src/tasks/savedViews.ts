@@ -34,7 +34,8 @@ export function parseSavedViews(raw: string | null): SavedView[] {
       continue;
     const name = (entry as { name: string }).name.trim();
     if (!name) continue;
-    if (views.some((v) => v.name.toLowerCase() === name.toLowerCase())) continue;
+    if (views.some((v) => v.name.toLowerCase() === name.toLowerCase()))
+      continue;
     views.push({ name, search: (entry as { search: string }).search });
     if (views.length >= MAX_SAVED_VIEWS) break;
   }

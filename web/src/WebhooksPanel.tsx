@@ -18,13 +18,7 @@ import {
 // server maps TASK_BLOCKED to the internal TASK_FAILED event kind.
 const EVENT_TYPES = ["REVIEW_REQUIRED", "APPROVAL_DECIDED", "TASK_BLOCKED"];
 
-export function WebhooksPanel({
-  api,
-  project,
-}: {
-  api: API;
-  project: Doc;
-}) {
+export function WebhooksPanel({ api, project }: { api: API; project: Doc }) {
   const { translate, label } = useI18n();
   const [webhooks, setWebhooks] = useState<Doc[]>([]);
   const [error, setError] = useState<unknown>();
@@ -86,7 +80,9 @@ export function WebhooksPanel({
     );
     if (done) {
       setStatus(
-        hook.enabled ? translate("已停用该 webhook") : translate("已启用该 webhook"),
+        hook.enabled
+          ? translate("已停用该 webhook")
+          : translate("已启用该 webhook"),
       );
       await refresh();
     }

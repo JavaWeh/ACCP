@@ -84,9 +84,7 @@ export function SavedViews({
         }}
       >
         <option value="">
-          {views.length
-            ? translate("选择视图")
-            : translate("没有已保存的视图")}
+          {views.length ? translate("选择视图") : translate("没有已保存的视图")}
         </option>
         {views.map((v) => (
           <option key={v.name} value={v.name}>
@@ -129,11 +127,7 @@ export function SavedViews({
               <Button variant="ghost" onPress={() => setSaving(false)}>
                 {translate("取消")}
               </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                isDisabled={!name.trim()}
-              >
+              <Button type="submit" variant="primary" isDisabled={!name.trim()}>
                 {translate("保存")}
               </Button>
             </div>
