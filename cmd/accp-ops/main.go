@@ -25,7 +25,7 @@ func main() {
 }
 func run() error {
 	if len(os.Args) < 2 {
-		return errors.New("usage: accp-ops keygen|backup|verify-backup|restore|check")
+		return errors.New("usage: accp-ops keygen|backup|verify-backup|restore|check|retention-plan")
 	}
 	action := os.Args[1]
 	f := flag.NewFlagSet(action, flag.ContinueOnError)
@@ -90,6 +90,14 @@ func run() error {
 			return err
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": true, "check": "grants"})
+	case "retention-plan":
+		plan, err := recovery.PlanRetention(ctx, url)
+		if err != nil {
+			return err
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(plan)
 	case "resolve-recovery":
 		return recovery.Resolve(ctx, url, *item, *actor, *reason)
 	case "finish-recovery":
