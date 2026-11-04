@@ -31,7 +31,7 @@ Claude Desktop 1.13576.1（Code / Claude Code 2.1.177）与 Codex CLI 0.153.4 �
 | 接入模式 | 基线声明 | 实际兼容性 |
 | --- | --- | --- |
 | Local Bridge + MCP 客户端 | 人类启动，工具领取与报告，协作取消 | 两个指定版本已完成样例，保留时序限制；不推及全部能力 |
-| CLI Adapter | 进程参数化接入，协议 I/O 转换，显式能力 | 待验证 |
+| CLI Adapter | 进程参数化接入，协议 I/O 转换，显式能力 | 一次性 `accp-bridge call` 样例已验收（握手 + 只读工具，版本/流程限定）；见 [CLI Adapter 指南](cli-adapter.md) |
 | 自动启动、强制终止进程 | 可选能力，不作为所有客户端前提 | 待逐客户端验证 |
 | 集中隔离 Runner | 后续阶段 | MVP 不提供 |
 
